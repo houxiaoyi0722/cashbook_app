@@ -1,0 +1,214 @@
+### 流水管理相关接口
+### 流水分页接口
+# 返回值
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": {
+#        "total": 1,
+#        "data": [
+#            {
+#                "id": 139,
+#                "userId": 3,
+#                "bookId": "3-DD4nQeLb",
+#                "day": "2025-02-28",
+#                "flowType": "支出",
+#                "industryType": "餐饮美食",
+#                "payType": "支付宝",
+#                "money": 34,
+#                "name": "惠粤轩餐厅",
+#                "description": "406410150162905300-",
+#                "invoice": "3-DD4nQeLb-139-1741661927193-1.jpg",
+#                "origin": null,
+#                "attribution": "houxiaoyi",
+#                "eliminate": 0
+#            }
+#        ],
+#        "pages": 1,
+#        "totalIn": 0,
+#        "totalOut": 34,
+#        "notInOut": 0
+#    }
+#}
+POST {{baseurl}}/api/entry/flow/page
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"pageNum":1,"pageSize":20,"moneySort":"","startDay":"2025-03-04","endDay":"2025-03-12","attribution":"111","name":"wa**2","description":"111","flowType":"支出","industryType":"交通出行","payType":"微信","bookId":"1-hU6fqNl6"}
+
+### 新增流水
+# 返回值
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": {
+#        "id": 138,
+#        "userId": 1,
+#        "bookId": "1-hU6fqNl6",
+#        "day": "2025-03-11",
+#        "flowType": "支出",
+#        "industryType": "交通出行",
+#        "payType": "微信",
+#        "money": 0.1,
+#        "name": "测试",
+#        "description": "测试",
+#        "invoice": null,
+#        "origin": null,
+#        "attribution": "测试",
+#        "eliminate": 0
+#    }
+#}
+POST {{baseurl}}/api/entry/flow/add
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"1-hU6fqNl6","day":"2025-03-11","flowType":"支出","industryType":"交通出行","payType":"微信","name":"测试","money":0.1,"description":"测试","attribution":"测试"}
+
+
+### 删除流水
+# 返回值
+
+POST {{baseurl}}/api/entry/flow/del
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+### 编辑流水
+# 返回值
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": {
+#        "id": 4171,
+#        "userId": 18,
+#        "bookId": "18-V9IdV6oS",
+#        "day": "2025-03-12",
+#        "flowType": "支出",
+#        "industryType": "123",
+#        "payType": "123",
+#        "money": 123,
+#        "name": "123",
+#        "description": "123",
+#        "invoice": "",
+#        "origin": null,
+#        "attribution": "123",
+#        "eliminate": 0
+#    }
+#}
+POST {{baseurl}}/api/entry/flow/update
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"id":4171,"day":"2025-03-12","bookId":"18-V9IdV6oS","flowType":"支出","industryType":"123","money":123,"payType":"123","name":"123","description":"123","attribution":"123"}
+
+### 删除流水
+# 返回值
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": {
+#        "id": 4171,
+#        "userId": 18,
+#        "bookId": "18-V9IdV6oS",
+#        "day": "2025-03-12",
+#        "flowType": "支出",
+#        "industryType": "123",
+#        "payType": "123",
+#        "money": 123,
+#        "name": "123",
+#        "description": "123",
+#        "invoice": "",
+#        "origin": null,
+#        "attribution": "123",
+#        "eliminate": 0
+#    }
+#}
+POST {{baseurl}}/api/entry/flow/del
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"id":4171,"bookId":"18-V9IdV6oS"}
+
+### 交易方列表
+# 返回值
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": [
+#        "wa**2",
+#        "ye**店",
+#        "七味酥新中式糕点",
+#        "上海万客迎来餐饮有限公司"
+#    ]
+#}
+POST https://cashbook.sang0722.com:8881/api/entry/flow/getNames
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"3-DD4nQeLb"}
+
+### 归属人列表
+# 返回值
+# {"c":200,"m":"","d":["houxiaoyi"]}
+POST https://cashbook.sang0722.com:8881/api/entry/flow/getAttributions
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"3-DD4nQeLb"}
+
+### 支出类型列表
+# 返回值
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": [
+#        {
+#            "industryType": "交通出行"
+#        }
+#    ]
+#}
+POST https://cashbook.sang0722.com:8881/api/entry/flow/type/getIndustryType
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"flowType":"","bookId":"3-DD4nQeLb"}
+
+### 支付方式列表
+# 返回值
+# {"c":200,"m":"","d":[{"payType":"支付宝"}]}
+POST https://cashbook.sang0722.com:8881/api/entry/flow/type/getPayType
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"flowType":"","bookId":"3-DD4nQeLb"}
+
+### 小票上传
+# {"c":200,"m":""}
+POST https://cashbook.sang0722.com:8881/api/entry/flow/invoice/upload
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundarylpdckq1nSpA5oBPA
+Authorization: {{auth_token}}
+
+------WebKitFormBoundarylpdckq1nSpA5oBPA
+Content-Disposition: form-data; name="id"
+
+139
+------WebKitFormBoundarylpdckq1nSpA5oBPA
+Content-Disposition: form-data; name="bookId"
+
+3-DD4nQeLb
+------WebKitFormBoundarylpdckq1nSpA5oBPA
+Content-Disposition: form-data; name="invoice"; filename="thzip (1).jpg"
+Content-Type: image/jpeg
+
+------WebKitFormBoundarylpdckq1nSpA5oBPA--
+
+### 小票图片展示
+GET https://cashbook.sang0722.com:8881/api/entry/flow/invoice/show?invoice=3-DD4nQeLb-139-1741661927193-1.jpg
+Authorization: {{auth_token}}
+
+### 小票图片删除
+# {"c":200,"m":""}
+GET https://cashbook.sang0722.com:8881/api/entry/flow/invoice/del
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"id":139,"bookId":"3-DD4nQeLb","invoice":"3-DD4nQeLb-139-1741661927193-1.jpg"}

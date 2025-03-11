@@ -1,0 +1,188 @@
+### 数据分析页面相关接口开始
+
+### 流水归属统计
+# 返回值
+#{
+#  "c": 200,
+#  "m": "",
+#  "d": [
+#    {
+#      "type": "未知",
+#      "inSum": 0, 收入
+#      "outSum": 2378.43, 支出
+#      "zeroSum": 0 不计收支
+#    }
+#  ]
+#}
+POST {{baseurl}}/api/entry/analytics/attribution
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"1-hU6fqNl6","flowType":"支出","startDay":"2025-02-01","endDay":"2025-02-11"}
+
+### 每月流水统计
+# 返回值
+#{
+#  "c": 200,
+#  "m": "",
+#  "d": [
+#    {
+#      "type": "2025-02",
+#      "inSum": 1201.6399999999999,
+#      "outSum": 9442.289999999999,
+#      "zeroSum": 4067.3400000000006
+#    }
+#  ]
+#}
+POST {{baseurl}}/api/entry/analytics/month
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"1-hU6fqNl6"}
+
+### 每日流水统计
+# 返回值
+#{
+#  "c": 200,
+#  "m": "",
+#  "d": [
+#    {
+#      "type": "2025-02-01",
+#      "inSum": 0.63,
+#      "outSum": 375.2,
+#      "zeroSum": 0.02
+#    }
+#  ]
+#}
+POST {{baseurl}}/api/entry/analytics/daily
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"1-hU6fqNl6"}
+
+### 支出方式统计
+# 返回值
+#{
+#  "c": 200,
+#  "m": "",
+#  "d": [
+#    {
+#      "type": "微信",
+#      "inSum": 0,
+#      "outSum": 2243.59,
+#      "zeroSum": 0
+#    },
+#    {
+#      "type": "支付宝",
+#      "inSum": 0,
+#      "outSum": 607.6800000000001,
+#      "zeroSum": 0
+#    }
+#  ]
+#}
+POST {{baseurl}}/api/entry/analytics/payType
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"1-hU6fqNl6","flowType":"支出","startDay":"2025-02-10","endDay":"2025-02-18"}
+
+
+### 支出类型统计
+# 返回值
+#{
+#  "c": 200,
+#  "m": "",
+#  "d": [
+#    {
+#      "type": "其他",
+#      "inSum": 1,
+#      "outSum": 0,
+#      "zeroSum": 0
+#    }
+#  ]
+#}
+POST {{baseurl}}/api/entry/analytics/industryType
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"1-hU6fqNl6","flowType":"收入","startDay":"2025-02-01","endDay":"2025-02-14"}
+
+### 当月分析
+# 返回值
+  // Month      string `json:"month"`
+  // OutSum     string `json:"outSum"`     // 总支出
+  // InSum      string `json:"inSum"`      // 总收入
+  // ZeroSum    string `json:"zeroSum"`    // 总不计收支
+  // MaxType    string `json:"maxType"`    // 最大支出类型
+  // MaxTypeSum string `json:"maxTypeSum"` // 最大支出金额
+  // MaxOut     Flow   `json:"maxOut"`     // 最大单笔支出
+  // MaxIn      Flow   `json:"maxIn"`      // 最大单笔收入
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": {
+#        "month": "2025-02",
+#        "inSum": "1201.64",
+#        "outSum": "9442.29",
+#        "zeroSum": "4067.34",
+#        "maxInType": "转账",
+#        "maxInTypeSum": "1000.00",
+#        "maxOutType": "运动户外",
+#        "maxOutTypeSum": "3199.00",
+#        "maxIn": {
+#            "id": 129,
+#            "userId": 1,
+#            "bookId": "1-hU6fqNl6",
+#            "day": "2025-02-10",
+#            "flowType": "收入",
+#            "industryType": "转账",
+#            "payType": "微信",
+#            "money": 1000,
+#            "name": "转账备注:微信转账",
+#            "description": "小义-/-/",
+#            "invoice": null,
+#            "origin": null,
+#            "attribution": null,
+#            "eliminate": 0
+#        },
+#        "maxOut": {
+#            "id": 20,
+#            "userId": 1,
+#            "bookId": "1-hU6fqNl6",
+#            "day": "2025-02-22",
+#            "flowType": "支出",
+#            "industryType": "运动户外",
+#            "payType": "支付宝",
+#            "money": 3199,
+#            "name": "雅迪繁荣东路134号",
+#            "description": "雅迪繁荣东路134号-",
+#            "invoice": null,
+#            "origin": null,
+#            "attribution": null,
+#            "eliminate": 0
+#        },
+#        "maxZero": {
+#            "id": 67,
+#            "userId": 1,
+#            "bookId": "1-hU6fqNl6",
+#            "day": "2025-02-10",
+#            "flowType": "不计收支",
+#            "industryType": "信用借还",
+#            "payType": "支付宝",
+#            "money": 2539.15,
+#            "name": "花呗",
+#            "description": "花呗主动还款-2025年02月账单-",
+#            "invoice": null,
+#            "origin": null,
+#            "attribution": null,
+#            "eliminate": 0
+#        }
+#    }
+#}
+POST {{baseurl}}/api/entry/analytics/monthAnalysis
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"month":"2025-02","bookId":"1-hU6fqNl6"}
+
+

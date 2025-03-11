@@ -1,0 +1,29 @@
+### 登录接口
+# 返回值
+# {
+#  "c": 200,
+#  "m": "",
+#  "d": {
+#    "id": 3,
+#    "name": "test",
+#    "email": "undefined",
+#    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MywibmFtZSI6InRlc3QiLCJlbWFpbCI6InVuZGVmaW5lZCIsImlhdCI6MTc0MTU5MTIyNiwiZXhwIjoxNzQ0MTgzMjI2fQ.AvnhfTUy9WHuY_N7hIMckAfZC0bkBrFhwJGsVSoKOE8"
+#  }
+#}
+POST {{baseurl}}/api/login
+Content-Type: application/json
+
+{
+  "username": "test",
+  "password": "testtest"
+}
+
+> {% client.global.set("auth_token", response.body.d.token); %}
+
+### 更新密码
+# {"c":200,"m":"","d":"更新成功"}
+POST https://cashbook.sang0722.com:8881/api/entry/user/changePassword
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"old":"testtest","new":"testtest","againNew":"testtest"}

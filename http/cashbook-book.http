@@ -1,0 +1,146 @@
+### 账本相关接口
+### 新增账本
+# 返回值
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": {
+#        "id": 2,
+#        "bookId": "1-yiIPBWwU",
+#        "bookName": "test",
+#        "shareKey": null,
+#        "userId": 1,
+#        "createDate": "2025-03-10T08:01:39.662Z"
+#    }
+#}
+POST {{baseurl}}/api/entry/book/add
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookName":"test"}
+
+### 账本列表
+# 返回值
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": [
+#        {
+#            "id": 1,
+#            "bookId": "1-hU6fqNl6",
+#            "bookName": "家庭账本",
+#            "shareKey": null,
+#            "userId": 1,
+#            "createDate": "2025-03-10T07:09:23.596Z"
+#        },
+#        {
+#            "id": 2,
+#            "bookId": "1-yiIPBWwU",
+#            "bookName": "test",
+#            "shareKey": null,
+#            "userId": 1,
+#            "createDate": "2025-03-10T08:01:39.662Z"
+#        }
+#    ]
+#}
+POST {{baseurl}}/api/entry/book/list
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{}
+
+### 账本分页列表
+# 返回值
+#{
+#  "c": 200,
+#  "m": "",
+#  "d": {
+#    "total": 1,
+#    "data": [
+#      {
+#        "id": 3,
+#        "bookId": "3-UBNnnzvK",
+#        "bookName": "test1",
+#        "shareKey": null,
+#        "userId": 3,
+#        "createDate": "2025-03-10T08:06:05.770Z"
+#      }
+#    ],
+#    "pages": 1
+#  }
+#}
+POST {{baseurl}}/api/entry/book/page
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"pageSize":15,"pageNum":1,"name":"1"}
+
+### 更新账本
+# 返回值
+#{
+#  "c": 200,
+#  "m": "",
+#  "d": {
+#    "id": 3,
+#    "bookId": "3-UBNnnzvK",
+#    "bookName": "test1",
+#    "shareKey": null,
+#    "userId": 3,
+#    "createDate": "2025-03-10T08:06:05.770Z"
+#  }
+#}
+POST {{baseurl}}/api/entry/book/update
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"id":3,"bookId":"3-UBNnnzvK","bookName":"test1","shareKey":null,"userId":3,"createDate":"2025-03-10T08:06:05.770Z"}
+
+### 分享账本
+# 返回值
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": {
+#        "id": 3,
+#        "bookId": "3-UBNnnzvK",
+#        "bookName": "test1",
+#        "shareKey": "33jTXQX_1V",
+#        "userId": 3,
+#        "createDate": "2025-03-10T08:06:05.770Z"
+#    }
+#}
+POST {{baseurl}}/api/entry/book/share
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"id":3}
+
+### 删除账本
+# 返回值
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": {
+#        "id": 3,
+#        "bookId": "3-UBNnnzvK",
+#        "bookName": "test1",
+#        "shareKey": "33jTXQX_1V",
+#        "userId": 3,
+#        "createDate": "2025-03-10T08:06:05.770Z"
+#    }
+#}
+POST {{baseurl}}/api/entry/book/del
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"id":3}
+
+### 添加共享账本
+# 返回值
+#{"c":200,"m":""}
+POST {{baseurl}}/api/entry/book/inshare
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"key":"34kwZ0L5fl"}
+
