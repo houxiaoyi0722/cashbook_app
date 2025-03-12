@@ -91,6 +91,7 @@ const BookListScreen: React.FC = () => {
 
     return (
       <ListItem
+        key={item.id}
         containerStyle={[
           styles.bookItem,
           isSelected && styles.selectedBookItem,
@@ -114,7 +115,7 @@ const BookListScreen: React.FC = () => {
           </Text>
         </ListItem.Content>
 
-        <View style={styles.bookActions}>
+        <View style={styles.bookActions} key={item.id}>
           <Button
             type="clear"
             icon={
@@ -214,6 +215,7 @@ const BookListScreen: React.FC = () => {
         icon={
           <Icon
             name="add"
+            type="material"
             color="white"
             size={24}
           />

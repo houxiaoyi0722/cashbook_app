@@ -15,7 +15,7 @@ const ServerFormScreen: React.FC = () => {
   const route = useRoute<RouteProps>();
   const { serverId } = route.params || {};
   const { serverConfigs, saveServerConfig } = useAuth();
-  
+
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [username, setUsername] = useState('');
@@ -41,38 +41,38 @@ const ServerFormScreen: React.FC = () => {
       Alert.alert('错误', '请输入服务器名称');
       return false;
     }
-    
+
     if (!url.trim()) {
       Alert.alert('错误', '请输入服务器地址');
       return false;
     }
-    
+
     // 简单的URL格式验证
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       Alert.alert('错误', '服务器地址必须以http://或https://开头');
       return false;
     }
-    
+
     if (!username.trim()) {
       Alert.alert('错误', '请输入用户名');
       return false;
     }
-    
+
     if (!password.trim()) {
       Alert.alert('错误', '请输入密码');
       return false;
     }
-    
+
     return true;
   };
 
   // 处理保存
   const handleSave = async () => {
     if (!validateForm()) return;
-    
+
     try {
       setIsLoading(true);
-      
+
       const serverConfig: ServerConfig = {
         id: serverId || Date.now().toString(),
         name: name.trim(),
@@ -80,9 +80,9 @@ const ServerFormScreen: React.FC = () => {
         username: username.trim(),
         password: password.trim(),
       };
-      
+
       await saveServerConfig(serverConfig);
-      
+
       Alert.alert(
         '成功',
         serverId ? '服务器配置已更新' : '服务器配置已添加',
@@ -114,7 +114,7 @@ const ServerFormScreen: React.FC = () => {
       <ScrollView>
         <Card containerStyle={styles.card}>
           <Card.Title>{serverId ? '编辑服务器' : '添加服务器'}</Card.Title>
-          
+
           <Input
             label="服务器名称"
             placeholder="请输入服务器名称"
@@ -124,10 +124,10 @@ const ServerFormScreen: React.FC = () => {
             leftIcon={{ type: 'material', name: 'label', color: '#1976d2' }}
             errorMessage={name.trim() ? '' : '服务器名称不能为空'}
           />
-          
+
           <Input
             label="服务器地址"
-            placeholder="请输入服务器地址 (例如: https://example.com)"
+            placeholder="http(s)://domain(:port)"
             value={url}
             onChangeText={setUrl}
             disabled={isLoading}
@@ -136,7 +136,7 @@ const ServerFormScreen: React.FC = () => {
             autoCapitalize="none"
             keyboardType="url"
           />
-          
+
           <Input
             label="用户名"
             placeholder="请输入用户名"
@@ -147,7 +147,7 @@ const ServerFormScreen: React.FC = () => {
             errorMessage={username.trim() ? '' : '用户名不能为空'}
             autoCapitalize="none"
           />
-          
+
           <Input
             label="密码"
             placeholder="请输入密码"
@@ -158,7 +158,7 @@ const ServerFormScreen: React.FC = () => {
             errorMessage={password.trim() ? '' : '密码不能为空'}
             secureTextEntry
           />
-          
+
           <View style={styles.buttonContainer}>
             <Button
               title="取消"
@@ -167,7 +167,7 @@ const ServerFormScreen: React.FC = () => {
               onPress={() => navigation.goBack()}
               disabled={isLoading}
             />
-            
+
             <Button
               title={isLoading ? '保存中...' : '保存'}
               containerStyle={styles.button}
@@ -201,4 +201,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ServerFormScreen; 
+export default ServerFormScreen;
