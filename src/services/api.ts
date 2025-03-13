@@ -164,9 +164,8 @@ class Api {
       notInOut: number;
       data: Flow[];
     }>> => {
-      console.log(params);
       if (!this.instance) throw new Error('API实例未初始化');
-      const response = await this.instance.get<ApiResponse<{
+      const response = await this.instance.post<ApiResponse<{
         total: number;
         pages: number;
         totalIn: number;
@@ -174,7 +173,6 @@ class Api {
         notInOut: number;
         data: Flow[];
       }>>('/api/entry/flow/page', { params });
-      console.log(response);
       return response.data;
     },
 
@@ -188,21 +186,23 @@ class Api {
     // 添加流水
     create: async (data: Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Flow>> => {
       if (!this.instance) throw new Error('API实例未初始化');
-      const response = await this.instance.post<ApiResponse<Flow>>('/api/flow', data);
+      const response = await this.instance.post<ApiResponse<Flow>>('/api/entry/flow/add', data);
       return response.data;
     },
 
     // 更新流水
-    update: async (flowId: number, data: Partial<Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>>): Promise<ApiResponse<Flow>> => {
+    update: async (data: Partial<Omit<Flow, 'createdAt' | 'updatedAt'>>): Promise<ApiResponse<Flow>> => {
       if (!this.instance) throw new Error('API实例未初始化');
-      const response = await this.instance.post<ApiResponse<Flow>>(`/api/flow/${flowId}`, data);
+      const response = await this.instance.post<ApiResponse<Flow>>(`/api/entry/flow/update`, data);
       return response.data;
     },
 
     // 删除流水
-    delete: async (flowId: number): Promise<ApiResponse<void>> => {
+    delete: async (id: number,bookId: string): Promise<ApiResponse<void>> => {
       if (!this.instance) throw new Error('API实例未初始化');
-      const response = await this.instance.post<ApiResponse<void>>(`/api/flow/${flowId}`);
+      const response = await this.instance.post<ApiResponse<void>>(`/api/entry/flow/del`,{
+        id,bookId
+      });
       return response.data;
     },
   };

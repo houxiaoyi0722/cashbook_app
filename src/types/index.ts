@@ -35,7 +35,8 @@ export interface Flow {
   industryType: string;
   payType: string;
   description?: string;
-  flowTime: string;
+  attribution?: string;
+  day: string;
   createdAt: string;
   updatedAt: string;
 }

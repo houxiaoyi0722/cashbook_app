@@ -7,6 +7,7 @@ import moment from 'moment';
 import { MainStackParamList } from '../../navigation/types';
 import { Flow } from '../../types';
 import api from '../../services/api';
+import {useBook} from "../../context/BookContext.tsx";
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowDetail'>;
@@ -15,7 +16,7 @@ const FlowDetailScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { flowId } = route.params;
-  
+  const { currentBook } = useBook();
   const [flow, setFlow] = useState<Flow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -25,7 +26,7 @@ const FlowDetailScreen: React.FC = () => {
       try {
         setIsLoading(true);
         const response = await api.flow.get(flowId);
-        
+
         if (response.c === 200 && response.d) {
           setFlow(response.d);
         } else {
@@ -40,7 +41,7 @@ const FlowDetailScreen: React.FC = () => {
         setIsLoading(false);
       }
     };
-    
+
     fetchFlowDetail();
   }, [flowId, navigation]);
 
@@ -65,8 +66,8 @@ const FlowDetailScreen: React.FC = () => {
           onPress: async () => {
             try {
               setIsLoading(true);
-              const response = await api.flow.delete(flowId);
-              
+              const response = await api.flow.delete(flowId,currentBook?.bookId!);
+
               if (response.c === 200) {
                 Alert.alert('成功', '流水已删除');
                 navigation.goBack();
@@ -134,7 +135,7 @@ const FlowDetailScreen: React.FC = () => {
                 {flow.flowType}
               </Text>
             </View>
-            
+
             <Text
               style={[
                 styles.money,
@@ -145,47 +146,47 @@ const FlowDetailScreen: React.FC = () => {
               {flow.money.toFixed(2)}
             </Text>
           </View>
-          
+
           <Divider style={styles.divider} />
-          
+
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>交易类型</Text>
             <Text style={styles.infoValue}>{flow.industryType}</Text>
           </View>
-          
+
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>支付方式</Text>
             <Text style={styles.infoValue}>{flow.payType}</Text>
           </View>
-          
+
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>交易日期</Text>
             <Text style={styles.infoValue}>
-              {moment(flow.flowTime).format('YYYY-MM-DD HH:mm')}
+              {moment(flow.day).format('YYYY-MM-DD HH:mm')}
             </Text>
           </View>
-          
+
           {flow.description && (
             <View style={styles.descriptionContainer}>
               <Text style={styles.infoLabel}>备注</Text>
               <Text style={styles.description}>{flow.description}</Text>
             </View>
           )}
-          
+
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>创建时间</Text>
             <Text style={styles.infoValue}>
               {moment(flow.createdAt).format('YYYY-MM-DD HH:mm')}
             </Text>
           </View>
-          
+
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>更新时间</Text>
             <Text style={styles.infoValue}>
               {moment(flow.updatedAt).format('YYYY-MM-DD HH:mm')}
             </Text>
           </View>
-          
+
           <View style={styles.buttonContainer}>
             <Button
               title="编辑"
@@ -198,7 +199,7 @@ const FlowDetailScreen: React.FC = () => {
               containerStyle={styles.button}
               onPress={handleEdit}
             />
-            
+
             <Button
               title="删除"
               type="outline"
@@ -294,4 +295,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default FlowDetailScreen; 
+export default FlowDetailScreen;

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, FlatList } from 'react-native';
 import { Text, Card, Button, Icon, FAB, Divider, Overlay } from '@rneui/themed';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
@@ -27,12 +27,17 @@ const CalendarScreen: React.FC = () => {
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [calendarMarks, setCalendarMarks] = useState<CalendarMark>({});
   const [dailyData, setDailyData] = useState<DailyData>({});
+  const [calendarMarks, setCalendarMarks] = useState<CalendarMark>({});
   const [dailyFlows, setDailyFlows] = useState<Flow[]>([]);
   const [dayFlows, setDayFlows] = useState<Flow[]>([]);
   const [showDayDetail, setShowDayDetail] = useState(false);
   const [dayDetailLoading, setDayDetailLoading] = useState(false);
+
+  // 使用 useRef 存储状态
+  const dailyDataRef = useRef<DailyData>({});
+  const calendarMarksRef = useRef<CalendarMark>({});
+  const dailyFlowsRef = useRef<Flow[]>([]);
 
   // 获取月度流水数据
   const fetchMonthlyFlows = useCallback(async () => {
@@ -41,23 +46,21 @@ const CalendarScreen: React.FC = () => {
     try {
       // 获取日历数据
       const { dailyData, calendarMarks } = await fetchCalendarData(currentMonth);
-      setDailyData(dailyData);
+      dailyDataRef.current = dailyData;
+      calendarMarksRef.current = calendarMarks;
+      setDailyData(dailyData); // 仍然更新状态以触发重新渲染
       setCalendarMarks(calendarMarks);
 
       // 获取选中日期的流水
       const flows = await getFlowsByMonth(currentMonth);
-      updateDailyFlows(selectedDate, flows);
+      const dailyFlows = flows.filter(flow => flow.day.startsWith(selectedDate));
+      dailyFlowsRef.current = dailyFlows;
+      setDailyFlows(dailyFlows);
     } catch (error) {
-      console.error('获取月度流水失败', error);
+      console.error('获取月度流水失败', error instanceof Error ? error.message : String(error));
       Alert.alert('错误', '获取月度流水失败');
     }
   }, [currentBook, currentMonth, selectedDate, fetchCalendarData, getFlowsByMonth]);
-
-  // 更新选中日期的流水
-  const updateDailyFlows = useCallback((date: string, flows: Flow[]) => {
-    const dailyFlows = flows.filter(flow => flow.flowTime.startsWith(date));
-    setDailyFlows(dailyFlows);
-  }, []);
 
   // 获取某天的流水详情
   const fetchDayDetail = useCallback(async (date: string) => {
@@ -77,20 +80,29 @@ const CalendarScreen: React.FC = () => {
 
   // 当前账本变化时，重新获取数据
   useEffect(() => {
+    let isMounted = true;
     if (currentBook) {
-      fetchMonthlyFlows();
+      fetchMonthlyFlows().catch(err => {
+        if (isMounted) {
+          console.error('获取月度流水失败', err instanceof Error ? err.message : String(err));
+        }
+      });
     }
+    return () => { isMounted = false; };
   }, [currentBook, fetchMonthlyFlows]);
 
   // 当页面获得焦点时，刷新数据
   useFocusEffect(
     useCallback(() => {
+      let isMounted = true;
       if (currentBook) {
-        fetchMonthlyFlows();
+        fetchMonthlyFlows().catch(err => {
+          if (isMounted) {
+            console.error('获取月度流水失败', err instanceof Error ? err.message : String(err));
+          }
+        });
       }
-      return () => {
-        // 清理函数
-      };
+      return () => { isMounted = false; };
     }, [currentBook, fetchMonthlyFlows])
   );
 
@@ -137,7 +149,15 @@ const CalendarScreen: React.FC = () => {
     }
 
     setCalendarMarks(newMarks);
-  }, [calendarMarks]);
+
+    // 当选择日期时，立即更新该日期的流水
+    getFlowsByMonth(currentMonth).then(flows => {
+      const dailyFlows = flows.filter(flow => flow.day.startsWith(day.dateString));
+      setDailyFlows(dailyFlows);
+    }).catch(error => {
+      console.error('获取流水失败', error instanceof Error ? error.message : String(error));
+    });
+  }, [calendarMarks, currentMonth, getFlowsByMonth]);
 
   // 处理月份变化
   const handleMonthChange = useCallback((month: any) => {

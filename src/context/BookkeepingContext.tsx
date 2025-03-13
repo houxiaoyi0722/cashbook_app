@@ -15,7 +15,7 @@ interface BookkeepingContextType {
   }>;
   fetchDayFlows: (date: string) => Promise<Flow[]>;
   addFlow: (flow: Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Flow>;
-  updateFlow: (flowId: number, data: Partial<Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>>) => Promise<Flow>;
+  updateFlow: (data: Partial<Omit<Flow,'createdAt' | 'updatedAt'>>) => Promise<Flow>;
   deleteFlow: (flowId: number) => Promise<void>;
   getFlowById: (flowId: number) => Promise<Flow>;
 }
@@ -62,7 +62,9 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!currentBook) return { dailyData: {}, calendarMarks: {} };
 
     try {
-      setIsLoading(true);
+      // 注意：这里不设置全局 loading 状态，而是让调用者处理
+      // setIsLoading(true);
+
       // 使用 analytics.daily 替代 calendar API
       const response = await api.analytics.daily(currentBook.bookId);
       const dailyData: DailyData = {};
@@ -89,10 +91,10 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       return { dailyData, calendarMarks };
     } catch (error) {
-      console.error('获取日历数据失败', error);
+      console.error('获取日历数据失败', error instanceof Error ? error.message : String(error));
       return { dailyData: {}, calendarMarks: {} };
     } finally {
-      setIsLoading(false);
+      // setIsLoading(false);
     }
   }, [currentBook]);
 
@@ -138,8 +140,8 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [currentBook]);
 
   // 更新流水记录
-  const updateFlow = useCallback(async (flowId: number, data: Partial<Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Flow> => {
-    const response = await api.flow.update(flowId, data);
+  const updateFlow = useCallback(async (data: Partial<Omit<Flow,'createdAt' | 'updatedAt'>>): Promise<Flow> => {
+    const response = await api.flow.update(data);
 
     if (response.c === 200) {
       return response.d;
@@ -149,7 +151,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // 删除流水记录
   const deleteFlow = useCallback(async (flowId: number): Promise<void> => {
-    const response = await api.flow.delete(flowId);
+    const response = await api.flow.delete(flowId,currentBook?.bookId!);
 
     if (response.c !== 200) {
       throw new Error(response.m);

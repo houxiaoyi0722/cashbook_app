@@ -31,7 +31,7 @@ const FlowFormScreen: React.FC = () => {
   const route = useRoute<RouteProps>();
   const { flowId, date } = route.params || {};
   const { currentBook } = useBook();
-  
+
   const [name, setName] = useState('');
   const [money, setMoney] = useState('');
   const [description, setDescription] = useState('');
@@ -40,10 +40,10 @@ const FlowFormScreen: React.FC = () => {
   const [payType, setPayType] = useState('');
   const [flowDate, setFlowDate] = useState(date ? new Date(date) : new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  
+
   const [industryTypes, setIndustryTypes] = useState<string[]>([]);
   const [payTypes, setPayTypes] = useState<string[]>([]);
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
 
@@ -51,11 +51,11 @@ const FlowFormScreen: React.FC = () => {
   useEffect(() => {
     const fetchFlowDetail = async () => {
       if (!flowId) return;
-      
+
       try {
         setIsFetching(true);
         const response = await api.flow.get(flowId);
-        
+
         if (response.c === 200 && response.d) {
           const flow = response.d;
           setName(flow.name);
@@ -64,7 +64,7 @@ const FlowFormScreen: React.FC = () => {
           setFlowType(flow.flowType);
           setIndustryType(flow.industryType);
           setPayType(flow.payType);
-          setFlowDate(new Date(flow.flowTime));
+          setFlowDate(new Date(flow.day));
         } else {
           Alert.alert('错误', response.m || '获取流水详情失败');
           navigation.goBack();
@@ -77,7 +77,7 @@ const FlowFormScreen: React.FC = () => {
         setIsFetching(false);
       }
     };
-    
+
     fetchFlowDetail();
   }, [flowId, navigation]);
 
@@ -85,11 +85,11 @@ const FlowFormScreen: React.FC = () => {
   useEffect(() => {
     setIndustryTypes(defaultIndustryTypes[flowType]);
     setPayTypes(defaultPayTypes);
-    
+
     if (!industryType || !defaultIndustryTypes[flowType].includes(industryType)) {
       setIndustryType(defaultIndustryTypes[flowType][0]);
     }
-    
+
     if (!payType || !defaultPayTypes.includes(payType)) {
       setPayType(defaultPayTypes[0]);
     }
@@ -101,32 +101,32 @@ const FlowFormScreen: React.FC = () => {
       Alert.alert('错误', '请输入交易名称');
       return false;
     }
-    
+
     if (!money || isNaN(Number(money)) || Number(money) <= 0) {
       Alert.alert('错误', '请输入有效的金额');
       return false;
     }
-    
+
     if (!industryType) {
       Alert.alert('错误', '请选择交易类型');
       return false;
     }
-    
+
     if (!payType) {
       Alert.alert('错误', '请选择支付方式');
       return false;
     }
-    
+
     return true;
   };
 
   // 处理保存
   const handleSave = async () => {
     if (!validateForm() || !currentBook) return;
-    
+
     try {
       setIsLoading(true);
-      
+
       const flowData = {
         bookId: currentBook.id,
         name,
@@ -135,19 +135,19 @@ const FlowFormScreen: React.FC = () => {
         industryType,
         payType,
         description: description.trim() || undefined,
-        flowTime: moment(flowDate).format('YYYY-MM-DD HH:mm:ss'),
+        day: moment(flowDate).format('YYYY-MM-DD'),
       };
-      
+
       if (flowId) {
         // 更新流水
-        await api.flow.update(flowId, flowData);
+        await api.flow.update(flowData);
         Alert.alert('成功', '流水已更新');
       } else {
         // 创建流水
         await api.flow.create(flowData);
         Alert.alert('成功', '流水已创建');
       }
-      
+
       navigation.goBack();
     } catch (error) {
       console.error('保存流水失败', error);
@@ -178,7 +178,7 @@ const FlowFormScreen: React.FC = () => {
       <ScrollView>
         <Card containerStyle={styles.card}>
           <Card.Title>{flowId ? '编辑流水' : '创建流水'}</Card.Title>
-          
+
           <ButtonGroup
             buttons={flowTypeButtons}
             selectedIndex={flowTypes.indexOf(flowType)}
@@ -187,7 +187,7 @@ const FlowFormScreen: React.FC = () => {
             selectedButtonStyle={{ backgroundColor: '#1976d2' }}
             disabled={isLoading}
           />
-          
+
           <Input
             label="交易名称"
             placeholder="请输入交易名称"
@@ -197,7 +197,7 @@ const FlowFormScreen: React.FC = () => {
             leftIcon={{ type: 'material', name: 'shopping-cart', color: '#1976d2' }}
             errorMessage={name.trim() ? '' : '交易名称不能为空'}
           />
-          
+
           <Input
             label="金额"
             placeholder="请输入金额"
@@ -208,7 +208,7 @@ const FlowFormScreen: React.FC = () => {
             leftIcon={{ type: 'material', name: 'attach-money', color: '#1976d2' }}
             errorMessage={money && !isNaN(Number(money)) && Number(money) > 0 ? '' : '请输入有效的金额'}
           />
-          
+
           <Text style={styles.label}>交易类型</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.typeContainer}>
@@ -234,9 +234,9 @@ const FlowFormScreen: React.FC = () => {
               ))}
             </View>
           </ScrollView>
-          
+
           <Divider style={styles.divider} />
-          
+
           <Text style={styles.label}>支付方式</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.typeContainer}>
@@ -262,9 +262,9 @@ const FlowFormScreen: React.FC = () => {
               ))}
             </View>
           </ScrollView>
-          
+
           <Divider style={styles.divider} />
-          
+
           <Text style={styles.label}>交易日期</Text>
           <TouchableOpacity
             style={styles.dateContainer}
@@ -275,7 +275,7 @@ const FlowFormScreen: React.FC = () => {
               {moment(flowDate).format('YYYY-MM-DD')}
             </Text>
           </TouchableOpacity>
-          
+
           {showDatePicker && (
             <DateTimePicker
               value={flowDate}
@@ -284,7 +284,7 @@ const FlowFormScreen: React.FC = () => {
               onChange={handleDateChange}
             />
           )}
-          
+
           <Input
             label="备注（可选）"
             placeholder="请输入备注"
@@ -295,7 +295,7 @@ const FlowFormScreen: React.FC = () => {
             multiline
             numberOfLines={3}
           />
-          
+
           <View style={styles.buttonContainer}>
             <Button
               title="取消"
@@ -304,7 +304,7 @@ const FlowFormScreen: React.FC = () => {
               onPress={() => navigation.goBack()}
               disabled={isLoading}
             />
-            
+
             <Button
               title={isLoading ? '保存中...' : '保存'}
               containerStyle={styles.button}
@@ -392,4 +392,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default FlowFormScreen; 
+export default FlowFormScreen;

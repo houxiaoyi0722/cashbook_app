@@ -16,6 +16,16 @@ type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 const screenWidth = Dimensions.get('window').width;
 
+const getChartColor = (index: number) => {
+  const colors = [
+    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+    '#FF9F40', '#8AC249', '#EA5545', '#F46A9B', '#EF9B20',
+    '#EDBF33', '#87BC45', '#27AEEF', '#B33DC6',
+  ];
+
+  return colors[index % colors.length];
+};
+
 const StatisticsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { currentBook } = useBook();
@@ -48,13 +58,13 @@ const StatisticsScreen: React.FC = () => {
 
         setPreviousMonths(months);
 
-        // 只在初始化时设置当前月份，避免循环依赖
-        if (months.length > 0 && !currentMonth) {
+        // 只在初始化或月份列表变化时设置当前月份
+        if (months.length > 0 && (!currentMonth || !months.includes(currentMonth))) {
           setCurrentMonth(months[0]);
         }
       }
     } catch (error) {
-      console.error('获取月度数据失败', error);
+      console.error('获取月度数据失败', error instanceof Error ? error.message : String(error));
       Alert.alert('错误', '获取月度数据失败');
     } finally {
       setIsLoading(false);
@@ -85,13 +95,16 @@ const StatisticsScreen: React.FC = () => {
     if (!currentBook || !currentMonth) return;
 
     try {
-      // todo
       setIsLoading(true);
+      // 构建查询参数
+      const startDate = `${currentMonth}-01`;
+      const endDate = moment(startDate).endOf('month').format('YYYY-MM-DD');
+      // todo
       const response = await api.analytics.industryType({
         bookId: currentBook.bookId,
         flowType: '',
-        startDay: '',
-        endDay: ''
+        startDay: startDate,
+        endDay: endDate
       });
 
       if (response.c === 200 && response.d) {
@@ -99,7 +112,7 @@ const StatisticsScreen: React.FC = () => {
         const chartData = response.d.map((item: any, index: number) => ({
           name: item.type,
           value: item.sum,
-          color: getChartColor(index),
+          color: getChartColor(index), // 使用外部函数
           legendFontColor: '#7F7F7F',
           legendFontSize: 12,
         }));
@@ -107,7 +120,7 @@ const StatisticsScreen: React.FC = () => {
         setIndustryTypeData(chartData);
       }
     } catch (error) {
-      console.error('获取行业类型数据失败', error);
+      console.error('获取行业类型数据失败', error instanceof Error ? error.message : String(error));
       Alert.alert('错误', '获取行业类型数据失败');
     } finally {
       setIsLoading(false);
@@ -120,12 +133,15 @@ const StatisticsScreen: React.FC = () => {
 
     try {
       setIsLoading(true);
-      // todo
+      // 构建查询参数
+      const startDate = `${currentMonth}-01`;
+      const endDate = moment(startDate).endOf('month').format('YYYY-MM-DD');
+
       const response = await api.analytics.payType({
         bookId: currentBook.bookId,
         flowType: '',
-        startDay: '',
-        endDay: '',
+        startDay: startDate,
+        endDay: endDate,
       });
 
       if (response.c === 200 && response.d) {
@@ -133,7 +149,7 @@ const StatisticsScreen: React.FC = () => {
         const chartData = response.d.map((item: any, index: number) => ({
           name: item.type,
           value: item.sum,
-          color: getChartColor(index + 5), // 使用不同的颜色
+          color: getChartColor(index + 5), // 使用外部函数
           legendFontColor: '#7F7F7F',
           legendFontSize: 12,
         }));
@@ -141,38 +157,45 @@ const StatisticsScreen: React.FC = () => {
         setPayTypeData(chartData);
       }
     } catch (error) {
-      console.error('获取支付方式数据失败', error);
+      console.error('获取支付方式数据失败', error instanceof Error ? error.message : String(error));
       Alert.alert('错误', '获取支付方式数据失败');
     } finally {
       setIsLoading(false);
     }
   }, [currentBook, currentMonth]);
 
-  // 获取图表颜色
-  const getChartColor = (index: number) => {
-    const colors = [
-      '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-      '#FF9F40', '#8AC249', '#EA5545', '#F46A9B', '#EF9B20',
-      '#EDBF33', '#87BC45', '#27AEEF', '#B33DC6',
-    ];
-
-    return colors[index % colors.length];
-  };
-
   // 当前账本变化时，重新获取数据
   useEffect(() => {
+    let isMounted = true;
     if (currentBook) {
-      fetchMonthData();
+      fetchMonthData().catch(err => {
+        if (isMounted) {
+          console.error('获取月度数据失败', err instanceof Error ? err.message : String(err));
+        }
+      });
     }
+    return () => { isMounted = false; };
   }, [currentBook, fetchMonthData]);
 
   // 当前月份变化时，重新获取分析数据
   useEffect(() => {
+    let isMounted = true;
     if (currentBook && currentMonth) {
-      fetchMonthAnalysis();
-      fetchIndustryTypeData();
-      fetchPayTypeData();
+      const fetchData = async () => {
+        try {
+          await fetchMonthAnalysis();
+          if (isMounted) await fetchIndustryTypeData();
+          if (isMounted) await fetchPayTypeData();
+        } catch (err) {
+          if (isMounted) {
+            console.error('获取分析数据失败', err instanceof Error ? err.message : String(err));
+          }
+        }
+      };
+
+      fetchData();
     }
+    return () => { isMounted = false; };
   }, [currentBook, currentMonth, fetchMonthAnalysis, fetchIndustryTypeData, fetchPayTypeData]);
 
   // 处理月份选择

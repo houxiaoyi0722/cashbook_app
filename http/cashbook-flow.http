@@ -75,7 +75,17 @@ POST {{baseurl}}/api/entry/flow/add
 Content-Type: application/json
 Authorization: {{auth_token}}
 
-{"bookId":"1-hU6fqNl6","day":"2025-03-11","flowType":"支出","industryType":"交通出行","payType":"微信","name":"测试","money":0.1,"description":"测试","attribution":"测试"}
+{
+  "bookId": "1-hU6fqNl6",
+  "name": "测试",
+  "money": 0.1,
+  "flowType": "支出",
+  "industryType": "交通出行",
+  "payType": "微信",
+  "description": "测试",
+  "day": "2025-03-11",
+  "attribution": "测试"
+}
 
 
 ### 删除流水
@@ -84,6 +94,8 @@ Authorization: {{auth_token}}
 POST {{baseurl}}/api/entry/flow/del
 Content-Type: application/json
 Authorization: {{auth_token}}
+
+{"id":244,"bookId":"3-DD4nQeLb"}
 
 ### 编辑流水
 # 返回值
