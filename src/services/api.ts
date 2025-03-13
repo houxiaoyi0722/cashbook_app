@@ -161,7 +161,7 @@ class Api {
       const response = await this.instance.get<ApiResponse<{
         total: number;
         data: Flow[];
-      }>>('/api/flow/page', { params });
+      }>>('/api/entry/flow/page', { params });
       return response.data;
     },
 
@@ -218,7 +218,7 @@ class Api {
       zeroSum: number;
     }>>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
-      const response = await this.instance.post(`/api/analytics/daily/${bookId}`);
+      const response = await this.instance.post(`/api/entry/analytics/daily`,{bookId});
       return response.data;
     },
 
