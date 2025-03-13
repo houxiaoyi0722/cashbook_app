@@ -84,7 +84,12 @@ POST {{baseurl}}/api/entry/analytics/payType
 Content-Type: application/json
 Authorization: {{auth_token}}
 
-{"bookId":"1-hU6fqNl6","flowType":"支出","startDay":"2025-02-10","endDay":"2025-02-18"}
+{
+  "bookId": "1-hU6fqNl6",
+  "flowType": "支出",
+  "startDay": "2025-02-10",
+  "endDay": "2025-02-18"
+}
 
 
 ### 支出类型统计
@@ -105,7 +110,12 @@ POST {{baseurl}}/api/entry/analytics/industryType
 Content-Type: application/json
 Authorization: {{auth_token}}
 
-{"bookId":"1-hU6fqNl6","flowType":"收入","startDay":"2025-02-01","endDay":"2025-02-14"}
+{
+  "bookId": "1-hU6fqNl6",
+  "flowType": "收入",
+  "startDay": "2025-02-01",
+  "endDay": "2025-02-14"
+}
 
 ### 当月分析
 # 返回值

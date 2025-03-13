@@ -19,7 +19,7 @@ const screenWidth = Dimensions.get('window').width;
 const StatisticsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { currentBook } = useBook();
-  
+
   const [tabIndex, setTabIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [monthData, setMonthData] = useState<AnalyticsItem[]>([]);
@@ -32,24 +32,24 @@ const StatisticsScreen: React.FC = () => {
   // 获取月度数据
   const fetchMonthData = useCallback(async () => {
     if (!currentBook) return;
-    
+
     try {
       setIsLoading(true);
-      const response = await api.analytics.month(currentBook.id);
-      
+      const response = await api.analytics.month(currentBook.bookId);
+
       if (response.c === 200 && response.d) {
         setMonthData(response.d);
-        
+
         // 提取最近6个月
         const months = response.d
           .map((item: AnalyticsItem) => item.type)
           .sort((a: string, b: string) => b.localeCompare(a))
           .slice(0, 6);
-        
+
         setPreviousMonths(months);
-        
-        // 如果当前月不在数据中，设置为最近的月份
-        if (months.length > 0 && !months.includes(currentMonth)) {
+
+        // 只在初始化时设置当前月份，避免循环依赖
+        if (months.length > 0 && !currentMonth) {
           setCurrentMonth(months[0]);
         }
       }
@@ -59,22 +59,22 @@ const StatisticsScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentBook, currentMonth]);
+  }, [currentBook]);
 
   // 获取月度分析
   const fetchMonthAnalysis = useCallback(async () => {
     if (!currentBook || !currentMonth) return;
-    
+
     try {
       setIsLoading(true);
-      const response = await api.analytics.monthAnalysis(currentMonth, currentBook.id);
-      
+      const response = await api.analytics.monthAnalysis(currentMonth, currentBook.bookId);
+
       if (response.c === 200 && response.d) {
         setMonthAnalysis(response.d);
       }
     } catch (error) {
-      console.error('获取月度分析失败', error);
-      Alert.alert('错误', '获取月度分析失败');
+      console.error('获取当月分析失败', error);
+      Alert.alert('错误', '获取当月分析失败');
     } finally {
       setIsLoading(false);
     }
@@ -83,14 +83,17 @@ const StatisticsScreen: React.FC = () => {
   // 获取行业类型数据
   const fetchIndustryTypeData = useCallback(async () => {
     if (!currentBook || !currentMonth) return;
-    
+
     try {
+      // todo
       setIsLoading(true);
       const response = await api.analytics.industryType({
-        month: currentMonth,
-        bookId: currentBook.id,
+        bookId: currentBook.bookId,
+        flowType: '',
+        startDay: '',
+        endDay: ''
       });
-      
+
       if (response.c === 200 && response.d) {
         // 转换为图表数据格式
         const chartData = response.d.map((item: any, index: number) => ({
@@ -100,7 +103,7 @@ const StatisticsScreen: React.FC = () => {
           legendFontColor: '#7F7F7F',
           legendFontSize: 12,
         }));
-        
+
         setIndustryTypeData(chartData);
       }
     } catch (error) {
@@ -114,14 +117,17 @@ const StatisticsScreen: React.FC = () => {
   // 获取支付方式数据
   const fetchPayTypeData = useCallback(async () => {
     if (!currentBook || !currentMonth) return;
-    
+
     try {
       setIsLoading(true);
+      // todo
       const response = await api.analytics.payType({
-        month: currentMonth,
-        bookId: currentBook.id,
+        bookId: currentBook.bookId,
+        flowType: '',
+        startDay: '',
+        endDay: '',
       });
-      
+
       if (response.c === 200 && response.d) {
         // 转换为图表数据格式
         const chartData = response.d.map((item: any, index: number) => ({
@@ -131,7 +137,7 @@ const StatisticsScreen: React.FC = () => {
           legendFontColor: '#7F7F7F',
           legendFontSize: 12,
         }));
-        
+
         setPayTypeData(chartData);
       }
     } catch (error) {
@@ -149,7 +155,7 @@ const StatisticsScreen: React.FC = () => {
       '#FF9F40', '#8AC249', '#EA5545', '#F46A9B', '#EF9B20',
       '#EDBF33', '#87BC45', '#27AEEF', '#B33DC6',
     ];
-    
+
     return colors[index % colors.length];
   };
 
@@ -211,11 +217,11 @@ const StatisticsScreen: React.FC = () => {
   // 渲染月度概览
   const renderMonthOverview = () => {
     if (!monthAnalysis) return null;
-    
+
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>{currentMonth} 月度概览</Card.Title>
-        
+
         <View style={styles.overviewRow}>
           <View style={styles.overviewItem}>
             <Text style={styles.overviewLabel}>收入</Text>
@@ -223,14 +229,14 @@ const StatisticsScreen: React.FC = () => {
               {monthAnalysis.inSum}
             </Text>
           </View>
-          
+
           <View style={styles.overviewItem}>
             <Text style={styles.overviewLabel}>支出</Text>
             <Text style={[styles.overviewValue, { color: '#f44336' }]}>
               {monthAnalysis.outSum}
             </Text>
           </View>
-          
+
           <View style={styles.overviewItem}>
             <Text style={styles.overviewLabel}>不计收支</Text>
             <Text style={styles.overviewValue}>
@@ -238,9 +244,9 @@ const StatisticsScreen: React.FC = () => {
             </Text>
           </View>
         </View>
-        
+
         <Divider style={styles.divider} />
-        
+
         <View style={styles.maxItemContainer}>
           <Text style={styles.maxItemTitle}>最大收入</Text>
           <TouchableOpacity
@@ -255,7 +261,7 @@ const StatisticsScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
         </View>
-        
+
         <View style={styles.maxItemContainer}>
           <Text style={styles.maxItemTitle}>最大支出</Text>
           <TouchableOpacity
@@ -270,7 +276,7 @@ const StatisticsScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
         </View>
-        
+
         <View style={styles.maxItemContainer}>
           <Text style={styles.maxItemTitle}>最大不计收支</Text>
           <TouchableOpacity
@@ -299,11 +305,11 @@ const StatisticsScreen: React.FC = () => {
         </Card>
       );
     }
-    
+
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>支出类型分析</Card.Title>
-        
+
         <View style={styles.chartContainer}>
           <PieChart
             data={industryTypeData}
@@ -321,7 +327,7 @@ const StatisticsScreen: React.FC = () => {
             absolute
           />
         </View>
-        
+
         <View style={styles.legendContainer}>
           {industryTypeData.map((item, index) => (
             <View key={index} style={styles.legendItem}>
@@ -346,11 +352,11 @@ const StatisticsScreen: React.FC = () => {
         </Card>
       );
     }
-    
+
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>支付方式分析</Card.Title>
-        
+
         <View style={styles.chartContainer}>
           <PieChart
             data={payTypeData}
@@ -368,7 +374,7 @@ const StatisticsScreen: React.FC = () => {
             absolute
           />
         </View>
-        
+
         <View style={styles.legendContainer}>
           {payTypeData.map((item, index) => (
             <View key={index} style={styles.legendItem}>
@@ -393,23 +399,23 @@ const StatisticsScreen: React.FC = () => {
         </Card>
       );
     }
-    
+
     // 准备图表数据
     const labels = monthData
       .slice(0, 6)
       .sort((a, b) => a.type.localeCompare(b.type))
       .map(item => item.type.substring(5)); // 只显示月份
-    
+
     const inData = monthData
       .slice(0, 6)
       .sort((a, b) => a.type.localeCompare(b.type))
       .map(item => item.inSum);
-    
+
     const outData = monthData
       .slice(0, 6)
       .sort((a, b) => a.type.localeCompare(b.type))
       .map(item => item.outSum);
-    
+
     const chartData = {
       labels,
       datasets: [
@@ -426,11 +432,11 @@ const StatisticsScreen: React.FC = () => {
       ],
       legend: ['收入', '支出'],
     };
-    
+
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>月度趋势</Card.Title>
-        
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <BarChart
             data={chartData}
@@ -480,9 +486,9 @@ const StatisticsScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <BookSelector />
-      
+
       {renderMonthSelector()}
-      
+
       <Tab
         value={tabIndex}
         onChange={setTabIndex}
@@ -504,7 +510,7 @@ const StatisticsScreen: React.FC = () => {
           containerStyle={styles.tabContainer}
         />
       </Tab>
-      
+
       <TabView value={tabIndex} onChange={setTabIndex} animationType="spring">
         <TabView.Item style={styles.tabViewItem}>
           {isLoading ? (
@@ -515,7 +521,7 @@ const StatisticsScreen: React.FC = () => {
             </ScrollView>
           )}
         </TabView.Item>
-        
+
         <TabView.Item style={styles.tabViewItem}>
           {isLoading ? (
             <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
@@ -526,7 +532,7 @@ const StatisticsScreen: React.FC = () => {
             </ScrollView>
           )}
         </TabView.Item>
-        
+
         <TabView.Item style={styles.tabViewItem}>
           {isLoading ? (
             <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
@@ -671,4 +677,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default StatisticsScreen; 
+export default StatisticsScreen;

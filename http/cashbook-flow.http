@@ -34,7 +34,20 @@ POST {{baseurl}}/api/entry/flow/page
 Content-Type: application/json
 Authorization: {{auth_token}}
 
-{"pageNum":1,"pageSize":20,"moneySort":"","startDay":"2025-03-04","endDay":"2025-03-12","attribution":"111","name":"wa**2","description":"111","flowType":"支出","industryType":"交通出行","payType":"微信","bookId":"1-hU6fqNl6"}
+{
+  "pageNum": 1,
+  "pageSize": 20,
+  "bookId": "1-hU6fqNl6",
+  "startDay": "2025-03-04",
+  "endDay": "2025-03-12",
+  "flowType": "支出",
+  "industryType": "交通出行",
+  "payType": "微信",
+  "moneySort": "",
+  "attribution": "111",
+  "name": "wa**2",
+  "description": "111"
+}
 
 ### 新增流水
 # 返回值

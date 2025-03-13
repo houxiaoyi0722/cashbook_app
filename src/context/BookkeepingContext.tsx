@@ -31,26 +31,26 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // 获取指定月份的流水记录
   const getFlowsByMonth = useCallback(async (month: string): Promise<Flow[]> => {
     if (!currentBook) return [];
-    
+
     try {
       setIsLoading(true);
       const startDate = `${month}-01`;
       const endDate = moment(startDate).endOf('month').format('YYYY-MM-DD');
-      
+
       const response = await api.flow.page({
-        bookId: currentBook.id,
+        bookId: currentBook.bookId,
         pageNum: 1,
-        pageSize: 1000,
+        pageSize: 20,
         startDay: startDate,
         endDay: endDate,
       });
-      
+
       if (response.c === 200 && response.d) {
         return response.d.data;
       }
       return [];
     } catch (error) {
-      console.error('获取月度流水失败', error);
+      console.error('获取流水失败', error);
       return [];
     } finally {
       setIsLoading(false);
@@ -60,15 +60,14 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // 获取日历数据
   const fetchCalendarData = useCallback(async (month: string) => {
     if (!currentBook) return { dailyData: {}, calendarMarks: {} };
-    
+
     try {
       setIsLoading(true);
       // 使用 analytics.daily 替代 calendar API
-      const response = await api.analytics.daily(currentBook.id);
-      
+      const response = await api.analytics.daily(currentBook.bookId);
       const dailyData: DailyData = {};
       const calendarMarks: CalendarMark = {};
-      
+
       if (response.c === 200 && response.d) {
         response.d.forEach((item: AnalyticsItem) => {
           const date = item.type;
@@ -79,7 +78,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
               outSum: item.outSum,
               zeroSum: item.zeroSum,
             };
-            
+
             calendarMarks[date] = {
               marked: true,
               dotColor: item.outSum > 0 ? '#f44336' : '#4caf50',
@@ -87,7 +86,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
           }
         });
       }
-      
+
       return { dailyData, calendarMarks };
     } catch (error) {
       console.error('获取日历数据失败', error);
@@ -100,17 +99,17 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // 获取某天的流水记录
   const fetchDayFlows = useCallback(async (date: string): Promise<Flow[]> => {
     if (!currentBook) return [];
-    
+
     try {
       setIsLoading(true);
       const response = await api.flow.page({
-        bookId: currentBook.id,
+        bookId: currentBook.bookId,
         pageNum: 1,
         pageSize: 100,
         startDay: date,
         endDay: date,
       });
-      
+
       if (response.c === 200 && response.d) {
         return response.d.data;
       }
@@ -126,12 +125,12 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // 添加流水记录
   const addFlow = useCallback(async (flow: Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>): Promise<Flow> => {
     if (!currentBook) throw new Error('未选择账本');
-    
+
     const response = await api.flow.create({
       ...flow,
       bookId: currentBook.id,
     });
-    
+
     if (response.c === 200) {
       return response.d;
     }
@@ -141,7 +140,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // 更新流水记录
   const updateFlow = useCallback(async (flowId: number, data: Partial<Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Flow> => {
     const response = await api.flow.update(flowId, data);
-    
+
     if (response.c === 200) {
       return response.d;
     }
@@ -151,7 +150,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // 删除流水记录
   const deleteFlow = useCallback(async (flowId: number): Promise<void> => {
     const response = await api.flow.delete(flowId);
-    
+
     if (response.c !== 200) {
       throw new Error(response.m);
     }
@@ -160,7 +159,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // 获取流水记录详情
   const getFlowById = useCallback(async (flowId: number): Promise<Flow> => {
     const response = await api.flow.get(flowId);
-    
+
     if (response.c === 200) {
       return response.d;
     }
@@ -193,4 +192,4 @@ export const useBookkeeping = () => {
     throw new Error('useBookkeeping必须在BookkeepingProvider内部使用');
   }
   return context;
-}; 
+};

@@ -146,22 +146,35 @@ class Api {
     page: async (params: {
       pageNum: number;
       pageSize: number;
-      bookId: number;
+      bookId: string;
       startDay?: string;
       endDay?: string;
       flowType?: string;
       industryType?: string;
       payType?: string;
-      keyword?: string;
+      moneySort?: string;
+      attribution?: string;
+      name?: string;
+      description?: string;
     }): Promise<ApiResponse<{
       total: number;
+      pages: number;
+      totalIn: number;
+      totalOut: number;
+      notInOut: number;
       data: Flow[];
     }>> => {
+      console.log(params);
       if (!this.instance) throw new Error('API实例未初始化');
       const response = await this.instance.get<ApiResponse<{
         total: number;
+        pages: number;
+        totalIn: number;
+        totalOut: number;
+        notInOut: number;
         data: Flow[];
       }>>('/api/entry/flow/page', { params });
+      console.log(response);
       return response.data;
     },
 
@@ -204,14 +217,14 @@ class Api {
     },
 
     // 每月流水统计
-    month: async (bookId: number): Promise<ApiResponse<AnalyticsItem[]>> => {
+    month: async (bookId: string): Promise<ApiResponse<AnalyticsItem[]>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
-      const response = await this.instance.post(`/api/analytics/month/${bookId}`);
+      const response = await this.instance.post(`/api/entry/analytics/month`,{bookId});
       return response.data;
     },
 
     // 每日流水统计
-    daily: async (bookId: number): Promise<ApiResponse<Array<{
+    daily: async (bookId: string): Promise<ApiResponse<Array<{
       type: string;
       inSum: number;
       outSum: number;
@@ -223,29 +236,43 @@ class Api {
     },
 
     // 支付方式统计
-    payType: async (params: { month: string; bookId: number }): Promise<ApiResponse<Array<{
+    payType: async (params: {
+      bookId: string;
+      flowType: string;
+      startDay: string;
+      endDay: string;
+    }): Promise<ApiResponse<Array<{
       type: string;
-      sum: number;
+      inSum: number;
+      outSum: number;
+      zeroSum: number;
     }>>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
-      const response = await this.instance.post(`/api/analytics/payType`, { params });
+      const response = await this.instance.post(`/api/entry/analytics/payType`, { params });
       return response.data;
     },
 
     // 支出类型统计
-    industryType: async (params: { month: string; bookId: number }): Promise<ApiResponse<Array<{
+    industryType: async (params: {
+      bookId: string;
+      flowType: string;
+      startDay: string;
+      endDay: string;
+    }): Promise<ApiResponse<Array<{
       type: string;
-      sum: number;
+      inSum: number;
+      outSum: number;
+      zeroSum: number;
     }>>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
-      const response = await this.instance.post(`/api/analytics/industryType`, { params });
+      const response = await this.instance.post(`/api/entry/analytics/industryType`, { params });
       return response.data;
     },
 
     // 当月分析
-    monthAnalysis: async (month: string, bookId: number): Promise<ApiResponse<MonthAnalysis>> => {
+    monthAnalysis: async (month: string, bookId: string): Promise<ApiResponse<MonthAnalysis>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
-      const response = await this.instance.post(`/api/analytics/monthAnalysis`, {
+      const response = await this.instance.post(`/api/entry/analytics/monthAnalysis`, {
         params: { month, bookId }
       });
       return response.data;
