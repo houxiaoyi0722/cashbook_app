@@ -1,13 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { Book } from '../types';
 import api from '../services/api';
+import {useBookkeeping} from "./BookkeepingContext.tsx";
 
 interface BookContextType {
   currentBook: Book | null;
   books: Book[];
   isLoading: boolean;
-  setCurrentBook: (book: Book | null) => Promise<void>;
   fetchBooks: () => Promise<void>;
   createBook: (data: string) => Promise<Book>;
   shareBook: (id: number | undefined) => Promise<Book>;
@@ -17,41 +16,12 @@ interface BookContextType {
 
 const BookContext = createContext<BookContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'current_book';
 
 export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentBook, setCurrentBook] = useState<Book | null>(null);
+  const { currentBook } = useBookkeeping();
+
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    // 从本地存储加载当前账本
-    const loadCurrentBook = async () => {
-      try {
-        const savedBook = await AsyncStorage.getItem(STORAGE_KEY);
-        if (savedBook) {
-          setCurrentBook(JSON.parse(savedBook));
-        }
-      } catch (error) {
-        console.error('加载当前账本失败', error);
-      }
-    };
-
-    loadCurrentBook();
-  }, []);
-
-  const handleSetCurrentBook = useCallback(async (book: Book | null) => {
-    try {
-      if (book) {
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(book));
-      } else {
-        await AsyncStorage.removeItem(STORAGE_KEY);
-      }
-      setCurrentBook(book);
-    } catch (error) {
-      console.error('保存当前账本失败', error);
-    }
-  }, []);
 
   const fetchBooks = useCallback(async () => {
     try {
@@ -90,25 +60,19 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const response = await api.book.update(data);
     if (response.c === 200) {
       await fetchBooks();
-      // if (currentBook?.bookId === bookId) {
-      //   await handleSetCurrentBook(response.d);
-      // }
       return response.d;
     }
     throw new Error(response.m);
-  }, [fetchBooks, currentBook, handleSetCurrentBook]);
+  }, [fetchBooks, currentBook]);
 
   const deleteBook = useCallback(async (bookId: number) => {
     const response = await api.book.delete(bookId);
     if (response.c === 200) {
       await fetchBooks();
-      if (currentBook?.id === bookId) {
-        await handleSetCurrentBook(null);
-      }
       return;
     }
     throw new Error(response.m);
-  }, [fetchBooks, currentBook, handleSetCurrentBook]);
+  }, [fetchBooks]);
 
   return (
     <BookContext.Provider
@@ -116,7 +80,6 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentBook,
         books,
         isLoading,
-        setCurrentBook: handleSetCurrentBook,
         fetchBooks,
         createBook,
         shareBook,

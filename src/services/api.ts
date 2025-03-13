@@ -172,7 +172,7 @@ class Api {
         totalOut: number;
         notInOut: number;
         data: Flow[];
-      }>>('/api/entry/flow/page', { params });
+      }>>('/api/entry/flow/page', params);
       return response.data;
     },
 

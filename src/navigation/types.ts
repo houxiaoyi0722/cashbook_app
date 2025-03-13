@@ -1,11 +1,14 @@
+import {Flow} from "../types";
+
 export type MainStackParamList = {
   MainTabs: undefined;
   FlowForm: {
     flowId?: number;
     date?: string;
+    currentFlow?: Flow;
   };
   FlowDetail: {
-    flowId: number;
+    currentFlow: Flow;
   };
   BookForm: {
     bookId?: string;

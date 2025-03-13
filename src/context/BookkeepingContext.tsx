@@ -1,14 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Book, Flow, DailyData, CalendarMark, ApiResponse, PageResponse, AnalyticsItem } from '../types';
-import { useBook } from './BookContext';
+import React, {createContext, useContext, useState, useCallback, useEffect} from 'react';
+import { Book, Flow, DailyData, CalendarMark, AnalyticsItem } from '../types';
 import api from '../services/api';
 import moment from 'moment';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 // 记账上下文类型
 interface BookkeepingContextType {
   isLoading: boolean;
   currentBook: Book | null;
   getFlowsByMonth: (month: string) => Promise<Flow[]>;
+  updateCurrentBook: (currentBook: Book) => Promise<void>;
   fetchCalendarData: (month: string) => Promise<{
     dailyData: DailyData;
     calendarMarks: CalendarMark;
@@ -22,11 +24,36 @@ interface BookkeepingContextType {
 
 // 创建记账上下文
 const BookkeepingContext = createContext<BookkeepingContextType | undefined>(undefined);
+const STORAGE_KEY = 'current_book';
 
 // 记账上下文提供者
 export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentBook } = useBook();
+  const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+
+  useEffect(() => {
+    // 从本地存储加载当前账本
+    const loadCurrentBook = async () => {
+      try {
+        const savedBook = await AsyncStorage.getItem(STORAGE_KEY);
+        if (savedBook) {
+          setCurrentBook(JSON.parse(savedBook));
+        }
+      } catch (error) {
+        console.error('加载当前账本失败', error);
+      }
+    };
+
+    loadCurrentBook();
+  }, [setCurrentBook]);
+  // 更新当前账本
+  const updateCurrentBook = useCallback(async (currentBook: Book): Promise<any> => {
+    if (currentBook) {
+      await AsyncStorage.setItem(STORAGE_KEY,JSON.stringify(currentBook));
+      setCurrentBook(currentBook);
+    }
+  },[setCurrentBook]);
 
   // 获取指定月份的流水记录
   const getFlowsByMonth = useCallback(async (month: string): Promise<Flow[]> => {
@@ -40,7 +67,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const response = await api.flow.page({
         bookId: currentBook.bookId,
         pageNum: 1,
-        pageSize: 20,
+        pageSize: 100,
         startDay: startDate,
         endDay: endDate,
       });
@@ -50,7 +77,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       return [];
     } catch (error) {
-      console.error('获取流水失败', error);
+      console.error('获取流水失败', error instanceof Error ? error.message : String(error));
       return [];
     } finally {
       setIsLoading(false);
@@ -111,7 +138,6 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         startDay: date,
         endDay: date,
       });
-
       if (response.c === 200 && response.d) {
         return response.d.data;
       }
@@ -173,6 +199,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
       value={{
         isLoading,
         currentBook,
+        updateCurrentBook,
         getFlowsByMonth,
         fetchCalendarData,
         fetchDayFlows,

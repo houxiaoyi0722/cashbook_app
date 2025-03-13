@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { Text, Card, Button, Icon, Divider } from '@rneui/themed';
+import { View, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Text, Card, Button, Divider } from '@rneui/themed';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import moment from 'moment';
 import { MainStackParamList } from '../../navigation/types';
 import { Flow } from '../../types';
 import api from '../../services/api';
-import {useBook} from "../../context/BookContext.tsx";
+import {useBook} from '../../context/BookContext.tsx';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowDetail'>;
@@ -15,7 +15,7 @@ type RouteProps = RouteProp<MainStackParamList, 'FlowDetail'>;
 const FlowDetailScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
-  const { flowId } = route.params;
+  const { currentFlow } = route.params;
   const { currentBook } = useBook();
   const [flow, setFlow] = useState<Flow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,14 +25,7 @@ const FlowDetailScreen: React.FC = () => {
     const fetchFlowDetail = async () => {
       try {
         setIsLoading(true);
-        const response = await api.flow.get(flowId);
-
-        if (response.c === 200 && response.d) {
-          setFlow(response.d);
-        } else {
-          Alert.alert('错误', response.m || '获取流水详情失败');
-          navigation.goBack();
-        }
+        setFlow(currentFlow);
       } catch (error) {
         console.error('获取流水详情失败', error);
         Alert.alert('错误', '获取流水详情失败');
@@ -41,13 +34,12 @@ const FlowDetailScreen: React.FC = () => {
         setIsLoading(false);
       }
     };
-
     fetchFlowDetail();
-  }, [flowId, navigation]);
+  }, [currentFlow, navigation]);
 
   // 处理编辑流水
   const handleEdit = () => {
-    navigation.navigate('FlowForm', { flowId });
+    navigation.navigate('FlowForm', { currentFlow });
   };
 
   // 处理删除流水
@@ -66,7 +58,7 @@ const FlowDetailScreen: React.FC = () => {
           onPress: async () => {
             try {
               setIsLoading(true);
-              const response = await api.flow.delete(flowId,currentBook?.bookId!);
+              const response = await api.flow.delete(currentFlow.id,currentBook?.bookId!);
 
               if (response.c === 200) {
                 Alert.alert('成功', '流水已删除');

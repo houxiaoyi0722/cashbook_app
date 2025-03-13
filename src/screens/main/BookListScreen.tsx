@@ -7,15 +7,18 @@ import { useBook } from '../../context/BookContext';
 import { MainStackParamList } from '../../navigation/types';
 import { Book } from '../../types';
 import { api } from '../../services/api';
+import {useBookkeeping} from "../../context/BookkeepingContext.tsx";
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 const BookListScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { books, currentBook, fetchBooks, setCurrentBook, deleteBook, isLoading } = useBook();
+  const { books, fetchBooks, deleteBook, isLoading } = useBook();
+
   const [error, setError] = useState<string | null>(null);
   const [localLoading, setLocalLoading] = useState(true);
   const [shareKeyInput, setShareKeyInput] = useState('');
+  const { currentBook, updateCurrentBook } = useBookkeeping();
 
   // 使用 useCallback 包装 loadBooks 函数，避免无限循环
   const loadBooks = useCallback(async () => {
@@ -35,7 +38,7 @@ const BookListScreen: React.FC = () => {
   const handleSelectBook = useCallback(async (book: Book) => {
     try {
       setLocalLoading(true);
-      await setCurrentBook(book);
+      await updateCurrentBook(book);
       navigation.navigate('MainTabs');
     } catch (err) {
       console.error('选择账本失败', err);
@@ -43,7 +46,7 @@ const BookListScreen: React.FC = () => {
     } finally {
       setLocalLoading(false);
     }
-  }, [navigation, setCurrentBook]);
+  }, [navigation, updateCurrentBook]);
 
   // 处理添加账本
   const handleAddBook = useCallback(() => {

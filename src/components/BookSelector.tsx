@@ -1,16 +1,16 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text, Button, Icon } from '@rneui/themed';
+import { Text, Icon } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useBook } from '../context/BookContext';
 import { MainStackParamList } from '../navigation/types';
+import {useBookkeeping} from '../context/BookkeepingContext.tsx';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 const BookSelector: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { currentBook } = useBook();
+  const { currentBook} = useBookkeeping();
 
   const handleSelectBook = () => {
     navigation.navigate('BookList');

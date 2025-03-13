@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
-import { Text, Card, Button, Divider, Tab, TabView } from '@rneui/themed';
+import { Text, Card, Divider, Tab, TabView } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { PieChart, BarChart } from 'react-native-chart-kit';
@@ -10,7 +10,7 @@ import { useBook } from '../../context/BookContext';
 import { MainStackParamList } from '../../navigation/types';
 import api from '../../services/api';
 import BookSelector from '../../components/BookSelector';
-import { MonthAnalysis, AnalyticsItem } from '../../types';
+import {MonthAnalysis, AnalyticsItem, Flow} from '../../types';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -69,7 +69,7 @@ const StatisticsScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentBook]);
+  }, [currentBook,currentMonth]);
 
   // 获取月度分析
   const fetchMonthAnalysis = useCallback(async () => {
@@ -204,8 +204,8 @@ const StatisticsScreen: React.FC = () => {
   };
 
   // 处理查看流水详情
-  const handleViewFlowDetail = (flowId: number) => {
-    navigation.navigate('FlowDetail', { flowId });
+  const handleViewFlowDetail = (flowId: Flow) => {
+    navigation.navigate('FlowDetail', { currentFlow: flowId });
   };
 
   // 渲染月份选择器
@@ -274,7 +274,7 @@ const StatisticsScreen: React.FC = () => {
           <Text style={styles.maxItemTitle}>最大收入</Text>
           <TouchableOpacity
             style={styles.maxItem}
-            onPress={() => monthAnalysis.maxIn && handleViewFlowDetail(monthAnalysis.maxIn.id)}
+            onPress={() => monthAnalysis.maxIn && handleViewFlowDetail(monthAnalysis.maxIn)}
           >
             <Text style={styles.maxItemName} numberOfLines={1}>
               {monthAnalysis.maxIn?.name || '无'}
@@ -289,7 +289,7 @@ const StatisticsScreen: React.FC = () => {
           <Text style={styles.maxItemTitle}>最大支出</Text>
           <TouchableOpacity
             style={styles.maxItem}
-            onPress={() => monthAnalysis.maxOut && handleViewFlowDetail(monthAnalysis.maxOut.id)}
+            onPress={() => monthAnalysis.maxOut && handleViewFlowDetail(monthAnalysis.maxOut)}
           >
             <Text style={styles.maxItemName} numberOfLines={1}>
               {monthAnalysis.maxOut?.name || '无'}
@@ -304,7 +304,7 @@ const StatisticsScreen: React.FC = () => {
           <Text style={styles.maxItemTitle}>最大不计收支</Text>
           <TouchableOpacity
             style={styles.maxItem}
-            onPress={() => monthAnalysis.maxZero && handleViewFlowDetail(monthAnalysis.maxZero.id)}
+            onPress={() => monthAnalysis.maxZero && handleViewFlowDetail(monthAnalysis.maxZero)}
           >
             <Text style={styles.maxItemName} numberOfLines={1}>
               {monthAnalysis.maxZero?.name || '无'}

@@ -7,7 +7,6 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import moment from 'moment';
 import { useBook } from '../../context/BookContext';
 import { MainStackParamList } from '../../navigation/types';
-import { Flow } from '../../types';
 import api from '../../services/api';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
@@ -29,7 +28,7 @@ const defaultPayTypes = ['现金', '支付宝', '微信', '银行卡', '信用�
 const FlowFormScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
-  const { flowId, date } = route.params || {};
+  const { currentFlow, date } = route.params || {};
   const { currentBook } = useBook();
 
   const [name, setName] = useState('');
@@ -45,41 +44,23 @@ const FlowFormScreen: React.FC = () => {
   const [payTypes, setPayTypes] = useState<string[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
-  const [isFetching, setIsFetching] = useState(false);
+  const [isFetching] = useState(false);
 
   // 获取流水详情
   useEffect(() => {
     const fetchFlowDetail = async () => {
-      if (!flowId) return;
-
-      try {
-        setIsFetching(true);
-        const response = await api.flow.get(flowId);
-
-        if (response.c === 200 && response.d) {
-          const flow = response.d;
-          setName(flow.name);
-          setMoney(flow.money.toString());
-          setDescription(flow.description || '');
-          setFlowType(flow.flowType);
-          setIndustryType(flow.industryType);
-          setPayType(flow.payType);
-          setFlowDate(new Date(flow.day));
-        } else {
-          Alert.alert('错误', response.m || '获取流水详情失败');
-          navigation.goBack();
-        }
-      } catch (error) {
-        console.error('获取流水详情失败', error);
-        Alert.alert('错误', '获取流水详情失败');
-        navigation.goBack();
-      } finally {
-        setIsFetching(false);
-      }
+      if (!currentFlow) return;
+      setName(currentFlow.name);
+      setMoney(currentFlow.money.toString());
+      setDescription(currentFlow.description || '');
+      setFlowType(currentFlow.flowType);
+      setIndustryType(currentFlow.industryType);
+      setPayType(currentFlow.payType);
+      setFlowDate(new Date(currentFlow.day));
     };
 
     fetchFlowDetail();
-  }, [flowId, navigation]);
+  }, [currentFlow, navigation]);
 
   // 根据流水类型设置默认的行业类型和支付方式
   useEffect(() => {
@@ -138,7 +119,7 @@ const FlowFormScreen: React.FC = () => {
         day: moment(flowDate).format('YYYY-MM-DD'),
       };
 
-      if (flowId) {
+      if (currentFlow) {
         // 更新流水
         await api.flow.update(flowData);
         Alert.alert('成功', '流水已更新');
@@ -177,7 +158,7 @@ const FlowFormScreen: React.FC = () => {
     <View style={styles.container}>
       <ScrollView>
         <Card containerStyle={styles.card}>
-          <Card.Title>{flowId ? '编辑流水' : '创建流水'}</Card.Title>
+          <Card.Title>{currentFlow ? '编辑流水' : '创建流水'}</Card.Title>
 
           <ButtonGroup
             buttons={flowTypeButtons}

@@ -23,13 +23,12 @@ LocaleConfig.defaultLocale = 'zh';
 
 const CalendarScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { currentBook, isLoading, fetchCalendarData, getFlowsByMonth, fetchDayFlows } = useBookkeeping();
+  const { currentBook, fetchCalendarData, getFlowsByMonth, fetchDayFlows } = useBookkeeping();
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   const [dailyData, setDailyData] = useState<DailyData>({});
   const [calendarMarks, setCalendarMarks] = useState<CalendarMark>({});
-  const [dailyFlows, setDailyFlows] = useState<Flow[]>([]);
   const [dayFlows, setDayFlows] = useState<Flow[]>([]);
   const [showDayDetail, setShowDayDetail] = useState(false);
   const [dayDetailLoading, setDayDetailLoading] = useState(false);
@@ -55,7 +54,7 @@ const CalendarScreen: React.FC = () => {
       const flows = await getFlowsByMonth(currentMonth);
       const dailyFlows = flows.filter(flow => flow.day.startsWith(selectedDate));
       dailyFlowsRef.current = dailyFlows;
-      setDailyFlows(dailyFlows);
+      setDayFlows(dailyFlows);
     } catch (error) {
       console.error('获取月度流水失败', error instanceof Error ? error.message : String(error));
       Alert.alert('错误', '获取月度流水失败');
@@ -82,6 +81,12 @@ const CalendarScreen: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     if (currentBook) {
+      // 重置状态，确保数据与当前账本匹配
+      setDailyData({});
+      setCalendarMarks({});
+      setDayFlows([]);
+
+      // 重新获取当前月份的数据
       fetchMonthlyFlows().catch(err => {
         if (isMounted) {
           console.error('获取月度流水失败', err instanceof Error ? err.message : String(err));
@@ -108,10 +113,12 @@ const CalendarScreen: React.FC = () => {
 
   // 处理日期选择
   const handleDayPress = useCallback((day: any) => {
+    console.log(day)
     setSelectedDate(day.dateString);
 
     // 更新标记
     const newMarks = { ...calendarMarks };
+    console.log(newMarks,currentBook)
 
     // 重置之前选中的日期样式
     Object.keys(newMarks).forEach(date => {
@@ -127,6 +134,7 @@ const CalendarScreen: React.FC = () => {
 
     // 设置新选中的日期样式
     if (newMarks[day.dateString]) {
+      console.log('day.dateString:',day.dateString);
       newMarks[day.dateString].customStyles = {
         container: {
           backgroundColor: '#1976d2',
@@ -153,7 +161,7 @@ const CalendarScreen: React.FC = () => {
     // 当选择日期时，立即更新该日期的流水
     getFlowsByMonth(currentMonth).then(flows => {
       const dailyFlows = flows.filter(flow => flow.day.startsWith(day.dateString));
-      setDailyFlows(dailyFlows);
+      setDayFlows(dailyFlows);
     }).catch(error => {
       console.error('获取流水失败', error instanceof Error ? error.message : String(error));
     });
@@ -176,16 +184,16 @@ const CalendarScreen: React.FC = () => {
   }, [navigation, selectedDate]);
 
   // 查看流水详情
-  const handleViewFlowDetail = useCallback((flowId: number) => {
+  const handleViewFlowDetail = useCallback((flow: Flow) => {
     setShowDayDetail(false);
-    navigation.navigate('FlowDetail', { flowId });
+    navigation.navigate('FlowDetail', { currentFlow: flow });
   }, [navigation]);
 
   // 渲染日详情项
   const renderDayFlowItem = useCallback(({ item }: { item: Flow }) => (
     <TouchableOpacity
       style={styles.flowItem}
-      onPress={() => handleViewFlowDetail(item.id)}
+      onPress={() => handleViewFlowDetail(item)}
     >
       <View style={styles.flowItemHeader}>
         <Text style={styles.flowItemName}>{item.name}</Text>
@@ -314,82 +322,77 @@ const CalendarScreen: React.FC = () => {
     <View style={styles.container}>
       <BookSelector />
 
-      {isLoading ? (
-        <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
-      ) : (
-        <>
-          <Card containerStyle={styles.calendarCard}>
-            <Calendar
-              current={currentMonth}
-              onDayPress={handleDayPress}
-              onMonthChange={handleMonthChange}
-              markingType="custom"
-              markedDates={calendarMarks}
-              theme={{
-                todayTextColor: '#1976d2',
-                arrowColor: '#1976d2',
-                monthTextColor: '#1976d2',
-              }}
-            />
-          </Card>
+      <Card containerStyle={styles.calendarCard}>
+        <Calendar
+          current={currentMonth}
+          onDayPress={handleDayPress}
+          onMonthChange={handleMonthChange}
+          markingType="custom"
+          markedDates={calendarMarks}
+          theme={{
+            todayTextColor: '#1976d2',
+            arrowColor: '#1976d2',
+            monthTextColor: '#1976d2',
+          }}
+        />
+      </Card>
 
-          <Card containerStyle={styles.dayCard}>
-            <Card.Title>{selectedDate}</Card.Title>
+      <Card containerStyle={styles.dayCard}>
+        <Card.Title>{selectedDate}</Card.Title>
 
-            <View style={styles.dayCardContent}>
-              <View style={styles.dayCardSummary}>
-                <View style={styles.dayCardItem}>
-                  <Text style={styles.dayCardLabel}>收入</Text>
-                  <Text style={[styles.dayCardValue, { color: '#4caf50' }]}>
-                    {dailyData[selectedDate]?.inSum.toFixed(2) || '0.00'}
-                  </Text>
-                </View>
-
-                <View style={styles.dayCardItem}>
-                  <Text style={styles.dayCardLabel}>支出</Text>
-                  <Text style={[styles.dayCardValue, { color: '#f44336' }]}>
-                    {dailyData[selectedDate]?.outSum.toFixed(2) || '0.00'}
-                  </Text>
-                </View>
-
-                <View style={styles.dayCardItem}>
-                  <Text style={styles.dayCardLabel}>不计收支</Text>
-                  <Text style={styles.dayCardValue}>
-                    {dailyData[selectedDate]?.zeroSum.toFixed(2) || '0.00'}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.dayCardActions}>
-                <Button
-                  title="查看详情"
-                  type="outline"
-                  onPress={handleViewDayDetail}
-                  containerStyle={styles.dayCardButton}
-                />
-                <Button
-                  title="添加流水"
-                  onPress={handleAddFlow}
-                  containerStyle={styles.dayCardButton}
-                />
-              </View>
+        <View style={styles.dayCardContent}>
+          <View style={styles.dayCardSummary}>
+            <View style={styles.dayCardItem}>
+              <Text style={styles.dayCardLabel}>收入</Text>
+              <Text style={[styles.dayCardValue, { color: '#4caf50' }]}>
+                {dailyData[selectedDate]?.inSum.toFixed(2) || '0.00'}
+              </Text>
             </View>
-          </Card>
 
-          <FAB
-            icon={
-              <Icon
-                name="add"
-                color="white"
-                size={24}
-              />
-            }
-            color="#1976d2"
-            placement="right"
-            onPress={handleAddFlow}
+            <View style={styles.dayCardItem}>
+              <Text style={styles.dayCardLabel}>支出</Text>
+              <Text style={[styles.dayCardValue, { color: '#f44336' }]}>
+                {dailyData[selectedDate]?.outSum.toFixed(2) || '0.00'}
+              </Text>
+            </View>
+
+            <View style={styles.dayCardItem}>
+              <Text style={styles.dayCardLabel}>不计收支</Text>
+              <Text style={styles.dayCardValue}>
+                {dailyData[selectedDate]?.zeroSum.toFixed(2) || '0.00'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.dayCardActions}>
+            <Button
+              title="查看详情"
+              type="outline"
+              onPress={handleViewDayDetail}
+              containerStyle={styles.dayCardButton}
+            />
+            <Button
+              title="添加流水"
+              onPress={handleAddFlow}
+              containerStyle={styles.dayCardButton}
+            />
+          </View>
+        </View>
+      </Card>
+
+      <FAB
+        icon={
+          <Icon
+            name="add"
+            color="white"
+            size={24}
           />
-        </>
-      )}
+        }
+        color="#1976d2"
+        placement="right"
+        onPress={handleAddFlow}
+      />
+
 
       {renderDayDetail()}
     </View>
