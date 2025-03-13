@@ -6,6 +6,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MainStackParamList } from '../../navigation/types';
 import { useBookkeeping } from '../../context/BookkeepingContext';
+import BookSelector from '../../components/BookSelector';
 import { Flow, DailyData, CalendarMark } from '../../types';
 import moment from 'moment';
 
@@ -32,25 +33,6 @@ const CalendarScreen: React.FC = () => {
   const [dayFlows, setDayFlows] = useState<Flow[]>([]);
   const [showDayDetail, setShowDayDetail] = useState(false);
   const [dayDetailLoading, setDayDetailLoading] = useState(false);
-
-  // 自定义账本选择器组件
-  const BookSelector = useCallback(() => (
-    <View style={styles.bookSelector}>
-      <Text style={styles.bookName}>{currentBook?.bookName || '未选择账本'}</Text>
-      <Button
-        type="clear"
-        icon={
-          <Icon
-            name="menu-book"
-            type="material"
-            color="#1976d2"
-            size={24}
-          />
-        }
-        onPress={() => navigation.navigate('BookList')}
-      />
-    </View>
-  ), [currentBook, navigation]);
 
   // 获取月度流水数据
   const fetchMonthlyFlows = useCallback(async () => {

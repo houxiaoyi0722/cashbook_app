@@ -12,10 +12,6 @@ const BookSelector: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { currentBook } = useBook();
 
-  const handleAddBook = () => {
-    navigation.navigate('BookForm', {});
-  };
-
   const handleSelectBook = () => {
     navigation.navigate('BookList');
   };
@@ -36,16 +32,6 @@ const BookSelector: React.FC = () => {
           color="#1976d2"
         />
       </TouchableOpacity>
-
-      <Button
-        type="clear"
-        icon={{
-          name: 'add',
-          type: 'material',
-          color: '#1976d2',
-        }}
-        onPress={handleAddBook}
-      />
     </View>
   );
 };
