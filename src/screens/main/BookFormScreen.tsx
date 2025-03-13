@@ -5,7 +5,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useBook } from '../../context/BookContext';
 import { MainStackParamList } from '../../navigation/types';
-import api from '../../services/api';
+import Clipboard from '@react-native-clipboard/clipboard';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'BookForm'>;
@@ -14,11 +14,14 @@ const BookFormScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { bookId } = route.params || {};
-  const { createBook, updateBook } = useBook();
+
+  const { createBook, shareBook, updateBook, books} = useBook();
 
   const [name, setName] = useState('');
+  const [shareKey, setShareKey] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+  const [isShared, setIsShared] = useState(false);
 
   // 获取账本详情
   useEffect(() => {
@@ -27,14 +30,11 @@ const BookFormScreen: React.FC = () => {
 
       try {
         setIsFetching(true);
-        const response = await api.book.get(bookId);
-
-        if (response.c === 200 && response.d) {
-          const book = response.d;
-          setName(book.bookName);
-        } else {
-          Alert.alert('错误', response.m || '获取账本详情失败');
-          navigation.goBack();
+        let book = books.find(item => item.bookId == bookId);
+        setName(book!.bookName);
+        if (book?.shareKey) {
+          setShareKey(book.shareKey);
+          setIsShared(true);
         }
       } catch (error) {
         console.error('获取账本详情失败', error);
@@ -67,9 +67,9 @@ const BookFormScreen: React.FC = () => {
 
       if (bookId) {
         // 更新账本
-        await updateBook(bookId, {
-          bookName: name
-        });
+        let data = books.find(item => item.bookId == bookId)!;
+        data.bookName = name;
+        await updateBook(bookId, data);
 
         Alert.alert('成功', '账本已更新');
       } else {
@@ -85,6 +85,37 @@ const BookFormScreen: React.FC = () => {
       Alert.alert('错误', '保存账本失败');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // 处理共享账本
+  const handleShareBook = async () => {
+    try {
+      setIsLoading(true);
+      // 创建账本
+      let book = books.find(item => item.bookId == bookId);
+      book = await shareBook(book?.id);
+      setShareKey(book.shareKey!)
+      setIsShared(true);
+      Alert.alert('成功', '已生成共享码');
+    } catch (error) {
+      console.error('生成共享码失败', error);
+      Alert.alert('错误', '生成共享码失败');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCopyShareKey = async () => {
+    if (shareKey) {
+      try {
+        Clipboard.setString(shareKey);
+        Alert.alert('已复制到剪贴板');
+      } catch (error) {
+        Alert.alert('复制失败');
+      }
+    } else {
+      Alert.alert('共享码为空');
     }
   };
 
@@ -111,6 +142,34 @@ const BookFormScreen: React.FC = () => {
             leftIcon={{ type: 'material', name: 'book', color: '#1976d2' }}
             errorMessage={name.trim() ? '' : '账本名称不能为空'}
           />
+
+          {isShared && (
+            <Input
+              label="共享码"
+              placeholder="共享码"
+              value={shareKey}
+              onChangeText={setShareKey}
+              disabled
+              leftIcon={{ type: 'material', name: 'share', color: '#1976d2' }}
+              rightIcon={{
+                type: 'material',
+                name: 'content-copy', // 复制图标
+                color: '#1976d2',
+                onPress: () => handleCopyShareKey()
+              }}
+            />
+          )}
+
+          {!isShared && (
+            <Button
+              title="生成共享码"
+              type="outline"
+              icon={{ type: 'material', name: 'share', color: '#1976d2', size: 20 }}
+              onPress={handleShareBook}
+              containerStyle={styles.shareButton}
+              disabled={isLoading}
+            />
+          )}
 
           <View style={styles.buttonContainer}>
             <Button
@@ -151,6 +210,9 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '48%',
+  },
+  shareButton: {
+    marginBottom: 20,
   },
   loader: {
     flex: 1,

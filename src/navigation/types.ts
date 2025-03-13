@@ -8,7 +8,7 @@ export type MainStackParamList = {
     flowId: number;
   };
   BookForm: {
-    bookId?: number;
+    bookId?: string;
   };
   BookList: undefined;
   ServerList: undefined;
@@ -22,4 +22,4 @@ export type MainTabParamList = {
   Calendar: undefined;
   Statistics: undefined;
   Settings: undefined;
-}; 
+};

@@ -9,13 +9,13 @@ import { ServerConfig } from '../../types';
 type Props = NativeStackScreenProps<MainStackParamList, 'ServerList'>;
 
 const ServerListScreen: React.FC<Props> = ({ navigation }) => {
-  const { 
-    serverConfigs, 
-    serverConfig: currentServer, 
-    refreshServerConfigs, 
-    deleteServerConfig, 
+  const {
+    serverConfigs,
+    serverConfig: currentServer,
+    refreshServerConfigs,
+    deleteServerConfig,
     switchServer,
-    isLoading 
+    isLoading
   } = useAuth();
 
   useEffect(() => {
@@ -69,7 +69,6 @@ const ServerListScreen: React.FC<Props> = ({ navigation }) => {
 
   const renderServerItem = (server: ServerConfig) => {
     const isSelected = currentServer?.id === server.id;
-    
     return (
       <ListItem
         key={server.id}
@@ -91,9 +90,10 @@ const ServerListScreen: React.FC<Props> = ({ navigation }) => {
           </ListItem.Title>
           <ListItem.Subtitle>{server.url}</ListItem.Subtitle>
         </ListItem.Content>
-        
+
         <View style={styles.serverActions}>
           <Button
+            key={`edit-${server.id}`}
             type="clear"
             icon={
               <Icon
@@ -106,6 +106,7 @@ const ServerListScreen: React.FC<Props> = ({ navigation }) => {
             onPress={() => handleEditServer(server.id)}
           />
           <Button
+            key={`delete-${server.id}`}
             type="clear"
             icon={
               <Icon
@@ -130,7 +131,7 @@ const ServerListScreen: React.FC<Props> = ({ navigation }) => {
           选择一个服务器连接到记账应用，或添加一个新服务器
         </Text>
       </Card>
-      
+
       <ScrollView contentContainerStyle={styles.serverList}>
         {isLoading ? (
           <Card containerStyle={styles.messageCard}>
@@ -143,10 +144,10 @@ const ServerListScreen: React.FC<Props> = ({ navigation }) => {
             </Text>
           </Card>
         ) : (
-          serverConfigs.map(renderServerItem)
+          serverConfigs.map((server) => renderServerItem(server))
         )}
       </ScrollView>
-      
+
       <FAB
         icon={
           <Icon
@@ -206,4 +207,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ServerListScreen; 
+export default ServerListScreen;

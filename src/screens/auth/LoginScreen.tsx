@@ -11,7 +11,7 @@ type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { serverConfig, login, isLoading, saveServerConfig } = useAuth();
-  
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -21,10 +21,10 @@ const LoginScreen: React.FC = () => {
   useEffect(() => {
     // 只在 serverConfig 变化且未尝试过自动登录时执行
     if (!serverConfig || autoLoginAttempted) return;
-    
+
     const attemptAutoLogin = async () => {
       setUsername(serverConfig.username);
-      
+
       if (serverConfig.password) {
         setAutoLoginAttempted(true);
         try {
@@ -48,7 +48,7 @@ const LoginScreen: React.FC = () => {
         }
       }
     };
-    
+
     attemptAutoLogin();
   }, [serverConfig, login, autoLoginAttempted]);
 
@@ -58,23 +58,23 @@ const LoginScreen: React.FC = () => {
       Alert.alert('错误', '请输入用户名');
       return false;
     }
-    
+
     if (!password.trim()) {
       Alert.alert('错误', '请输入密码');
       return false;
     }
-    
+
     return true;
   }, [username, password]);
 
   // 处理登录
   const handleLogin = useCallback(async () => {
     if (!validateForm() || !serverConfig) return;
-    
+
     try {
       console.log('开始登录...', { username });
       await login(username, password);
-      
+
       // 登录成功后更新服务器配置
       const updatedConfig = {
         ...serverConfig,
@@ -82,9 +82,9 @@ const LoginScreen: React.FC = () => {
         password
       };
       await saveServerConfig(updatedConfig);
-      
+
       console.log('登录成功');
-      
+
       // 使用 requestAnimationFrame 确保状态更新完成
       requestAnimationFrame(() => {
         navigation.reset({
@@ -128,8 +128,8 @@ const LoginScreen: React.FC = () => {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <Card containerStyle={styles.card}>
           <Card.Title>登录到 {serverConfig.name}</Card.Title>
-          
-          <View style={styles.serverInfo}>
+
+          <View style={styles.serverInfo} key={serverConfig.id}>
             <Text style={styles.serverUrl}>{serverConfig.url}</Text>
             <Button
               type="clear"
@@ -139,7 +139,7 @@ const LoginScreen: React.FC = () => {
               onPress={handleSwitchServer}
             />
           </View>
-          
+
           <Input
             label="用户名"
             placeholder="请输入用户名"
@@ -150,7 +150,7 @@ const LoginScreen: React.FC = () => {
             autoCapitalize="none"
             autoComplete="username"
           />
-          
+
           <Input
             label="密码"
             placeholder="请输入密码"
@@ -168,14 +168,14 @@ const LoginScreen: React.FC = () => {
             secureTextEntry={!showPassword}
             autoComplete="password"
           />
-          
+
           <Button
             title={isLoading ? '登录中...' : '登录'}
             onPress={handleLogin}
             disabled={isLoading}
             containerStyle={styles.loginButton}
           />
-          
+
           {isLoading && <ActivityIndicator style={styles.loader} size="large" color="#1976d2" />}
         </Card>
       </ScrollView>
@@ -227,4 +227,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LoginScreen; 
+export default LoginScreen;

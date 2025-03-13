@@ -13,14 +13,13 @@ type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { userInfo, logout } = useAuth();
-  
+
   const [isChangePasswordVisible, setIsChangePasswordVisible] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isAutoSync, setIsAutoSync] = useState(true);
 
   // 处理退出登录
   const handleLogout = async () => {
@@ -55,12 +54,12 @@ const SettingsScreen: React.FC = () => {
   // 处理修改密码
   const handleChangePassword = async () => {
     if (!validatePasswordForm()) return;
-    
+
     try {
       setIsLoading(true);
       // 调用修改密码API
       // const response = await api.auth.changePassword(oldPassword, newPassword);
-      
+
       // if (response.c === 200) {
       //   Alert.alert('成功', '密码修改成功');
       //   setIsChangePasswordVisible(false);
@@ -68,7 +67,7 @@ const SettingsScreen: React.FC = () => {
       // } else {
       //   Alert.alert('错误', response.m || '密码修改失败');
       // }
-      
+
       // 模拟API调用
       setTimeout(() => {
         Alert.alert('成功', '密码修改成功');
@@ -89,22 +88,22 @@ const SettingsScreen: React.FC = () => {
       Alert.alert('错误', '请输入原密码');
       return false;
     }
-    
+
     if (!newPassword) {
       Alert.alert('错误', '请输入新密码');
       return false;
     }
-    
+
     if (newPassword.length < 6) {
       Alert.alert('错误', '新密码长度不能少于6位');
       return false;
     }
-    
+
     if (newPassword !== confirmPassword) {
       Alert.alert('错误', '两次输入的新密码不一致');
       return false;
     }
-    
+
     return true;
   };
 
@@ -122,16 +121,6 @@ const SettingsScreen: React.FC = () => {
       await AsyncStorage.setItem('dark_mode', value ? 'true' : 'false');
     } catch (error) {
       console.error('保存深色模式设置失败', error);
-    }
-  };
-
-  // 处理切换自动同步
-  const toggleAutoSync = async (value: boolean) => {
-    setIsAutoSync(value);
-    try {
-      await AsyncStorage.setItem('auto_sync', value ? 'true' : 'false');
-    } catch (error) {
-      console.error('保存自动同步设置失败', error);
     }
   };
 
@@ -156,7 +145,7 @@ const SettingsScreen: React.FC = () => {
   const renderAccountSettings = () => (
     <Card containerStyle={styles.card}>
       <Card.Title>账户设置</Card.Title>
-      
+
       <ListItem onPress={() => setIsChangePasswordVisible(true)} bottomDivider>
         <Icon name="lock" type="material" color="#1976d2" />
         <ListItem.Content>
@@ -164,7 +153,7 @@ const SettingsScreen: React.FC = () => {
         </ListItem.Content>
         <ListItem.Chevron />
       </ListItem>
-      
+
       <ListItem onPress={handleSwitchServer} bottomDivider>
         <Icon name="swap-horiz" type="material" color="#1976d2" />
         <ListItem.Content>
@@ -172,7 +161,7 @@ const SettingsScreen: React.FC = () => {
         </ListItem.Content>
         <ListItem.Chevron />
       </ListItem>
-      
+
       <ListItem onPress={handleLogout}>
         <Icon name="logout" type="material" color="#f44336" />
         <ListItem.Content>
@@ -187,7 +176,7 @@ const SettingsScreen: React.FC = () => {
   const renderAppSettings = () => (
     <Card containerStyle={styles.card}>
       <Card.Title>应用设置</Card.Title>
-      
+
       <ListItem bottomDivider>
         <Icon name="brightness-6" type="material" color="#1976d2" />
         <ListItem.Content>
@@ -200,20 +189,6 @@ const SettingsScreen: React.FC = () => {
           thumbColor={isDarkMode ? '#1976d2' : '#f4f3f4'}
         />
       </ListItem>
-      
-      <ListItem>
-        <Icon name="sync" type="material" color="#1976d2" />
-        <ListItem.Content>
-          <ListItem.Title>自动同步</ListItem.Title>
-          <ListItem.Subtitle>自动同步账本数据</ListItem.Subtitle>
-        </ListItem.Content>
-        <Switch
-          value={isAutoSync}
-          onValueChange={toggleAutoSync}
-          trackColor={{ false: '#767577', true: '#81b0ff' }}
-          thumbColor={isAutoSync ? '#1976d2' : '#f4f3f4'}
-        />
-      </ListItem>
     </Card>
   );
 
@@ -221,7 +196,7 @@ const SettingsScreen: React.FC = () => {
   const renderAboutInfo = () => (
     <Card containerStyle={styles.card}>
       <Card.Title>关于</Card.Title>
-      
+
       <ListItem bottomDivider>
         <Icon name="info" type="material" color="#1976d2" />
         <ListItem.Content>
@@ -229,7 +204,7 @@ const SettingsScreen: React.FC = () => {
           <ListItem.Subtitle>{version || '1.0.0'}</ListItem.Subtitle>
         </ListItem.Content>
       </ListItem>
-      
+
       <ListItem>
         <Icon name="code" type="material" color="#1976d2" />
         <ListItem.Content>
@@ -248,7 +223,7 @@ const SettingsScreen: React.FC = () => {
       overlayStyle={styles.dialog}
     >
       <Dialog.Title title="修改密码" />
-      
+
       <Input
         placeholder="原密码"
         secureTextEntry
@@ -257,7 +232,7 @@ const SettingsScreen: React.FC = () => {
         onChangeText={setOldPassword}
         disabled={isLoading}
       />
-      
+
       <Input
         placeholder="新密码"
         secureTextEntry
@@ -266,7 +241,7 @@ const SettingsScreen: React.FC = () => {
         onChangeText={setNewPassword}
         disabled={isLoading}
       />
-      
+
       <Input
         placeholder="确认新密码"
         secureTextEntry
@@ -275,7 +250,7 @@ const SettingsScreen: React.FC = () => {
         onChangeText={setConfirmPassword}
         disabled={isLoading}
       />
-      
+
       <Dialog.Actions>
         <Dialog.Button
           title="取消"
@@ -299,7 +274,7 @@ const SettingsScreen: React.FC = () => {
         {renderAppSettings()}
         {renderAboutInfo()}
       </ScrollView>
-      
+
       {renderChangePasswordDialog()}
     </View>
   );
@@ -349,4 +324,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SettingsScreen; 
+export default SettingsScreen;

@@ -110,17 +110,32 @@ class Api {
       return response.data;
     },
 
-    // 更新账本
-    update: async (bookId: number, data: Partial<Omit<Book, 'id' | 'createDate' | 'userId'>>): Promise<ApiResponse<Book>> => {
+    // 分享账本
+    share: async (data: any): Promise<ApiResponse<Book>> => {
       if (!this.instance) throw new Error('API实例未初始化');
-      const response = await this.instance.post<ApiResponse<Book>>(`/api/entry/book${bookId}`, data);
+      const response = await this.instance.post<ApiResponse<Book>>('/api/entry/book/share', data);
+      return response.data;
+    },
+
+    // 添加分享账本
+    inshare: async (data: any): Promise<ApiResponse<string>> => {
+      if (!this.instance) throw new Error('API实例未初始化');
+      const response = await this.instance.post<ApiResponse<string>>('/api/entry/book/inshare', data);
+      return response.data;
+    },
+
+    // 更新账本
+    update: async (data: Book): Promise<ApiResponse<Book>> => {
+      console.log('更新账本:',data)
+      if (!this.instance) throw new Error('API实例未初始化');
+      const response = await this.instance.post<ApiResponse<Book>>('/api/entry/book/update', data);
       return response.data;
     },
 
     // 删除账本
-    delete: async (bookId: number): Promise<ApiResponse<void>> => {
+    delete: async (id: number): Promise<ApiResponse<void>> => {
       if (!this.instance) throw new Error('API实例未初始化');
-      const response = await this.instance.post<ApiResponse<void>>(`/api/entry/book${bookId}`);
+      const response = await this.instance.post<ApiResponse<void>>(`/api/entry/book/del`,{id});
       return response.data;
     },
   };

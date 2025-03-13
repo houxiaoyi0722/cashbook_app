@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, FlatList, Alert, ActivityIndicator } from 'react-native';
-import { Text, Card, Button, Icon, ListItem, FAB } from '@rneui/themed';
+import { Text, Card, Button, Icon, ListItem, FAB, Input } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useBook } from '../../context/BookContext';
 import { MainStackParamList } from '../../navigation/types';
 import { Book } from '../../types';
+import { api } from '../../services/api';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -14,6 +15,7 @@ const BookListScreen: React.FC = () => {
   const { books, currentBook, fetchBooks, setCurrentBook, deleteBook, isLoading } = useBook();
   const [error, setError] = useState<string | null>(null);
   const [localLoading, setLocalLoading] = useState(true);
+  const [shareKeyInput, setShareKeyInput] = useState('');
 
   // 使用 useCallback 包装 loadBooks 函数，避免无限循环
   const loadBooks = useCallback(async () => {
@@ -49,7 +51,7 @@ const BookListScreen: React.FC = () => {
   }, [navigation]);
 
   // 处理编辑账本
-  const handleEditBook = useCallback((bookId: number) => {
+  const handleEditBook = useCallback((bookId: string) => {
     navigation.navigate('BookForm', { bookId });
   }, [navigation]);
 
@@ -79,6 +81,28 @@ const BookListScreen: React.FC = () => {
       ]
     );
   }, [deleteBook]);
+
+  // 添加导入共享账本方法
+  const handleImportSharedBook = useCallback(async () => {
+    if (!shareKeyInput.trim()) {
+      Alert.alert('错误', '请输入共享码');
+      return;
+    }
+
+    try {
+      setLocalLoading(true);
+      // 调用导入共享账本的 API
+      await api.book.inshare({ key: shareKeyInput.trim() })
+      await fetchBooks();
+      Alert.alert('成功', '共享账本已导入');
+      setShareKeyInput('');
+    } catch (error) {
+      console.error('导入共享账本失败', error);
+      Alert.alert('错误', '导入共享账本失败，请检查共享码是否正确');
+    } finally {
+      setLocalLoading(false);
+    }
+  }, [shareKeyInput, fetchBooks]);
 
   // 只在组件挂载时加载一次账本
   useEffect(() => {
@@ -126,7 +150,7 @@ const BookListScreen: React.FC = () => {
                 size={20}
               />
             }
-            onPress={() => handleEditBook(item.id)}
+            onPress={() => handleEditBook(item.bookId)}
           />
           <Button
             type="clear"
@@ -201,6 +225,24 @@ const BookListScreen: React.FC = () => {
         <Text style={styles.headerText}>
           选择一个账本开始记账，或创建一个新账本
         </Text>
+
+        {/* 添加导入共享账本的输入框 */}
+        <View style={styles.importContainer}>
+          <Input
+            placeholder="输入共享码导入账本"
+            value={shareKeyInput}
+            onChangeText={setShareKeyInput}
+            containerStyle={styles.importInput}
+            rightIcon={
+              <Icon
+                name="arrow-forward"
+                type="material"
+                color="#1976d2"
+                onPress={handleImportSharedBook}
+              />
+            }
+          />
+        </View>
       </Card>
 
       <FlatList
@@ -283,6 +325,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  importContainer: {
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  importInput: {
+    paddingHorizontal: 0,
   },
 });
 

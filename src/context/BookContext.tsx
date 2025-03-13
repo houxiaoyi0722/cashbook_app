@@ -10,7 +10,8 @@ interface BookContextType {
   setCurrentBook: (book: Book | null) => Promise<void>;
   fetchBooks: () => Promise<void>;
   createBook: (data: string) => Promise<Book>;
-  updateBook: (bookId: number, data: Partial<Omit<Book, 'id' | 'createDate' | 'userId'>>) => Promise<Book>;
+  shareBook: (id: number | undefined) => Promise<Book>;
+  updateBook: (bookId: string, data: Book) => Promise<Book>;
   deleteBook: (bookId: number) => Promise<void>;
 }
 
@@ -76,13 +77,22 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
     throw new Error(response.m);
   }, [fetchBooks]);
 
-  const updateBook = useCallback(async (bookId: number, data: Partial<Omit<Book, 'id' | 'createDate' | 'userId'>>) => {
-    const response = await api.book.update(bookId, data);
+  const shareBook = useCallback(async (id: number | undefined) => {
+    const response = await api.book.share({id});
     if (response.c === 200) {
       await fetchBooks();
-      if (currentBook?.id === bookId) {
-        await handleSetCurrentBook(response.d);
-      }
+      return response.d;
+    }
+    throw new Error(response.m);
+  }, [fetchBooks]);
+
+  const updateBook = useCallback(async (bookId: string, data: Book) => {
+    const response = await api.book.update(data);
+    if (response.c === 200) {
+      await fetchBooks();
+      // if (currentBook?.bookId === bookId) {
+      //   await handleSetCurrentBook(response.d);
+      // }
       return response.d;
     }
     throw new Error(response.m);
@@ -109,6 +119,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentBook: handleSetCurrentBook,
         fetchBooks,
         createBook,
+        shareBook,
         updateBook,
         deleteBook,
       }}

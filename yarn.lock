@@ -1418,6 +1418,11 @@
   dependencies:
     merge-options "^3.0.4"
 
+"@react-native-clipboard/clipboard@^1.16.2":
+  version "1.16.2"
+  resolved "https://registry.npmmirror.com/@react-native-clipboard/clipboard/-/clipboard-1.16.2.tgz#d8517eea937d336b8fe1ca44e955e691d27f5ba4"
+  integrity sha512-VqUYwVxo7DyHMz7v2LxLMaAOSu3pKFvzpqR4jQezdH0VyaudILTTcUf7dR4TroARU/lLkTU8nZA11UniTvGVXg==
+
 "@react-native-community/cli-clean@15.0.1":
   version "15.0.1"
   resolved "https://registry.npmmirror.com/@react-native-community/cli-clean/-/cli-clean-15.0.1.tgz#80ce09ffe0d62bb265447007f24dc8dcbf8fe7d3"
