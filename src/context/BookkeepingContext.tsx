@@ -182,7 +182,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (response.c !== 200) {
       throw new Error(response.m);
     }
-  }, []);
+  }, [currentBook?.bookId]);
 
   // 获取流水记录详情
   const getFlowById = useCallback(async (flowId: number): Promise<Flow> => {

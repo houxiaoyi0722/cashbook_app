@@ -134,7 +134,7 @@ const LoginScreen: React.FC = () => {
             <Button
               type="clear"
               icon={<Icon name="swap-horiz" color="#1976d2" />}
-              title="切换服务器"
+              title=""
               titleStyle={styles.switchServerText}
               onPress={handleSwitchServer}
             />

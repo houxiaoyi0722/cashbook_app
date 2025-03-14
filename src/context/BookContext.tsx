@@ -1,10 +1,8 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { Book } from '../types';
 import api from '../services/api';
-import {useBookkeeping} from "./BookkeepingContext.tsx";
 
 interface BookContextType {
-  currentBook: Book | null;
   books: Book[];
   isLoading: boolean;
   fetchBooks: () => Promise<void>;
@@ -18,8 +16,6 @@ const BookContext = createContext<BookContextType | undefined>(undefined);
 
 
 export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentBook } = useBookkeeping();
-
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -63,7 +59,7 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return response.d;
     }
     throw new Error(response.m);
-  }, [fetchBooks, currentBook]);
+  }, [fetchBooks]);
 
   const deleteBook = useCallback(async (bookId: number) => {
     const response = await api.book.delete(bookId);
@@ -77,7 +73,6 @@ export const BookProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <BookContext.Provider
       value={{
-        currentBook,
         books,
         isLoading,
         fetchBooks,
