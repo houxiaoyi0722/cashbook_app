@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, FlatList } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { Text, Card, Button, Icon, FAB, Divider, Overlay } from '@rneui/themed';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { useNavigation } from '@react-navigation/native';
@@ -8,6 +9,8 @@ import { MainStackParamList } from '../../navigation/types';
 import { useBookkeeping } from '../../context/BookkeepingContext';
 import BookSelector from '../../components/BookSelector';
 import { Flow, DailyData, CalendarMark } from '../../types';
+import moment from 'moment';
+import {eventBus} from '../../navigation';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -25,12 +28,15 @@ const CalendarScreen: React.FC = () => {
   const { currentBook, fetchCalendarData, fetchDayFlows } = useBookkeeping();
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [currentMonth] = useState(new Date().toISOString().slice(0, 7));
   const [dailyData, setDailyData] = useState<DailyData>({});
   const [calendarMarks, setCalendarMarks] = useState<CalendarMark>({});
   const [dayFlows, setDayFlows] = useState<Flow[]>([]);
   const [showDayDetail, setShowDayDetail] = useState(false);
   const [dayDetailLoading, setDayDetailLoading] = useState(false);
+  const [showYearMonthSelector, setShowYearMonthSelector] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedYear, setSelectedYear] = useState(moment().year());
+  const [selectedMonth, setSelectedMonth] = useState(moment().month() + 1);
 
   // 使用 useRef 存储状态
   const dailyDataRef = useRef<DailyData>({});
@@ -42,6 +48,7 @@ const CalendarScreen: React.FC = () => {
     dailyData,
     dayFlows
   }), [selectedDate, dailyData, dayFlows]);
+
 
   // 获取日流水数据
   const fetchCalendarFlows = useCallback(async () => {
@@ -64,10 +71,10 @@ const CalendarScreen: React.FC = () => {
       // 始终更新下方卡片数据
       setDailyData(dailyData);
     } catch (error) {
-      console.error('获取月度流水失败', error instanceof Error ? error.message : String(error));
-      Alert.alert('错误', '获取月度流水失败');
+      console.error('获取流水失败', error instanceof Error ? error.message : String(error));
+      Alert.alert('错误', '获取流水失败');
     }
-  }, [currentBook, currentMonth, selectedDate, fetchCalendarData]);
+  }, [currentBook, selectedDate, fetchCalendarData]);
 
   // 获取某天的流水详情
   const fetchDayDetail = useCallback(async (date: string) => {
@@ -85,6 +92,18 @@ const CalendarScreen: React.FC = () => {
     }
   }, [currentBook, fetchDayFlows]);
 
+  useEffect(() => {
+    const refreshListener = () => {
+      fetchCalendarFlows().catch(err => {
+        console.error('获取月度流水失败', err instanceof Error ? err.message : String(err));
+      });
+    };
+
+    eventBus.addListener('refreshCalendarFlows', refreshListener);
+    return () => {
+      eventBus.removeAllListeners('refreshCalendarFlows');
+    };
+  }, []);
   // 当前账本变化时，重新获取数据
   useEffect(() => {
     let isMounted = true;
@@ -156,10 +175,15 @@ const CalendarScreen: React.FC = () => {
     setSelectedDate(day.dateString);
   }, [selectedDate]);
 
+  // 处理月份变化
+  const handleMonthChange = useCallback((month: any) => {
+    setCurrentMonth(moment(month.dateString).format('YYYY-MM'));
+  }, []);
+
   // 查看日详情
   const handleViewDayDetail = useCallback(async () => {
-    await fetchDayDetail(selectedDate);
     setShowDayDetail(true);
+    await fetchDayDetail(selectedDate);
   }, [fetchDayDetail, selectedDate]);
 
   // 添加流水
@@ -350,75 +374,79 @@ const CalendarScreen: React.FC = () => {
     );
   });
 
-  // 当月数据汇总组件
-  const MonthSummary = React.memo(({
-    currentMonth,
-    dailyData
-  }: {
-    currentMonth: string;
-    dailyData: DailyData;
-  }) => {
-    // 计算当月总收入、总支出和不计收支
-    const summary = useMemo(() => {
-      let totalIncome = 0;
-      let totalExpense = 0;
-      let totalZero = 0;
+  // 处理年月标题点击
+  const handleMonthHeaderPress = useCallback(() => {
+    // 设置初始选中的年月
+    const yearMonth = currentMonth.split('-');
+    setSelectedYear(parseInt(yearMonth[0]));
+    setSelectedMonth(parseInt(yearMonth[1]));
+    setShowYearMonthSelector(true);
+  }, [currentMonth]);
 
-      Object.entries(dailyData).forEach(([date, data]) => {
-        if (date.startsWith(currentMonth)) {
-          totalIncome += data.inSum || 0;
-          totalExpense += data.outSum || 0;
-          totalZero += data.zeroSum || 0;
-        }
-      });
+  // 确认年月选择
+  const confirmYearMonthSelection = useCallback(() => {
+    const monthStr = selectedMonth < 10 ? `0${selectedMonth}` : `${selectedMonth}`;
+    const newMonth = `${selectedYear}-${monthStr}`;
+    setCurrentMonth(newMonth);
+    setShowYearMonthSelector(false);
+  }, [selectedYear, selectedMonth]);
 
-      return {
-        totalIncome,
-        totalExpense,
-        totalZero,
-        balance: totalIncome - totalExpense
-      };
-    }, [currentMonth, dailyData]);
+  // 渲染年月选择器 - 使用滚动选择器
+  const renderYearMonthSelector = () => (
+    <Overlay
+      isVisible={showYearMonthSelector}
+      onBackdropPress={() => setShowYearMonthSelector(false)}
+      overlayStyle={styles.yearMonthOverlay}
+    >
+      <View style={styles.yearMonthHeader}>
+        <Text style={styles.yearMonthTitle}>选择年月</Text>
+        <TouchableOpacity onPress={() => setShowYearMonthSelector(false)}>
+          <Icon name="close" type="material" size={24} />
+        </TouchableOpacity>
+      </View>
 
-    return (
-      <Card containerStyle={styles.monthSummaryCard}>
-        <View style={styles.monthSummaryContent}>
-          <View style={styles.monthSummaryRow}>
-            <View style={styles.monthSummaryItem}>
-              <Text style={styles.monthSummaryLabel}>总收入</Text>
-              <Text style={[styles.monthSummaryValue, { color: '#4caf50' }]}>
-                {summary.totalIncome.toFixed(2)}
-              </Text>
-            </View>
-
-            <View style={styles.monthSummaryItem}>
-              <Text style={styles.monthSummaryLabel}>总支出</Text>
-              <Text style={[styles.monthSummaryValue, { color: '#f44336' }]}>
-                {summary.totalExpense.toFixed(2)}
-              </Text>
-            </View>
-
-            <View style={styles.monthSummaryItem}>
-              <Text style={styles.monthSummaryLabel}>不计收支</Text>
-              <Text style={[styles.monthSummaryValue, { color: '#070707' }]}>
-                {summary.totalZero.toFixed(2)}
-              </Text>
-            </View>
+      <View style={styles.yearMonthSelectorContainer}>
+        {/* 年份选择 - 使用滚动选择器 */}
+        <View style={styles.pickerContainer}>
+          <Text style={styles.pickerLabel}>年份</Text>
+          <View style={styles.pickerWrapper}>
+            <Picker
+              selectedValue={selectedYear}
+              style={styles.picker}
+              onValueChange={(itemValue: React.SetStateAction<number>) => setSelectedYear(itemValue)}
+            >
+              {Array.from({ length: 10 }, (_, i) => moment().year() - 9 + i).map(year => (
+                <Picker.Item key={`year-${year}`} label={`${year}年`} value={year} />
+              ))}
+            </Picker>
           </View>
         </View>
-      </Card>
-    );
-  }, (prevProps, nextProps) => {
-    // 只有当月份变化或数据变化时才重新渲染
-    return (
-      prevProps.currentMonth === nextProps.currentMonth &&
-      JSON.stringify(Object.keys(prevProps.dailyData).filter(date =>
-        date.startsWith(prevProps.currentMonth)
-      )) === JSON.stringify(Object.keys(nextProps.dailyData).filter(date =>
-        date.startsWith(nextProps.currentMonth)
-      ))
-    );
-  });
+
+        {/* 月份选择 - 使用滚动选择器 */}
+        <View style={styles.pickerContainer}>
+          <Text style={styles.pickerLabel}>月份</Text>
+          <View style={styles.pickerWrapper}>
+            <Picker
+              selectedValue={selectedMonth}
+              style={styles.picker}
+              onValueChange={(itemValue: React.SetStateAction<number>) => setSelectedMonth(itemValue)}
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                <Picker.Item key={`month-${month}`} label={`${month}月`} value={month} />
+              ))}
+            </Picker>
+          </View>
+        </View>
+
+        {/* 确认按钮 */}
+        <Button
+          title="确认"
+          buttonStyle={styles.confirmButton}
+          onPress={confirmYearMonthSelection}
+        />
+      </View>
+    </Overlay>
+  );
 
   if (!currentBook) {
     return (
@@ -446,7 +474,9 @@ const CalendarScreen: React.FC = () => {
       <Card containerStyle={styles.calendarCard}>
         <Calendar
           current={currentMonth}
+          key={currentMonth}
           onDayPress={handleDayPress}
+          onMonthChange={handleMonthChange}
           markingType="custom"
           markedDates={{
             ...calendarMarks,
@@ -471,6 +501,15 @@ const CalendarScreen: React.FC = () => {
             selectedDayTextColor: 'white',
           }}
           monthFormat={'yyyy年 MM月'}
+          // 添加自定义标题组件
+          renderHeader={(date) => (
+            <TouchableOpacity onPress={handleMonthHeaderPress} style={styles.calendarHeader}>
+              <Text style={styles.calendarHeaderText}>
+                {currentMonth ? `${currentMonth.split('-')[0]}年${currentMonth.split('-')[1]}月` : moment(date).format('YYYY年 MM月')}
+              </Text>
+              <Icon name="arrow-drop-down" type="material" size={24} color="#1976d2" />
+            </TouchableOpacity>
+          )}
         />
 
         {/* 将月度汇总直接放在日历卡片内部 */}
@@ -529,6 +568,7 @@ const CalendarScreen: React.FC = () => {
       />
 
       {renderDayDetail()}
+      {renderYearMonthSelector()}
     </View>
   );
 };
@@ -720,6 +760,58 @@ const styles = StyleSheet.create({
   monthSummaryValue: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+  },
+  calendarHeaderText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1976d2',
+  },
+  yearMonthOverlay: {
+    width: '90%',
+    borderRadius: 10,
+    padding: 15,
+  },
+  yearMonthHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  yearMonthTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  yearMonthSelectorContainer: {
+    width: '100%',
+  },
+  pickerContainer: {
+    marginBottom: 20,
+  },
+  pickerLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  pickerWrapper: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 5,
+    backgroundColor: '#f5f5f5',
+  },
+  picker: {
+    height: 50,
+    width: '100%',
+  },
+  confirmButton: {
+    backgroundColor: '#1976d2',
+    borderRadius: 5,
+    marginTop: 10,
   },
 });
 

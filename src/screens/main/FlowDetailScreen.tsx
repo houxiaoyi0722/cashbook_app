@@ -7,7 +7,7 @@ import moment from 'moment';
 import { MainStackParamList } from '../../navigation/types';
 import { Flow } from '../../types';
 import api from '../../services/api';
-import {useBook} from '../../context/BookContext.tsx';
+import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowDetail'>;
@@ -16,7 +16,7 @@ const FlowDetailScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { currentFlow } = route.params;
-  const { currentBook } = useBook();
+  const { currentBook } = useBookkeeping();
   const [flow, setFlow] = useState<Flow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 

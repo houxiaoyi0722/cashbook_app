@@ -25,7 +25,9 @@ import { BookProvider } from '../context/BookContext';
 
 // 导航类型
 import { MainStackParamList, MainTabParamList } from './types';
+import { NativeEventEmitter } from 'react-native';
 
+export const eventBus = new NativeEventEmitter();
 // 创建导航器
 const Stack = createNativeStackNavigator<MainStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -191,4 +193,4 @@ const AppNavigator = () => {
   );
 };
 
-export default AppNavigator; 
+export default AppNavigator;

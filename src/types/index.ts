@@ -28,7 +28,7 @@ export interface Book {
 // 流水类型
 export interface Flow {
   id: number;
-  bookId: number;
+  bookId: string;
   name: string;
   money: number;
   flowType: '收入' | '支出' | '不计收支';

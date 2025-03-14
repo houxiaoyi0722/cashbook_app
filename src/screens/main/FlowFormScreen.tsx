@@ -8,6 +8,7 @@ import moment from 'moment';
 import { MainStackParamList } from '../../navigation/types';
 import api from '../../services/api';
 import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
+import {eventBus} from '../../navigation';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowForm'>;
@@ -23,6 +24,7 @@ const defaultIndustryTypes = {
   '支出': ['餐饮', '购物', '交通', '住房', '娱乐', '医疗', '教育', '其他'],
   '不计收支': ['转账', '还款', '借出', '收款', '其他'],
 };
+// todo 融合接口数据和固定数据后去重,固定数据交由设置页面编辑
 const defaultPayTypes = ['现金', '支付宝', '微信', '银行卡', '信用卡', '其他'];
 
 const FlowFormScreen: React.FC = () => {
@@ -79,7 +81,7 @@ const FlowFormScreen: React.FC = () => {
   // 验证表单
   const validateForm = () => {
     if (!name.trim()) {
-      Alert.alert('错误', '请输入交易名称');
+      Alert.alert('错误', '请输入交易方名称');
       return false;
     }
 
@@ -109,7 +111,7 @@ const FlowFormScreen: React.FC = () => {
       setIsLoading(true);
 
       const flowData = {
-        bookId: currentBook.id,
+        bookId: currentBook.bookId,
         name,
         money: Number(money),
         flowType,
@@ -121,12 +123,33 @@ const FlowFormScreen: React.FC = () => {
 
       if (currentFlow) {
         // 更新流水
-        await api.flow.update(flowData);
+        await api.flow.update({
+          id: currentFlow.id,
+          bookId: currentBook.bookId,
+          name,
+          money: Number(money),
+          flowType,
+          industryType,
+          payType,
+          description: description.trim() || undefined,
+          day: moment(flowDate).format('YYYY-MM-DD'),
+        });
         Alert.alert('成功', '流水已更新');
+        eventBus.emit('refreshCalendarFlows');
       } else {
         // 创建流水
-        await api.flow.create(flowData);
+        await api.flow.create({
+          bookId: currentBook.bookId,
+          name,
+          money: Number(money),
+          flowType,
+          industryType,
+          payType,
+          description: description.trim() || undefined,
+          day: moment(flowDate).format('YYYY-MM-DD'),
+        });
         Alert.alert('成功', '流水已创建');
+        eventBus.emit('refreshCalendarFlows');
       }
 
       navigation.goBack();
@@ -170,13 +193,13 @@ const FlowFormScreen: React.FC = () => {
           />
 
           <Input
-            label="交易名称"
-            placeholder="请输入交易名称"
+            label="交易方名称"
+            placeholder="请输入交易方名称"
             value={name}
             onChangeText={setName}
             disabled={isLoading}
             leftIcon={{ type: 'material', name: 'shopping-cart', color: '#1976d2' }}
-            errorMessage={name.trim() ? '' : '交易名称不能为空'}
+            errorMessage={name.trim() ? '' : '交易方名称不能为空'}
           />
 
           <Input

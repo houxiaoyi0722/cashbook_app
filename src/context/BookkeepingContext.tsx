@@ -120,7 +120,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const response = await api.flow.create({
       ...flow,
-      bookId: currentBook.id,
+      bookId: currentBook.bookId,
     });
 
     if (response.c === 200) {
