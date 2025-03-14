@@ -20,7 +20,7 @@ const ServerListScreen: React.FC<Props> = ({ navigation }) => {
 
   useEffect(() => {
     refreshServerConfigs();
-  }, [refreshServerConfigs]);
+  }, []);
 
   const handleAddServer = () => {
     navigation.navigate('ServerForm', {});

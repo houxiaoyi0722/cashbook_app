@@ -5,9 +5,9 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import moment from 'moment';
-import { useBook } from '../../context/BookContext';
 import { MainStackParamList } from '../../navigation/types';
 import api from '../../services/api';
+import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowForm'>;
@@ -29,7 +29,7 @@ const FlowFormScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { currentFlow, date } = route.params || {};
-  const { currentBook } = useBook();
+  const { currentBook } = useBookkeeping();
 
   const [name, setName] = useState('');
   const [money, setMoney] = useState('');

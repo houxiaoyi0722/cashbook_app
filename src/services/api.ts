@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ApiResponse, ServerConfig, Book, Flow, AnalyticsItem, MonthAnalysis } from '../types';
 
@@ -19,9 +19,18 @@ const createApiInstance = (baseURL: string): AxiosInstance => {
       if (token && config.headers) {
         config.headers.Authorization = token;
       }
+      
+      // 记录请求日志
+      console.log(`🚀 REQUEST: ${config.method?.toUpperCase()} ${config.url}`, {
+        headers: config.headers,
+        params: config.params,
+        data: config.data
+      });
+      
       return config;
     },
     (error) => {
+      console.log('❌ REQUEST ERROR:', error);
       return Promise.reject(error);
     }
   );
@@ -29,9 +38,24 @@ const createApiInstance = (baseURL: string): AxiosInstance => {
   // 响应拦截器
   instance.interceptors.response.use(
     (response) => {
+      // 记录响应日志
+      console.log(`✅ RESPONSE: ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+        status: response.status,
+        data: response.data
+      });
+      
       return response;
     },
     (error) => {
+      // 记录错误日志
+      console.log('❌ RESPONSE ERROR:', {
+        url: error.config?.url,
+        method: error.config?.method?.toUpperCase(),
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      
       // 处理401错误，清除token并重定向到登录页面
       if (error.response && error.response.status === 401) {
         AsyncStorage.removeItem('auth_token');
@@ -54,6 +78,7 @@ class Api {
   init(serverConfig: ServerConfig) {
     this.serverConfig = serverConfig;
     this.instance = createApiInstance(serverConfig.url);
+    console.log(`🔌 API initialized with server: ${serverConfig.url}`);
   }
 
   // 获取当前服务器配置
@@ -64,6 +89,7 @@ class Api {
   // 登录
   async login(username: string, password: string) {
     if (!this.instance) throw new Error('API实例未初始化');
+    console.log(`🔑 Attempting login for user: ${username}`);
     const response = await this.instance.post<ApiResponse<any>>('/api/login', {
       username,
       password,
@@ -74,6 +100,7 @@ class Api {
   // 更新密码
   async changePassword(old: string, newPassword: string) {
     if (!this.instance) throw new Error('API实例未初始化');
+    console.log('🔐 Attempting to change password');
     const response = await this.instance.post<ApiResponse<string>>(
       '/api/entry/user/changePassword',
       {
@@ -90,13 +117,16 @@ class Api {
     // 获取账本列表
     list: async (): Promise<ApiResponse<Book[]>> => {
       if (!this.instance) throw new Error('API实例未初始化');
-      const response = await this.instance.post<ApiResponse<Book[]>>('/api/entry/book/list',{});
+      console.log('📚 Fetching book list');
+      const response = await this.instance.post<ApiResponse<Book[]>>('/api/entry/book/list', {});
+      console.log('📚 Fetching book list response:', response.data);
       return response.data;
     },
 
     // 获取账本
     get: async (bookId: number): Promise<ApiResponse<Book>> => {
       if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`📖 Fetching book details: ${bookId}`);
       const response = await this.instance.post<ApiResponse<Book>>(`/api/entry/book${bookId}`);
       return response.data;
     },
@@ -104,6 +134,7 @@ class Api {
     // 添加账本
     create: async (data: string): Promise<ApiResponse<Book>> => {
       if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`📝 Creating new book: ${data}`);
       const response = await this.instance.post<ApiResponse<Book>>('/api/entry/book/add', {
         'bookName': data
       });
@@ -113,6 +144,7 @@ class Api {
     // 分享账本
     share: async (data: any): Promise<ApiResponse<Book>> => {
       if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`🔗 Sharing book: `, data);
       const response = await this.instance.post<ApiResponse<Book>>('/api/entry/book/share', data);
       return response.data;
     },
@@ -120,13 +152,14 @@ class Api {
     // 添加分享账本
     inshare: async (data: any): Promise<ApiResponse<string>> => {
       if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`📥 Importing shared book: `, data);
       const response = await this.instance.post<ApiResponse<string>>('/api/entry/book/inshare', data);
       return response.data;
     },
 
     // 更新账本
     update: async (data: Book): Promise<ApiResponse<Book>> => {
-      console.log('更新账本:',data)
+      console.log('✏️ Updating book:', data);
       if (!this.instance) throw new Error('API实例未初始化');
       const response = await this.instance.post<ApiResponse<Book>>('/api/entry/book/update', data);
       return response.data;
@@ -135,6 +168,7 @@ class Api {
     // 删除账本
     delete: async (id: number): Promise<ApiResponse<void>> => {
       if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`🗑️ Deleting book: ${id}`);
       const response = await this.instance.post<ApiResponse<void>>(`/api/entry/book/del`,{id});
       return response.data;
     },
@@ -165,6 +199,7 @@ class Api {
       data: Flow[];
     }>> => {
       if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`📊 Fetching flows page ${params.pageNum} for book ${params.bookId}`, params);
       const response = await this.instance.post<ApiResponse<{
         total: number;
         pages: number;
@@ -179,6 +214,7 @@ class Api {
     // 获取流水
     get: async (flowId: number): Promise<ApiResponse<Flow>> => {
       if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`📋 Fetching flow details: ${flowId}`);
       const response = await this.instance.get<ApiResponse<Flow>>(`/api/flow/${flowId}`);
       return response.data;
     },
@@ -186,6 +222,7 @@ class Api {
     // 添加流水
     create: async (data: Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Flow>> => {
       if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`➕ Creating new flow: `, data);
       const response = await this.instance.post<ApiResponse<Flow>>('/api/entry/flow/add', data);
       return response.data;
     },
@@ -193,15 +230,17 @@ class Api {
     // 更新流水
     update: async (data: Partial<Omit<Flow, 'createdAt' | 'updatedAt'>>): Promise<ApiResponse<Flow>> => {
       if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`✏️ Updating flow: `, data);
       const response = await this.instance.post<ApiResponse<Flow>>(`/api/entry/flow/update`, data);
       return response.data;
     },
 
     // 删除流水
-    delete: async (id: number,bookId: string): Promise<ApiResponse<void>> => {
+    delete: async (id: number, bookId: string): Promise<ApiResponse<void>> => {
       if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`🗑️ Deleting flow: ${id} from book ${bookId}`);
       const response = await this.instance.post<ApiResponse<void>>(`/api/entry/flow/del`,{
-        id,bookId
+        id, bookId
       });
       return response.data;
     },
@@ -212,6 +251,7 @@ class Api {
     // 流水归属统计
     attribution: async (params: any) => {
       if (!this.instance) {throw new Error('API实例未初始化');}
+      console.log(`📊 Fetching attribution analytics: `, params);
       const response = await this.instance.post<ApiResponse<any>>('/api/entry/analytics/attribution', params);
       return response.data;
     },
@@ -219,6 +259,7 @@ class Api {
     // 每月流水统计
     month: async (bookId: string): Promise<ApiResponse<AnalyticsItem[]>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
+      console.log(`📅 Fetching monthly analytics for book: ${bookId}`);
       const response = await this.instance.post(`/api/entry/analytics/month`,{bookId});
       return response.data;
     },
@@ -231,6 +272,7 @@ class Api {
       zeroSum: number;
     }>>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
+      console.log(`📆 Fetching daily analytics for book: ${bookId}`);
       const response = await this.instance.post(`/api/entry/analytics/daily`,{bookId});
       return response.data;
     },
@@ -248,6 +290,7 @@ class Api {
       zeroSum: number;
     }>>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
+      console.log(`💳 Fetching payment type analytics: `, params);
       const response = await this.instance.post(`/api/entry/analytics/payType`, { params });
       return response.data;
     },
@@ -265,6 +308,7 @@ class Api {
       zeroSum: number;
     }>>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
+      console.log(`🏭 Fetching industry type analytics: `, params);
       const response = await this.instance.post(`/api/entry/analytics/industryType`, { params });
       return response.data;
     },
@@ -272,6 +316,7 @@ class Api {
     // 当月分析
     monthAnalysis: async (month: string, bookId: string): Promise<ApiResponse<MonthAnalysis>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
+      console.log(`📊 Fetching month analysis for ${month}, book: ${bookId}`);
       const response = await this.instance.post(`/api/entry/analytics/monthAnalysis`, {
         params: { month, bookId }
       });

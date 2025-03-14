@@ -110,26 +110,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       await serverConfigManager.saveConfig(config);
-      
       // 如果是新添加的服务器或者当前没有选择服务器，则自动设置为当前服务器
       if (!serverConfig || config.id === serverConfig.id) {
         await serverConfigManager.setCurrentServer(config.id);
-        
         // 获取当前服务器配置
         const currentServer = await serverConfigManager.getCurrentServer();
         setServerConfig(currentServer);
-        
         if (currentServer) {
           // 初始化API
           api.init(currentServer);
-          
           // 清除登录状态
           await authManager.logout();
           setUserInfo(null);
           setIsLoggedIn(false);
         }
       }
-      
       // 刷新服务器配置列表
       const configs = await serverConfigManager.getAllConfigs();
       setServerConfigs(configs);
@@ -146,11 +141,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       await serverConfigManager.deleteConfig(id);
-      
       // 刷新服务器配置列表
       const configs = await serverConfigManager.getAllConfigs();
       setServerConfigs(configs);
-      
       // 获取当前服务器配置
       const currentServer = await serverConfigManager.getCurrentServer();
       setServerConfig(currentServer);
@@ -166,18 +159,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const switchServer = useCallback(async (id: string) => {
     try {
       setIsLoading(true);
-      
       // 设置当前服务器
       await serverConfigManager.setCurrentServer(id);
-      
       // 获取当前服务器配置
       const currentServer = await serverConfigManager.getCurrentServer();
       setServerConfig(currentServer);
-      
       if (currentServer) {
         // 初始化API
         api.init(currentServer);
-        
         // 清除登录状态
         await authManager.logout();
         setUserInfo(null);
@@ -197,7 +186,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
       const configs = await serverConfigManager.getAllConfigs();
       setServerConfigs(configs);
-      
       // 获取当前服务器配置
       const currentServer = await serverConfigManager.getCurrentServer();
       setServerConfig(currentServer);
@@ -237,4 +225,4 @@ export const useAuth = () => {
     throw new Error('useAuth必须在AuthProvider内部使用');
   }
   return context;
-}; 
+};

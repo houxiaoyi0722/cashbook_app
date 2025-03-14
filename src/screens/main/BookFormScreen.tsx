@@ -46,7 +46,7 @@ const BookFormScreen: React.FC = () => {
     };
 
     fetchBookDetail();
-  }, [bookId, navigation]);
+  }, [bookId, books, navigation]);
 
   // 验证表单
   const validateForm = () => {

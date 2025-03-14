@@ -1,7 +1,6 @@
 import React, {createContext, useContext, useState, useCallback, useEffect} from 'react';
 import { Book, Flow, DailyData, CalendarMark, AnalyticsItem } from '../types';
 import api from '../services/api';
-import moment from 'moment';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
@@ -9,9 +8,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 interface BookkeepingContextType {
   isLoading: boolean;
   currentBook: Book | null;
-  getFlowsByMonth: (month: string) => Promise<Flow[]>;
   updateCurrentBook: (currentBook: Book) => Promise<void>;
-  fetchCalendarData: (month: string) => Promise<{
+  fetchCalendarData: () => Promise<{
     dailyData: DailyData;
     calendarMarks: CalendarMark;
   }>;
@@ -55,43 +53,11 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   },[setCurrentBook]);
 
-  // 获取指定月份的流水记录
-  const getFlowsByMonth = useCallback(async (month: string): Promise<Flow[]> => {
-    if (!currentBook) return [];
-
-    try {
-      setIsLoading(true);
-      const startDate = `${month}-01`;
-      const endDate = moment(startDate).endOf('month').format('YYYY-MM-DD');
-
-      const response = await api.flow.page({
-        bookId: currentBook.bookId,
-        pageNum: 1,
-        pageSize: 100,
-        startDay: startDate,
-        endDay: endDate,
-      });
-
-      if (response.c === 200 && response.d) {
-        return response.d.data;
-      }
-      return [];
-    } catch (error) {
-      console.error('获取流水失败', error instanceof Error ? error.message : String(error));
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentBook]);
-
   // 获取日历数据
-  const fetchCalendarData = useCallback(async (month: string) => {
+  const fetchCalendarData = useCallback(async () => {
     if (!currentBook) return { dailyData: {}, calendarMarks: {} };
 
     try {
-      // 注意：这里不设置全局 loading 状态，而是让调用者处理
-      // setIsLoading(true);
-
       // 使用 analytics.daily 替代 calendar API
       const response = await api.analytics.daily(currentBook.bookId);
       const dailyData: DailyData = {};
@@ -100,19 +66,17 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (response.c === 200 && response.d) {
         response.d.forEach((item: AnalyticsItem) => {
           const date = item.type;
-          // 只处理当前月份的数据
-          if (date.startsWith(month)) {
-            dailyData[date] = {
-              inSum: item.inSum,
-              outSum: item.outSum,
-              zeroSum: item.zeroSum,
-            };
+          // 只处理数据
+          dailyData[date] = {
+            inSum: item.inSum,
+            outSum: item.outSum,
+            zeroSum: item.zeroSum,
+          };
 
-            calendarMarks[date] = {
-              marked: true,
-              dotColor: item.outSum > 0 ? '#f44336' : '#4caf50',
-            };
-          }
+          calendarMarks[date] = {
+            marked: true,
+            dotColor: item.outSum > 1000 ? '#f44336' : item.outSum > 100 ? '#ec8808' : '#4caf50',
+          };
         });
       }
 
@@ -200,7 +164,6 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isLoading,
         currentBook,
         updateCurrentBook,
-        getFlowsByMonth,
         fetchCalendarData,
         fetchDayFlows,
         addFlow,

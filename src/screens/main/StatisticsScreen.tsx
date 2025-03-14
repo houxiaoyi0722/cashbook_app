@@ -6,11 +6,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { PieChart, BarChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import moment from 'moment';
-import { useBook } from '../../context/BookContext';
 import { MainStackParamList } from '../../navigation/types';
 import api from '../../services/api';
 import BookSelector from '../../components/BookSelector';
 import {MonthAnalysis, AnalyticsItem, Flow} from '../../types';
+import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -28,7 +28,7 @@ const getChartColor = (index: number) => {
 
 const StatisticsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { currentBook } = useBook();
+  const { currentBook } = useBookkeeping();
 
   const [tabIndex, setTabIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);

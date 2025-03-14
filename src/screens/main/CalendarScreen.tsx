@@ -1,14 +1,13 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, FlatList } from 'react-native';
 import { Text, Card, Button, Icon, FAB, Divider, Overlay } from '@rneui/themed';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MainStackParamList } from '../../navigation/types';
 import { useBookkeeping } from '../../context/BookkeepingContext';
 import BookSelector from '../../components/BookSelector';
 import { Flow, DailyData, CalendarMark } from '../../types';
-import moment from 'moment';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -23,10 +22,10 @@ LocaleConfig.defaultLocale = 'zh';
 
 const CalendarScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { currentBook, fetchCalendarData, getFlowsByMonth, fetchDayFlows } = useBookkeeping();
+  const { currentBook, fetchCalendarData, fetchDayFlows } = useBookkeeping();
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [currentMonth] = useState(new Date().toISOString().slice(0, 7));
   const [dailyData, setDailyData] = useState<DailyData>({});
   const [calendarMarks, setCalendarMarks] = useState<CalendarMark>({});
   const [dayFlows, setDayFlows] = useState<Flow[]>([]);
@@ -36,30 +35,39 @@ const CalendarScreen: React.FC = () => {
   // 使用 useRef 存储状态
   const dailyDataRef = useRef<DailyData>({});
   const calendarMarksRef = useRef<CalendarMark>({});
-  const dailyFlowsRef = useRef<Flow[]>([]);
 
-  // 获取月度流水数据
-  const fetchMonthlyFlows = useCallback(async () => {
+  // 使用 useMemo 缓存卡片数据
+  const dayCardData = useMemo(() => ({
+    selectedDate,
+    dailyData,
+    dayFlows
+  }), [selectedDate, dailyData, dayFlows]);
+
+  // 获取日流水数据
+  const fetchCalendarFlows = useCallback(async () => {
     if (!currentBook) return;
 
     try {
       // 获取日历数据
-      const { dailyData, calendarMarks } = await fetchCalendarData(currentMonth);
-      dailyDataRef.current = dailyData;
-      calendarMarksRef.current = calendarMarks;
-      setDailyData(dailyData); // 仍然更新状态以触发重新渲染
-      setCalendarMarks(calendarMarks);
+      const { dailyData, calendarMarks } = await fetchCalendarData();
 
-      // 获取选中日期的流水
-      const flows = await getFlowsByMonth(currentMonth);
-      const dailyFlows = flows.filter(flow => flow.day.startsWith(selectedDate));
-      dailyFlowsRef.current = dailyFlows;
-      setDayFlows(dailyFlows);
+      // 更新日历数据引用，但不触发重新渲染
+      dailyDataRef.current = dailyData;
+
+      // 只有在初始加载或账本切换时才更新日历标记
+      if (Object.keys(calendarMarksRef.current).length === 0) {
+        // 保留当前选中日期的样式
+        const updatedMarks = { ...calendarMarks };
+        calendarMarksRef.current = updatedMarks;
+        setCalendarMarks(updatedMarks);
+      }
+      // 始终更新下方卡片数据
+      setDailyData(dailyData);
     } catch (error) {
       console.error('获取月度流水失败', error instanceof Error ? error.message : String(error));
       Alert.alert('错误', '获取月度流水失败');
     }
-  }, [currentBook, currentMonth, selectedDate, fetchCalendarData, getFlowsByMonth]);
+  }, [currentBook, currentMonth, selectedDate, fetchCalendarData]);
 
   // 获取某天的流水详情
   const fetchDayDetail = useCallback(async (date: string) => {
@@ -80,62 +88,52 @@ const CalendarScreen: React.FC = () => {
   // 当前账本变化时，重新获取数据
   useEffect(() => {
     let isMounted = true;
+
+    // 只有当账本真正变化时才重置状态和获取数据
     if (currentBook) {
       // 重置状态，确保数据与当前账本匹配
       setDailyData({});
       setCalendarMarks({});
       setDayFlows([]);
+      dailyDataRef.current = {};
+      calendarMarksRef.current = {};
 
-      // 重新获取当前月份的数据
-      fetchMonthlyFlows().catch(err => {
+      // 使用 setTimeout 延迟执行，避免在同一渲染周期内多次更新状态
+      const timer = setTimeout(() => {
         if (isMounted) {
-          console.error('获取月度流水失败', err instanceof Error ? err.message : String(err));
+          fetchCalendarFlows().catch(err => {
+            if (isMounted) {
+              console.error('获取月度流水失败', err instanceof Error ? err.message : String(err));
+            }
+          });
         }
-      });
+      }, 0);
+
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+      };
     }
+
     return () => { isMounted = false; };
-  }, [currentBook, fetchMonthlyFlows]);
+  }, [currentBook]);
 
-  // 当页面获得焦点时，刷新数据
-  useFocusEffect(
-    useCallback(() => {
-      let isMounted = true;
-      if (currentBook) {
-        fetchMonthlyFlows().catch(err => {
-          if (isMounted) {
-            console.error('获取月度流水失败', err instanceof Error ? err.message : String(err));
-          }
-        });
-      }
-      return () => { isMounted = false; };
-    }, [currentBook, fetchMonthlyFlows])
-  );
-
-  // 处理日期选择
+  // 处理日期选择 - 只更新下方卡片，不刷新日历
   const handleDayPress = useCallback((day: any) => {
-    console.log(day)
-    setSelectedDate(day.dateString);
-
-    // 更新标记
-    const newMarks = { ...calendarMarks };
-    console.log(newMarks,currentBook)
-
-    // 重置之前选中的日期样式
-    Object.keys(newMarks).forEach(date => {
-      if (newMarks[date].customStyles) {
-        newMarks[date].customStyles!.container = {
-          backgroundColor: undefined,
-        };
-        newMarks[date].customStyles!.text = {
-          color: undefined,
-        };
-      }
-    });
-
-    // 设置新选中的日期样式
-    if (newMarks[day.dateString]) {
-      console.log('day.dateString:',day.dateString);
-      newMarks[day.dateString].customStyles = {
+    // 避免重复选择同一天
+    if (selectedDate === day.dateString) return;
+    if (calendarMarks[selectedDate]) {
+      calendarMarks[selectedDate].customStyles = {
+        container: {
+          backgroundColor: '#ffffff',
+        },
+        text: {
+          color: 'black',
+        },
+      };
+    }
+    if (calendarMarks[day.dateString]) {
+      calendarMarks[day.dateString].customStyles = {
         container: {
           backgroundColor: '#1976d2',
         },
@@ -144,7 +142,7 @@ const CalendarScreen: React.FC = () => {
         },
       };
     } else {
-      newMarks[day.dateString] = {
+      calendarMarks[day.dateString] = {
         customStyles: {
           container: {
             backgroundColor: '#1976d2',
@@ -155,22 +153,8 @@ const CalendarScreen: React.FC = () => {
         },
       };
     }
-
-    setCalendarMarks(newMarks);
-
-    // 当选择日期时，立即更新该日期的流水
-    getFlowsByMonth(currentMonth).then(flows => {
-      const dailyFlows = flows.filter(flow => flow.day.startsWith(day.dateString));
-      setDayFlows(dailyFlows);
-    }).catch(error => {
-      console.error('获取流水失败', error instanceof Error ? error.message : String(error));
-    });
-  }, [calendarMarks, currentMonth, getFlowsByMonth]);
-
-  // 处理月份变化
-  const handleMonthChange = useCallback((month: any) => {
-    setCurrentMonth(moment(month.dateString).format('YYYY-MM'));
-  }, []);
+    setSelectedDate(day.dateString);
+  }, [selectedDate]);
 
   // 查看日详情
   const handleViewDayDetail = useCallback(async () => {
@@ -299,44 +283,20 @@ const CalendarScreen: React.FC = () => {
     </Overlay>
   ), [showDayDetail, selectedDate, dailyData, dayDetailLoading, dayFlows, renderDayFlowItem, handleAddFlow]);
 
-  if (!currentBook) {
+  // 日卡片组件 - 使用 React.memo 避免不必要的重新渲染
+  const DayCard = React.memo(({
+    selectedDate,
+    dailyData,
+    onViewDetail,
+    onAddFlow
+  }: {
+    selectedDate: string;
+    dailyData: DailyData;
+    dayFlows: Flow[];
+    onViewDetail: () => void;
+    onAddFlow: () => void;
+  }) => {
     return (
-      <View style={styles.container}>
-        <BookSelector />
-        <Card containerStyle={styles.emptyCard}>
-          <Card.Title>未选择账本</Card.Title>
-          <Text style={styles.emptyText}>
-            请先选择或创建一个账本
-          </Text>
-          <Button
-            title="选择账本"
-            onPress={() => navigation.navigate('BookList')}
-            containerStyle={styles.emptyButton}
-          />
-        </Card>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <BookSelector />
-
-      <Card containerStyle={styles.calendarCard}>
-        <Calendar
-          current={currentMonth}
-          onDayPress={handleDayPress}
-          onMonthChange={handleMonthChange}
-          markingType="custom"
-          markedDates={calendarMarks}
-          theme={{
-            todayTextColor: '#1976d2',
-            arrowColor: '#1976d2',
-            monthTextColor: '#1976d2',
-          }}
-        />
-      </Card>
-
       <Card containerStyle={styles.dayCard}>
         <Card.Title>{selectedDate}</Card.Title>
 
@@ -368,31 +328,96 @@ const CalendarScreen: React.FC = () => {
             <Button
               title="查看详情"
               type="outline"
-              onPress={handleViewDayDetail}
+              onPress={onViewDetail}
               containerStyle={styles.dayCardButton}
             />
             <Button
               title="添加流水"
-              onPress={handleAddFlow}
+              onPress={onAddFlow}
               containerStyle={styles.dayCardButton}
             />
           </View>
         </View>
       </Card>
+    );
+  }, (prevProps, nextProps) => {
+    // 只有当这些属性变化时才重新渲染
+    return (
+      prevProps.selectedDate === nextProps.selectedDate &&
+      JSON.stringify(prevProps.dailyData[prevProps.selectedDate]) ===
+      JSON.stringify(nextProps.dailyData[nextProps.selectedDate]) &&
+      prevProps.dayFlows.length === nextProps.dayFlows.length
+    );
+  });
+
+  if (!currentBook) {
+    return (
+      <View style={styles.container}>
+        <BookSelector />
+        <Card containerStyle={styles.emptyCard}>
+          <Card.Title>未选择账本</Card.Title>
+          <Text style={styles.emptyText}>
+            请先选择或创建一个账本
+          </Text>
+          <Button
+            title="选择账本"
+            onPress={() => navigation.navigate('BookList')}
+            containerStyle={styles.emptyButton}
+          />
+        </Card>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <BookSelector />
+
+      <Card containerStyle={styles.calendarCard}>
+        <Calendar
+          current={currentMonth}
+          onDayPress={handleDayPress}
+          markingType="custom"
+          markedDates={{
+            ...calendarMarks,
+            [selectedDate]: {
+              ...(calendarMarks[selectedDate] || {}),
+              selected: true,
+              customStyles: {
+                container: {
+                  backgroundColor: '#1976d2',
+                },
+                text: {
+                  color: 'white',
+                },
+              },
+            },
+          }}
+          theme={{
+            todayTextColor: '#1976d2',
+            arrowColor: '#1976d2',
+            monthTextColor: '#1976d2',
+            selectedDayBackgroundColor: '#1976d2',
+            selectedDayTextColor: 'white',
+          }}
+        />
+      </Card>
+
+      {/* 使用 React.memo 包装的卡片组件 */}
+      <DayCard
+        selectedDate={dayCardData.selectedDate}
+        dailyData={dayCardData.dailyData}
+        dayFlows={dayCardData.dayFlows}
+        onViewDetail={handleViewDayDetail}
+        onAddFlow={handleAddFlow}
+      />
 
       <FAB
-        icon={
-          <Icon
-            name="add"
-            color="white"
-            size={24}
-          />
-        }
+        icon={<Icon name="add" color="white" size={24} />}
         color="#1976d2"
         placement="right"
         onPress={handleAddFlow}
       />
-
 
       {renderDayDetail()}
     </View>
