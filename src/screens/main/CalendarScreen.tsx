@@ -350,6 +350,76 @@ const CalendarScreen: React.FC = () => {
     );
   });
 
+  // 当月数据汇总组件
+  const MonthSummary = React.memo(({
+    currentMonth,
+    dailyData
+  }: {
+    currentMonth: string;
+    dailyData: DailyData;
+  }) => {
+    // 计算当月总收入、总支出和不计收支
+    const summary = useMemo(() => {
+      let totalIncome = 0;
+      let totalExpense = 0;
+      let totalZero = 0;
+
+      Object.entries(dailyData).forEach(([date, data]) => {
+        if (date.startsWith(currentMonth)) {
+          totalIncome += data.inSum || 0;
+          totalExpense += data.outSum || 0;
+          totalZero += data.zeroSum || 0;
+        }
+      });
+
+      return {
+        totalIncome,
+        totalExpense,
+        totalZero,
+        balance: totalIncome - totalExpense
+      };
+    }, [currentMonth, dailyData]);
+
+    return (
+      <Card containerStyle={styles.monthSummaryCard}>
+        <View style={styles.monthSummaryContent}>
+          <View style={styles.monthSummaryRow}>
+            <View style={styles.monthSummaryItem}>
+              <Text style={styles.monthSummaryLabel}>总收入</Text>
+              <Text style={[styles.monthSummaryValue, { color: '#4caf50' }]}>
+                {summary.totalIncome.toFixed(2)}
+              </Text>
+            </View>
+
+            <View style={styles.monthSummaryItem}>
+              <Text style={styles.monthSummaryLabel}>总支出</Text>
+              <Text style={[styles.monthSummaryValue, { color: '#f44336' }]}>
+                {summary.totalExpense.toFixed(2)}
+              </Text>
+            </View>
+
+            <View style={styles.monthSummaryItem}>
+              <Text style={styles.monthSummaryLabel}>不计收支</Text>
+              <Text style={[styles.monthSummaryValue, { color: '#070707' }]}>
+                {summary.totalZero.toFixed(2)}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Card>
+    );
+  }, (prevProps, nextProps) => {
+    // 只有当月份变化或数据变化时才重新渲染
+    return (
+      prevProps.currentMonth === nextProps.currentMonth &&
+      JSON.stringify(Object.keys(prevProps.dailyData).filter(date =>
+        date.startsWith(prevProps.currentMonth)
+      )) === JSON.stringify(Object.keys(nextProps.dailyData).filter(date =>
+        date.startsWith(nextProps.currentMonth)
+      ))
+    );
+  });
+
   if (!currentBook) {
     return (
       <View style={styles.container}>
@@ -400,7 +470,46 @@ const CalendarScreen: React.FC = () => {
             selectedDayBackgroundColor: '#1976d2',
             selectedDayTextColor: 'white',
           }}
+          monthFormat={'yyyy年 MM月'}
         />
+
+        {/* 将月度汇总直接放在日历卡片内部 */}
+        <View style={styles.monthSummaryContent}>
+          <View style={styles.monthSummaryRow}>
+            <View style={styles.monthSummaryItem}>
+              <Text style={styles.monthSummaryLabel}>总收入</Text>
+              <Text style={[styles.monthSummaryValue, { color: '#4caf50' }]}>
+                {/* 计算总收入 */}
+                {Object.entries(dailyData)
+                  .filter(([date]) => date.startsWith(currentMonth))
+                  .reduce((sum, [, data]) => sum + (data.inSum || 0), 0)
+                  .toFixed(2)}
+              </Text>
+            </View>
+
+            <View style={styles.monthSummaryItem}>
+              <Text style={styles.monthSummaryLabel}>总支出</Text>
+              <Text style={[styles.monthSummaryValue, { color: '#f44336' }]}>
+                {/* 计算总支出 */}
+                {Object.entries(dailyData)
+                  .filter(([date]) => date.startsWith(currentMonth))
+                  .reduce((sum, [, data]) => sum + (data.outSum || 0), 0)
+                  .toFixed(2)}
+              </Text>
+            </View>
+
+            <View style={styles.monthSummaryItem}>
+              <Text style={styles.monthSummaryLabel}>不计收支</Text>
+              <Text style={[styles.monthSummaryValue, { color: '#070707' }]}>
+                {/* 计算不计收支 */}
+                {Object.entries(dailyData)
+                  .filter(([date]) => date.startsWith(currentMonth))
+                  .reduce((sum, [, data]) => sum + (data.zeroSum || 0), 0)
+                  .toFixed(2)}
+              </Text>
+            </View>
+          </View>
+        </View>
       </Card>
 
       {/* 使用 React.memo 包装的卡片组件 */}
@@ -445,6 +554,10 @@ const styles = StyleSheet.create({
     margin: 10,
     padding: 0,
     borderRadius: 10,
+    borderBottomWidth: 0,
+    shadowOpacity: 0,
+    elevation: 0,
+    marginBottom: 0,
   },
   dayCard: {
     margin: 10,
@@ -573,6 +686,40 @@ const styles = StyleSheet.create({
   emptyList: {
     padding: 20,
     alignItems: 'center',
+  },
+  monthSummaryCard: {
+    margin: 10,
+    marginTop: 0,
+    borderRadius: 0,
+    padding: 0,
+    borderTopWidth: 0,
+    shadowOpacity: 0,
+    elevation: 0,
+    backgroundColor: 'transparent',
+  },
+  monthSummaryContent: {
+    marginTop: 5,
+    backgroundColor: 'white',
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+  },
+  monthSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  monthSummaryItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  monthSummaryLabel: {
+    fontSize: 12,
+    color: '#757575',
+    marginBottom: 3,
+  },
+  monthSummaryValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
