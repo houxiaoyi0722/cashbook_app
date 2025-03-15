@@ -9,6 +9,7 @@ import { MainStackParamList } from '../../navigation/types';
 import api from '../../services/api';
 import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
 import {eventBus} from '../../navigation';
+import {useAuth} from "../../context/AuthContext.tsx";
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowForm'>;
@@ -21,7 +22,7 @@ const flowTypeButtons = [...flowTypes];
 
 const defaultIndustryTypes = {
   '收入': ['工资', '奖金', '转账红包', '其他'],
-  '支出': ['交通出行', '日用百货', '餐饮美食', '充值缴费', '服饰装扮', '公共服务', '商业服务', '家居家装', '文化休闲', '爱车养车', '生活服务', '运动户外', '亲友代付', '其他'],
+  '支出': ['餐饮美食', '日用百货', '交通出行', '充值缴费', '服饰装扮', '公共服务', '商业服务', '家居家装', '文化休闲', '爱车养车', '生活服务', '运动户外', '亲友代付', '其他'],
   '不计收支': ['信用借还', '投资理财', '退款', '报销', '收款', '其他'],
 };
 
@@ -32,7 +33,8 @@ const FlowFormScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { currentFlow, date } = route.params || {};
-  const { currentBook, remotePayType, attributions } = useBookkeeping();
+  const { currentBook, remotePayType, remoteAttributions } = useBookkeeping();
+  const {userInfo} = useAuth();
 
   const [name, setName] = useState('');
   const [money, setMoney] = useState('');
@@ -42,9 +44,11 @@ const FlowFormScreen: React.FC = () => {
   const [payType, setPayType] = useState('');
   const [flowDate, setFlowDate] = useState(date ? new Date(date) : new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [attribution, setAttribution] = useState<string>('');
 
   const [industryTypes, setIndustryTypes] = useState<string[]>([]);
   const [payTypes, setPayTypes] = useState<string[]>([]);
+  const [attributions, setAttributions] = useState<string[]>([]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching] = useState(false);
@@ -60,7 +64,7 @@ const FlowFormScreen: React.FC = () => {
       setIndustryType(currentFlow.industryType);
       setPayType(currentFlow.payType);
       setFlowDate(new Date(currentFlow.day));
-
+      setAttribution(currentFlow.attribution || '');
     };
 
     fetchFlowDetail();
@@ -69,24 +73,31 @@ const FlowFormScreen: React.FC = () => {
   // 根据流水类型设置默认的行业类型和支付方式
   useEffect(() => {
     const init = async () => {
-      let defaultIndustryType = defaultIndustryTypes[flowType];
-      let apiResponse = await api.flow.industryType(currentBook?.bookId!,flowType);
-      const merged = [...new Set([...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
-      setIndustryTypes(merged);
-
       const mergedPayTypes = [...new Set([...defaultPayTypes, ...remotePayType])];
       setPayTypes(mergedPayTypes);
 
-      if (!industryType || !merged.includes(industryType)) {
-        setIndustryType(defaultIndustryTypes[flowType][0]);
-      }
+      const mergedAttributions = [...new Set([userInfo?.name!, ...remoteAttributions])];
+      setAttributions(mergedAttributions);
 
       if (!payType || !mergedPayTypes.includes(payType)) {
         setPayType(defaultPayTypes[0]);
       }
     };
     init();
-  }, [flowType, industryType, payType]);
+  }, [flowType, payType]);
+
+  useEffect(() => {
+    const init = async () => {
+      let defaultIndustryType = defaultIndustryTypes[flowType];
+      let apiResponse = await api.flow.industryType(currentBook?.bookId!,flowType);
+      const merged = [...new Set([...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
+      setIndustryTypes(merged);
+      if (!industryType || !merged.includes(industryType)) {
+        setIndustryType(defaultIndustryTypes[flowType][0]);
+      }
+    };
+    init();
+  }, []);
 
   // 验证表单
   const validateForm = () => {
@@ -129,6 +140,7 @@ const FlowFormScreen: React.FC = () => {
           flowType,
           industryType,
           payType,
+          attribution,
           description: description.trim() || undefined,
           day: moment(flowDate).format('YYYY-MM-DD'),
         });
@@ -143,6 +155,7 @@ const FlowFormScreen: React.FC = () => {
           flowType,
           industryType,
           payType,
+          attribution,
           description: description.trim() || undefined,
           day: moment(flowDate).format('YYYY-MM-DD'),
         });
@@ -259,6 +272,32 @@ const FlowFormScreen: React.FC = () => {
                     ]}
                   >
                     {type}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          <Text style={styles.label}>归属人</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.typeContainer}>
+              {attributions.map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={[
+                    styles.typeItem,
+                    attribution === item && styles.selectedTypeItem,
+                  ]}
+                  onPress={() => setAttribution(item)}
+                  disabled={isLoading}
+                >
+                  <Text
+                    style={[
+                      styles.typeText,
+                      attribution === item && styles.selectedTypeText,
+                    ]}
+                  >
+                    {item}
                   </Text>
                 </TouchableOpacity>
               ))}

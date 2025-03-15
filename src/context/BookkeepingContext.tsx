@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 interface BookkeepingContextType {
   isLoading: boolean;
   currentBook: Book | null;
-  attributions: string[],
+  remoteAttributions: string[],
   remotePayType: string[],
   updateCurrentBook: (currentBook: Book) => Promise<void>;
   fetchCalendarData: () => Promise<{
@@ -29,7 +29,7 @@ const STORAGE_KEY = 'current_book';
 export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [attributions, setAttributions] = useState<string[]>([]);
+  const [remoteAttributions, setRemoteAttributions] = useState<string[]>([]);
   const [remotePayType, setRemotePayType] = useState<string[]>([]);
 
   useEffect(() => {
@@ -40,19 +40,11 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         if (savedBook) {
           let parse = JSON.parse(savedBook);
           setCurrentBook(parse);
-
-          const response = await api.flow.attributions(parse.bookId);
-          setAttributions(response.d);
-
-          const response1 = await api.flow.payType(parse.bookId);
-          setRemotePayType(response1.d.map(item => item.payType));
         }
       } catch (error) {
         console.error('加载当前账本失败', error);
       }
     };
-
-
 
     loadCurrentBook();
   }, [setCurrentBook]);
@@ -91,12 +83,16 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
       }
 
+      const response1 = await api.flow.attributions(currentBook.bookId);
+      setRemoteAttributions(response1.d);
+
+      const response2 = await api.flow.payType(currentBook.bookId);
+      setRemotePayType(response2.d.map(item => item.payType));
+
       return { dailyData, calendarMarks };
     } catch (error) {
       console.error('获取日历数据失败', error instanceof Error ? error.message : String(error));
       return { dailyData: {}, calendarMarks: {} };
-    } finally {
-      // setIsLoading(false);
     }
   }, [currentBook]);
 
@@ -164,7 +160,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
       value={{
         isLoading,
         currentBook,
-        attributions,
+        remoteAttributions,
         remotePayType,
         updateCurrentBook,
         fetchCalendarData,

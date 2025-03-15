@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Icon } from '@rneui/themed';
+import React, {useEffect, useState} from 'react';
+import {NavigationContainer} from '@react-navigation/native';
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import {Icon} from '@rneui/themed';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // 认证相关屏幕
@@ -17,15 +17,14 @@ import SettingsScreen from '../screens/main/SettingsScreen';
 import BookListScreen from '../screens/main/BookListScreen';
 import BookFormScreen from '../screens/main/BookFormScreen';
 import FlowFormScreen from '../screens/main/FlowFormScreen';
-import FlowDetailScreen from '../screens/main/FlowDetailScreen';
 
 // 上下文提供者
-import { AuthProvider } from '../context/AuthContext';
-import { BookProvider } from '../context/BookContext';
+import {AuthProvider} from '../context/AuthContext';
+import {BookProvider} from '../context/BookContext';
 
 // 导航类型
-import { MainStackParamList, MainTabParamList } from './types';
-import { NativeEventEmitter } from 'react-native';
+import {MainStackParamList, MainTabParamList} from './types';
+import {NativeEventEmitter} from 'react-native';
 
 export const eventBus = new NativeEventEmitter();
 // 创建导航器
@@ -180,11 +179,6 @@ const AppNavigator = () => {
               options={({ route }) => ({
                 title: route.params?.currentFlow ? '编辑流水' : '添加流水',
               })}
-            />
-            <Stack.Screen
-              name="FlowDetail"
-              component={FlowDetailScreen}
-              options={{ title: '流水详情' }}
             />
           </Stack.Navigator>
         </BookProvider>
