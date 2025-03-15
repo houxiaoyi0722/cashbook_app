@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, StyleSheet, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { Text, Card, Button, Icon, FAB, Divider, Overlay } from '@rneui/themed';
+import { Text, Card, Button, Icon, Divider, Overlay } from '@rneui/themed';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -594,15 +594,6 @@ const CalendarScreen: React.FC = () => {
         onViewDetail={handleViewDayDetail}
         onAddFlow={handleAddFlow}
       />
-
-{/*
-      <FAB
-        icon={<Icon name="add" color="white" size={24} />}
-        color="#1976d2"
-        placement="right"
-        onPress={handleAddFlow}
-      />
-*/}
 
       {renderDayDetail()}
       {renderYearMonthSelector()}

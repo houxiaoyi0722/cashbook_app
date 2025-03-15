@@ -68,7 +68,7 @@ const FlowFormScreen: React.FC = () => {
     };
 
     fetchFlowDetail();
-  }, [currentFlow, navigation]);
+  }, [currentFlow]);
 
   // 根据流水类型设置默认的行业类型和支付方式
   useEffect(() => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Text, Icon, ListItem, FAB } from '@rneui/themed';
+import { View, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator, Text as RNText } from 'react-native';
+import { Text, Icon, ListItem } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MainStackParamList } from '../../navigation/types';
@@ -12,18 +12,24 @@ type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 const ServerListScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { serverConfigs, deleteServerConfig, switchServer, isLoading } = useAuth();
+  const { serverConfig, serverConfigs, deleteServerConfig, switchServer, isLoading , isLoggedIn, isLogOut} = useAuth();
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
 
   // 初始化时设置当前选中的服务器
   useEffect(() => {
     const init = async () => {
-      const currentServer = await serverConfigManager.getCurrentServer();
-      if (currentServer) {
-        handleSelectServer(currentServer.id)
-        setSelectedServerId(currentServer.id);
+
+      const storageServer = await serverConfigManager.getCurrentServer();
+      // 未登录状态下自动选择服务器登录
+      console.log('isLoggedIn',isLoggedIn);
+      if (storageServer && !isLoggedIn && !isLogOut) {
+        handleSelectServer(storageServer.id);
+        setSelectedServerId(storageServer.id);
       }
-    }
+      if (serverConfig) {
+        setSelectedServerId(serverConfig.id);
+      }
+    };
     init();
   }, []);
 
@@ -74,17 +80,16 @@ const ServerListScreen: React.FC = () => {
   // 处理添加服务器
   const handleAddServer = useCallback(() => {
     navigation.navigate('ServerForm', {});
-  }, [navigation]);
+  }, []);
 
   // 处理编辑服务器
   const handleEditServer = useCallback((server: ServerConfig) => {
     navigation.navigate('ServerForm', { serverId: server.id });
-  }, [navigation]);
+  }, []);
 
   // 渲染服务器项
   const renderServerItem = useCallback(({ item }: { item: ServerConfig }) => {
     const isSelected = item.id === selectedServerId;
-
     return (
       <ListItem
         containerStyle={[
@@ -129,8 +134,6 @@ const ServerListScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Text h4 style={styles.title}>服务器列表</Text>
-
       {isLoading ? (
         <ActivityIndicator size="large" color="#1976d2" style={styles.loading} />
       ) : (
@@ -149,13 +152,13 @@ const ServerListScreen: React.FC = () => {
             />
           )}
 
-          <FAB
-            icon={<Icon name="add" color="white" />}
-            color="#1976d2"
-            placement="right"
-            style={styles.fab}
+          <TouchableOpacity
+            style={styles.customFab}
             onPress={handleAddServer}
-          />
+            activeOpacity={0.8}
+          >
+            <RNText style={styles.fabText}>+</RNText>
+          </TouchableOpacity>
         </>
       )}
     </View>
@@ -217,8 +220,28 @@ const styles = StyleSheet.create({
     color: '#757575',
     textAlign: 'center',
   },
-  fab: {
-    margin: 16,
+  customFab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1976d2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  fabText: {
+    color: 'white',
+    fontSize: 30,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    lineHeight: 50,
   },
   loading: {
     flex: 1,

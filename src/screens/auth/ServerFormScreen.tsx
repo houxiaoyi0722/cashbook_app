@@ -7,6 +7,7 @@ import { MainStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 import { ServerConfig } from '../../types';
 import serverConfigManager from '../../services/serverConfig';
+import api from "../../services/api.ts";
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type ServerFormRouteProp = RouteProp<MainStackParamList, 'ServerForm'>;
@@ -87,6 +88,8 @@ const ServerFormScreen: React.FC = () => {
       };
 
       try {
+        // 初始化API
+        api.init(config);
         await login(config.username, config.password);
         await saveServerConfig(config);
         // 登录成功后会自动跳转到主页面
@@ -120,8 +123,6 @@ const ServerFormScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <Text h4 style={styles.title}>{serverId ? '编辑服务器' : '添加服务器'}</Text>
-
           <Input
             label="服务器名称"
             placeholder="请输入服务器名称"

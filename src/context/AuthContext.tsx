@@ -3,11 +3,13 @@ import { UserInfo, ServerConfig } from '../types';
 import authManager from '../services/auth';
 import serverConfigManager from '../services/serverConfig';
 import api from '../services/api';
+import {eventBus} from "../navigation";
 
 // 认证上下文类型
 interface AuthContextType {
   isLoading: boolean;
   isLoggedIn: boolean;
+  isLogOut: boolean;
   userInfo: UserInfo | null;
   serverConfig: ServerConfig | null;
   serverConfigs: ServerConfig[];
@@ -16,7 +18,6 @@ interface AuthContextType {
   saveServerConfig: (config: ServerConfig) => Promise<void>;
   deleteServerConfig: (id: string) => Promise<void>;
   switchServer: (id: string) => Promise<void>;
-  refreshServerConfigs: () => Promise<void>;
 }
 
 // 创建认证上下文
@@ -31,6 +32,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLogOut, setIsLogOut] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [serverConfig, setServerConfig] = useState<ServerConfig | null>(null);
   const [serverConfigs, setServerConfigs] = useState<ServerConfig[]>([]);
@@ -74,10 +76,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // 登录
   const login = useCallback(async (username: string, password: string) => {
     try {
-      if (!serverConfig) {
-        throw new Error('请先选择服务器');
-      }
-
       setIsLoading(true);
       const user = await authManager.login(username, password);
       setUserInfo(user);
@@ -97,6 +95,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await authManager.logout();
       setUserInfo(null);
       setIsLoggedIn(false);
+      setIsLogOut(true);
     } catch (error) {
       console.error('登出失败', error);
       throw error;
@@ -117,22 +116,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // 获取当前服务器配置
       const currentServer = await serverConfigManager.getCurrentServer();
       setServerConfig(currentServer);
-
-      if (currentServer) {
-        // 初始化API
-        api.init(currentServer);
-
-        // 自动登录
-        try {
-          const user = await authManager.login(config.username, config.password);
-          setUserInfo(user);
-          setIsLoggedIn(true);
-        } catch (loginError) {
-          console.error('自动登录失败', loginError);
-          // 即使登录失败也继续，不阻止用户使用
-        }
-      }
-
       // 刷新服务器配置列表
       const configs = await serverConfigManager.getAllConfigs();
       setServerConfigs(configs);
@@ -183,11 +166,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // 初始化API
       api.init(currentServer);
-
       // 自动登录
       const user = await authManager.login(currentServer.username, currentServer.password);
       setUserInfo(user);
       setIsLoggedIn(true);
+      eventBus.emit('refreshCurrentBook');
     } catch (error) {
       console.error('登录失败', error);
       // 即使登录失败也继续，不阻止用户使用
@@ -200,28 +183,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
-  // 刷新服务器配置列表
-  const refreshServerConfigs = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const configs = await serverConfigManager.getAllConfigs();
-      setServerConfigs(configs);
-      // 获取当前服务器配置
-      const currentServer = await serverConfigManager.getCurrentServer();
-      setServerConfig(currentServer);
-    } catch (error) {
-      console.error('刷新服务器配置失败', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   return (
     <AuthContext.Provider
       value={{
         isLoading,
         isLoggedIn,
+        isLogOut,
         userInfo,
         serverConfig,
         serverConfigs,
@@ -230,7 +197,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         saveServerConfig,
         deleteServerConfig,
         switchServer,
-        refreshServerConfigs,
       }}
     >
       {children}

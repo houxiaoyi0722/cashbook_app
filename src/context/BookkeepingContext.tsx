@@ -2,6 +2,8 @@ import React, {createContext, useContext, useState, useCallback, useEffect} from
 import { Book, Flow, DailyData, CalendarMark, AnalyticsItem } from '../types';
 import api from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import serverConfigManager from "../services/serverConfig.ts";
+import {eventBus} from '../navigation';
 
 
 // 记账上下文类型
@@ -10,7 +12,7 @@ interface BookkeepingContextType {
   currentBook: Book | null;
   remoteAttributions: string[],
   remotePayType: string[],
-  updateCurrentBook: (currentBook: Book) => Promise<void>;
+  updateCurrentBook: (currentBook: Book | null) => Promise<void>;
   fetchCalendarData: () => Promise<{
     dailyData: DailyData;
     calendarMarks: CalendarMark;
@@ -36,7 +38,8 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 从本地存储加载当前账本
     const loadCurrentBook = async () => {
       try {
-        const savedBook = await AsyncStorage.getItem(STORAGE_KEY);
+        const currentServer = await serverConfigManager.getCurrentServer();
+        const savedBook = await AsyncStorage.getItem(`${STORAGE_KEY}:${currentServer?.id}`);
         if (savedBook) {
           let parse = JSON.parse(savedBook);
           setCurrentBook(parse);
@@ -47,14 +50,20 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     loadCurrentBook();
-  }, [setCurrentBook]);
+
+    eventBus.addListener('refreshCurrentBook', loadCurrentBook);
+    return () => {
+      eventBus.removeAllListeners('refreshCurrentBook');
+    };
+  }, []);
   // 更新当前账本
-  const updateCurrentBook = useCallback(async (currentBook: Book): Promise<any> => {
+  const updateCurrentBook = useCallback(async (currentBook: Book | null): Promise<any> => {
     if (currentBook) {
-      await AsyncStorage.setItem(STORAGE_KEY,JSON.stringify(currentBook));
+      const currentServer = await serverConfigManager.getCurrentServer();
+      await AsyncStorage.setItem(`${STORAGE_KEY}:${currentServer?.id}`,JSON.stringify(currentBook));
       setCurrentBook(currentBook);
     }
-  },[setCurrentBook]);
+  },[]);
 
   // 获取日历数据
   const fetchCalendarData = useCallback(async () => {
