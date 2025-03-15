@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ApiResponse, ServerConfig, Book, Flow, AnalyticsItem, MonthAnalysis } from '../types';
 
@@ -19,14 +19,14 @@ const createApiInstance = (baseURL: string): AxiosInstance => {
       if (token && config.headers) {
         config.headers.Authorization = token;
       }
-      
+
       // 记录请求日志
       console.log(`🚀 REQUEST: ${config.method?.toUpperCase()} ${config.url}`, {
         headers: config.headers,
         params: config.params,
         data: config.data
       });
-      
+
       return config;
     },
     (error) => {
@@ -43,7 +43,7 @@ const createApiInstance = (baseURL: string): AxiosInstance => {
         status: response.status,
         data: response.data
       });
-      
+
       return response;
     },
     (error) => {
@@ -55,7 +55,7 @@ const createApiInstance = (baseURL: string): AxiosInstance => {
         data: error.response?.data,
         message: error.message
       });
-      
+
       // 处理401错误，清除token并重定向到登录页面
       if (error.response && error.response.status === 401) {
         AsyncStorage.removeItem('auth_token');
@@ -211,14 +211,6 @@ class Api {
       return response.data;
     },
 
-    // 获取流水
-    get: async (flowId: number): Promise<ApiResponse<Flow>> => {
-      if (!this.instance) throw new Error('API实例未初始化');
-      console.log(`📋 Fetching flow details: ${flowId}`);
-      const response = await this.instance.get<ApiResponse<Flow>>(`/api/flow/${flowId}`);
-      return response.data;
-    },
-
     // 添加流水
     create: async (data: Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Flow>> => {
       if (!this.instance) throw new Error('API实例未初始化');
@@ -244,6 +236,31 @@ class Api {
       });
       return response.data;
     },
+
+    // 归属人列表
+    attributions: async (bookId: string): Promise<ApiResponse<string[]>> => {
+      if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`📋 Fetching attributions details: ${bookId}`);
+      const response = await this.instance.post<ApiResponse<string[]>>(`/api/entry/flow/getAttributions`,{bookId});
+      return response.data;
+    },
+
+    // 支出类型列表
+    industryType: async (bookId: string, flowType: string): Promise<ApiResponse<[{industryType: string}]>> => {
+      if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`📋 Fetching industryType details: ${bookId} ${flowType}`);
+      const response = await this.instance.post<ApiResponse<[{industryType: string}]>>(`/api/entry/flow/type/getIndustryType`,{bookId,flowType});
+      return response.data;
+    },
+
+    // 支出类型列表
+    payType: async (bookId: string): Promise<ApiResponse<[{payType: string}]>> => {
+      if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`📋 Fetching payType details: ${bookId}`);
+      const response = await this.instance.post<ApiResponse<[{payType: string}]>>(`/api/entry/flow/type/getPayType`,{bookId});
+      return response.data;
+    },
+
   };
 
   // 分析相关API

@@ -1,13 +1,15 @@
 import React, {createContext, useContext, useState, useCallback, useEffect} from 'react';
 import { Book, Flow, DailyData, CalendarMark, AnalyticsItem } from '../types';
 import api from '../services/api';
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 // 记账上下文类型
 interface BookkeepingContextType {
   isLoading: boolean;
   currentBook: Book | null;
+  attributions: string[],
+  remotePayType: string[],
   updateCurrentBook: (currentBook: Book) => Promise<void>;
   fetchCalendarData: () => Promise<{
     dailyData: DailyData;
@@ -17,7 +19,6 @@ interface BookkeepingContextType {
   addFlow: (flow: Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Flow>;
   updateFlow: (data: Partial<Omit<Flow,'createdAt' | 'updatedAt'>>) => Promise<Flow>;
   deleteFlow: (flowId: number) => Promise<void>;
-  getFlowById: (flowId: number) => Promise<Flow>;
 }
 
 // 创建记账上下文
@@ -28,7 +29,8 @@ const STORAGE_KEY = 'current_book';
 export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
+  const [attributions, setAttributions] = useState<string[]>([]);
+  const [remotePayType, setRemotePayType] = useState<string[]>([]);
 
   useEffect(() => {
     // 从本地存储加载当前账本
@@ -36,12 +38,21 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
       try {
         const savedBook = await AsyncStorage.getItem(STORAGE_KEY);
         if (savedBook) {
-          setCurrentBook(JSON.parse(savedBook));
+          let parse = JSON.parse(savedBook);
+          setCurrentBook(parse);
+
+          const response = await api.flow.attributions(parse.bookId);
+          setAttributions(response.d);
+
+          const response1 = await api.flow.payType(parse.bookId);
+          setRemotePayType(response1.d.map(item => item.payType));
         }
       } catch (error) {
         console.error('加载当前账本失败', error);
       }
     };
+
+
 
     loadCurrentBook();
   }, [setCurrentBook]);
@@ -148,28 +159,19 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [currentBook?.bookId]);
 
-  // 获取流水记录详情
-  const getFlowById = useCallback(async (flowId: number): Promise<Flow> => {
-    const response = await api.flow.get(flowId);
-
-    if (response.c === 200) {
-      return response.d;
-    }
-    throw new Error(response.m);
-  }, []);
-
   return (
     <BookkeepingContext.Provider
       value={{
         isLoading,
         currentBook,
+        attributions,
+        remotePayType,
         updateCurrentBook,
         fetchCalendarData,
         fetchDayFlows,
         addFlow,
         updateFlow,
-        deleteFlow,
-        getFlowById,
+        deleteFlow
       }}
     >
       {children}

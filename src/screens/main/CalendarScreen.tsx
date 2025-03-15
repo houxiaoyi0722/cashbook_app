@@ -595,12 +595,14 @@ const CalendarScreen: React.FC = () => {
         onAddFlow={handleAddFlow}
       />
 
+{/*
       <FAB
         icon={<Icon name="add" color="white" size={24} />}
         color="#1976d2"
         placement="right"
         onPress={handleAddFlow}
       />
+*/}
 
       {renderDayDetail()}
       {renderYearMonthSelector()}

@@ -178,7 +178,7 @@ const AppNavigator = () => {
               name="FlowForm"
               component={FlowFormScreen}
               options={({ route }) => ({
-                title: route.params?.flowId ? '编辑流水' : '添加流水',
+                title: route.params?.currentFlow ? '编辑流水' : '添加流水',
               })}
             />
             <Stack.Screen

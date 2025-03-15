@@ -20,10 +20,11 @@ type FlowType = typeof flowTypes[number];
 const flowTypeButtons = [...flowTypes];
 
 const defaultIndustryTypes = {
-  '收入': ['工资', '奖金', '投资', '报销', '其他'],
-  '支出': ['餐饮', '购物', '交通', '住房', '娱乐', '医疗', '教育', '其他'],
-  '不计收支': ['转账', '还款', '借出', '收款', '其他'],
+  '收入': ['工资', '奖金', '转账红包', '其他'],
+  '支出': ['交通出行', '日用百货', '餐饮美食', '充值缴费', '服饰装扮', '公共服务', '商业服务', '家居家装', '文化休闲', '爱车养车', '生活服务', '运动户外', '亲友代付', '其他'],
+  '不计收支': ['信用借还', '投资理财', '退款', '报销', '收款', '其他'],
 };
+
 // todo 融合接口数据和固定数据后去重,固定数据交由设置页面编辑
 const defaultPayTypes = ['现金', '支付宝', '微信', '银行卡', '信用卡', '其他'];
 
@@ -31,7 +32,7 @@ const FlowFormScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { currentFlow, date } = route.params || {};
-  const { currentBook } = useBookkeeping();
+  const { currentBook, remotePayType, attributions } = useBookkeeping();
 
   const [name, setName] = useState('');
   const [money, setMoney] = useState('');
@@ -59,6 +60,7 @@ const FlowFormScreen: React.FC = () => {
       setIndustryType(currentFlow.industryType);
       setPayType(currentFlow.payType);
       setFlowDate(new Date(currentFlow.day));
+
     };
 
     fetchFlowDetail();
@@ -66,16 +68,24 @@ const FlowFormScreen: React.FC = () => {
 
   // 根据流水类型设置默认的行业类型和支付方式
   useEffect(() => {
-    setIndustryTypes(defaultIndustryTypes[flowType]);
-    setPayTypes(defaultPayTypes);
+    const init = async () => {
+      let defaultIndustryType = defaultIndustryTypes[flowType];
+      let apiResponse = await api.flow.industryType(currentBook?.bookId!,flowType);
+      const merged = [...new Set([...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
+      setIndustryTypes(merged);
 
-    if (!industryType || !defaultIndustryTypes[flowType].includes(industryType)) {
-      setIndustryType(defaultIndustryTypes[flowType][0]);
-    }
+      const mergedPayTypes = [...new Set([...defaultPayTypes, ...remotePayType])];
+      setPayTypes(mergedPayTypes);
 
-    if (!payType || !defaultPayTypes.includes(payType)) {
-      setPayType(defaultPayTypes[0]);
-    }
+      if (!industryType || !merged.includes(industryType)) {
+        setIndustryType(defaultIndustryTypes[flowType][0]);
+      }
+
+      if (!payType || !mergedPayTypes.includes(payType)) {
+        setPayType(defaultPayTypes[0]);
+      }
+    };
+    init();
   }, [flowType, industryType, payType]);
 
   // 验证表单
@@ -109,18 +119,6 @@ const FlowFormScreen: React.FC = () => {
 
     try {
       setIsLoading(true);
-
-      const flowData = {
-        bookId: currentBook.bookId,
-        name,
-        money: Number(money),
-        flowType,
-        industryType,
-        payType,
-        description: description.trim() || undefined,
-        day: moment(flowDate).format('YYYY-MM-DD'),
-      };
-
       if (currentFlow) {
         // 更新流水
         await api.flow.update({
