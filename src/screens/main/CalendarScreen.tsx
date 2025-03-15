@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator, TouchableOpacity, FlatList } from 'react-native';
+import { View, StyleSheet, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Text, Card, Button, Icon, FAB, Divider, Overlay } from '@rneui/themed';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
@@ -330,7 +330,7 @@ const CalendarScreen: React.FC = () => {
             </View>
           )}
           leftOpenValue={0}
-          rightOpenValue={-160}
+          rightOpenValue={-140}
           previewRowKey={'0'}
           previewOpenValue={-40}
           previewOpenDelay={3000}
@@ -733,30 +733,30 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   flowItem: {
-    padding: 15,
+    padding: 8,
     backgroundColor: 'white',
   },
   flowItemHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 2,
   },
   flowItemName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   flowItemMoney: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   flowItemType: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#757575',
-    marginBottom: 3,
+    marginBottom: 2,
   },
   flowItemDesc: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#9e9e9e',
   },
   itemDivider: {
@@ -800,6 +800,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  calendarContainer: {
+    position: 'relative',
+  },
   calendarHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -810,6 +813,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#1976d2',
+  },
+  refreshIndicator: {
+    position: 'absolute',
+    top: 10,
+    alignSelf: 'center',
+  },
+  refreshTouchArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 50,
   },
   yearMonthOverlay: {
     width: '90%',
@@ -860,7 +875,7 @@ const styles = StyleSheet.create({
   },
   swipeableActions: {
     flexDirection: 'row',
-    width: 160,
+    width: 140,
     height: '100%',
   },
   swipeableAction: {
@@ -881,7 +896,7 @@ const styles = StyleSheet.create({
   },
   rowBack: {
     alignItems: 'center',
-    backgroundColor: '#DDD',
+    backgroundColor: 'white',
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -894,15 +909,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'absolute',
     top: 0,
-    width: 80,
+    width: 70,
   },
   backRightBtnLeft: {
     backgroundColor: '#2196F3',
-    right: 80,
+    right: 70,
+    borderTopLeftRadius: 5,
+    borderBottomLeftRadius: 5,
   },
   backRightBtnRight: {
     backgroundColor: '#F44336',
     right: 0,
+    borderTopRightRadius: 5,
+    borderBottomRightRadius: 5,
   },
   backTextWhite: {
     color: '#FFF',
