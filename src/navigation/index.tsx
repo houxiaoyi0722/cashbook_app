@@ -8,7 +8,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // 认证相关屏幕
 import ServerListScreen from '../screens/auth/ServerListScreen';
 import ServerFormScreen from '../screens/auth/ServerFormScreen';
-import LoginScreen from '../screens/auth/LoginScreen';
 
 // 主应用屏幕
 import CalendarScreen from '../screens/main/CalendarScreen';
@@ -149,12 +148,6 @@ const AppNavigator = () => {
                 title: route.params?.serverId ? '编辑服务器' : '添加服务器',
               })}
             />
-            <Stack.Screen
-              name="Login"
-              component={LoginScreen}
-              options={{ title: '登录' }}
-            />
-
             {/* 主应用屏幕 */}
             <Stack.Screen
               name="MainTabs"

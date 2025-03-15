@@ -105,26 +105,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
-  // 添加服务器配置
+  // 添加服务器配置并自动登录
   const saveServerConfig = useCallback(async (config: ServerConfig) => {
     try {
       setIsLoading(true);
       await serverConfigManager.saveConfig(config);
-      // 如果是新添加的服务器或者当前没有选择服务器，则自动设置为当前服务器
-      if (!serverConfig || config.id === serverConfig.id) {
-        await serverConfigManager.setCurrentServer(config.id);
-        // 获取当前服务器配置
-        const currentServer = await serverConfigManager.getCurrentServer();
-        setServerConfig(currentServer);
-        if (currentServer) {
-          // 初始化API
-          api.init(currentServer);
-          // 清除登录状态
-          await authManager.logout();
-          setUserInfo(null);
-          setIsLoggedIn(false);
+
+      // 设置为当前服务器
+      await serverConfigManager.setCurrentServer(config.id);
+
+      // 获取当前服务器配置
+      const currentServer = await serverConfigManager.getCurrentServer();
+      setServerConfig(currentServer);
+
+      if (currentServer) {
+        // 初始化API
+        api.init(currentServer);
+
+        // 自动登录
+        try {
+          const user = await authManager.login(config.username, config.password);
+          setUserInfo(user);
+          setIsLoggedIn(true);
+        } catch (loginError) {
+          console.error('自动登录失败', loginError);
+          // 即使登录失败也继续，不阻止用户使用
         }
       }
+
       // 刷新服务器配置列表
       const configs = await serverConfigManager.getAllConfigs();
       setServerConfigs(configs);
@@ -134,7 +142,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [serverConfig]);
+  }, []);
 
   // 删除服务器配置
   const deleteServerConfig = useCallback(async (id: string) => {
@@ -155,25 +163,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, []);
 
-  // 切换服务器
+  // 切换服务器并自动登录
   const switchServer = useCallback(async (id: string) => {
     try {
       setIsLoading(true);
+
       // 设置当前服务器
       await serverConfigManager.setCurrentServer(id);
+
       // 获取当前服务器配置
-      const currentServer = await serverConfigManager.getCurrentServer();
-      setServerConfig(currentServer);
-      if (currentServer) {
-        // 初始化API
-        api.init(currentServer);
-        // 清除登录状态
-        await authManager.logout();
-        setUserInfo(null);
-        setIsLoggedIn(false);
+      const configs = await serverConfigManager.getAllConfigs();
+      const currentServer = configs.find(c => c.id === id);
+
+      if (!currentServer) {
+        throw new Error('找不到服务器配置');
       }
+
+      setServerConfig(currentServer);
+
+      // 初始化API
+      api.init(currentServer);
+
+      // 自动登录
+      const user = await authManager.login(currentServer.username, currentServer.password);
+      setUserInfo(user);
+      setIsLoggedIn(true);
     } catch (error) {
-      console.error('切换服务器失败', error);
+      console.error('登录失败', error);
+      // 即使登录失败也继续，不阻止用户使用
+      await authManager.logout();
+      setUserInfo(null);
+      setIsLoggedIn(false);
       throw error;
     } finally {
       setIsLoading(false);

@@ -1,119 +1,126 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { Text, Card, Button, Input } from '@rneui/themed';
+import { Text, Input, Button } from '@rneui/themed';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MainStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 import { ServerConfig } from '../../types';
+import serverConfigManager from '../../services/serverConfig';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
-type RouteProps = RouteProp<MainStackParamList, 'ServerForm'>;
+type ServerFormRouteProp = RouteProp<MainStackParamList, 'ServerForm'>;
 
 const ServerFormScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<RouteProps>();
+  const route = useRoute<ServerFormRouteProp>();
   const { serverId } = route.params || {};
-  const { serverConfigs, saveServerConfig } = useAuth();
+  const { login, isLoading, saveServerConfig } = useAuth();
 
   const [name, setName] = useState('');
-  const [url, setUrl] = useState('');
+  const [baseUrl, setBaseUrl] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
 
-  // 如果是编辑模式，加载服务器配置
+  // 加载服务器配置
   useEffect(() => {
-    if (serverId) {
-      const server = serverConfigs.find(s => s.id === serverId);
-      if (server) {
-        setName(server.name);
-        setUrl(server.url);
-        setUsername(server.username);
-        setPassword(server.password);
+    const loadServerConfig = async () => {
+      if (serverId) {
+        setFormLoading(true);
+        try {
+          const configs = await serverConfigManager.getAllConfigs();
+          const config = configs.find(c => c.id === serverId);
+          if (config) {
+            setName(config.name);
+            setBaseUrl(config.url);
+            setUsername(config.username || '');
+            setPassword(config.password || '');
+          }
+        } catch (error) {
+          console.error('加载服务器配置失败', error);
+          Alert.alert('错误', '加载服务器配置失败');
+        } finally {
+          setFormLoading(false);
+        }
       }
-    }
-  }, [serverId, serverConfigs]);
+    };
 
-  // 验证表单
-  const validateForm = () => {
+    loadServerConfig();
+  }, [serverId]);
+
+  // 保存服务器配置
+  const handleSave = useCallback(async () => {
     if (!name.trim()) {
       Alert.alert('错误', '请输入服务器名称');
-      return false;
+      return;
     }
 
-    if (!url.trim()) {
+    if (!baseUrl.trim()) {
       Alert.alert('错误', '请输入服务器地址');
-      return false;
+      return;
     }
 
     // 简单的URL格式验证
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
       Alert.alert('错误', '服务器地址必须以http://或https://开头');
       return false;
     }
 
     if (!username.trim()) {
       Alert.alert('错误', '请输入用户名');
-      return false;
+      return;
     }
 
     if (!password.trim()) {
       Alert.alert('错误', '请输入密码');
-      return false;
+      return;
     }
 
-    return true;
-  };
-
-  // 处理保存
-  const handleSave = async () => {
-    if (!validateForm()) return;
-
     try {
-      setIsLoading(true);
-
-      const serverConfig: ServerConfig = {
-        id: serverId || Date.now().toString(),
+      const config: ServerConfig = {
+        id: serverId || serverConfigManager.generateId(),
         name: name.trim(),
-        url: url.trim(),
+        url: baseUrl.trim(),
         username: username.trim(),
         password: password.trim(),
       };
 
-      await saveServerConfig(serverConfig);
-
-      Alert.alert(
-        '成功',
-        serverId ? '服务器配置已更新' : '服务器配置已添加',
-        [
-          {
-            text: '确定',
-            onPress: () => {
-              if (!serverId) {
-                // 如果是新添加的服务器，导航到登录页面
-                navigation.navigate('Login');
-              } else {
-                // 如果是更新服务器，返回上一页
-                navigation.goBack();
-              }
-            },
-          },
-        ]
-      );
+      try {
+        await login(config.username, config.password);
+        await saveServerConfig(config);
+        // 登录成功后会自动跳转到主页面
+        // 使用 requestAnimationFrame 确保状态更新完成
+        requestAnimationFrame(() => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'MainTabs' }],
+          });
+        });
+      } catch (error: any) {
+        Alert.alert(
+            '登录失败',
+            `登录失败${error}`,
+            [{ text: '确定' }]
+        );
+      }
     } catch (error) {
       console.error('保存服务器配置失败', error);
       Alert.alert('错误', '保存服务器配置失败');
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [name, baseUrl, username, password, serverId, saveServerConfig, navigation]);
+
+  if (formLoading || isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#1976d2" />
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <ScrollView>
-        <Card containerStyle={styles.card}>
-          <Card.Title>{serverId ? '编辑服务器' : '添加服务器'}</Card.Title>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <Text h4 style={styles.title}>{serverId ? '编辑服务器' : '添加服务器'}</Text>
 
           <Input
             label="服务器名称"
@@ -128,11 +135,11 @@ const ServerFormScreen: React.FC = () => {
           <Input
             label="服务器地址"
             placeholder="http(s)://domain(:port)"
-            value={url}
-            onChangeText={setUrl}
+            value={baseUrl}
+            onChangeText={setBaseUrl}
             disabled={isLoading}
             leftIcon={{ type: 'material', name: 'link', color: '#1976d2' }}
-            errorMessage={url.trim() ? '' : '服务器地址不能为空'}
+            errorMessage={baseUrl.trim() ? '' : '服务器地址不能为空'}
             autoCapitalize="none"
             keyboardType="url"
           />
@@ -159,25 +166,13 @@ const ServerFormScreen: React.FC = () => {
             secureTextEntry
           />
 
-          <View style={styles.buttonContainer}>
-            <Button
-              title="取消"
-              type="outline"
-              containerStyle={styles.button}
-              onPress={() => navigation.goBack()}
-              disabled={isLoading}
-            />
-
-            <Button
-              title={isLoading ? '保存中...' : '保存'}
-              containerStyle={styles.button}
-              onPress={handleSave}
-              disabled={isLoading}
-            />
-          </View>
-        </Card>
-      </ScrollView>
-    </View>
+      <Button
+        title={serverId ? '保存修改' : '添加服务器'}
+        onPress={handleSave}
+        buttonStyle={styles.saveButton}
+        loading={isLoading}
+      />
+    </ScrollView>
   );
 };
 
@@ -186,18 +181,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  card: {
-    margin: 10,
-    borderRadius: 10,
-    padding: 15,
+  contentContainer: {
+    padding: 16,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  button: {
-    width: '48%',
+  title: {
+    marginBottom: 16,
+  },
+  inputContainer: {
+    marginBottom: 8,
+  },
+  saveButton: {
+    backgroundColor: '#1976d2',
+    marginTop: 16,
   },
 });
 
