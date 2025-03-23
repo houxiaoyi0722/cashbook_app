@@ -65,7 +65,6 @@ const StatisticsScreen: React.FC = () => {
     try {
       setIsLoading(true);
       const response = await api.analytics.month(currentBook.bookId);
-      console.log('month',response)
       if (response.c === 200 && response.d) {
         setMonthData(response.d);
 
@@ -134,9 +133,6 @@ const StatisticsScreen: React.FC = () => {
           legendFontColor: '#7F7F7F',
           legendFontSize: 12,
         }));
-
-        console.log('Raw industry data:', response.d);
-        console.log('Transformed chart data:', chartData);
 
         setIndustryTypeData(chartData);
       }
@@ -279,10 +275,8 @@ const StatisticsScreen: React.FC = () => {
 
   // 添加一个辅助函数来渲染 Echarts
   const renderEchartsWithWebView = (option: any, height: number) => {
-    // 确保选项是有效的 JSON
-    const safeOption = JSON.stringify(option).replace(/'/g, "\\'");
-
-    const html = `
+    // 使用 base64 编码 HTML 内容，避免字符转义问题
+    const htmlContent = `
       <!DOCTYPE html>
       <html>
         <head>
@@ -290,7 +284,8 @@ const StatisticsScreen: React.FC = () => {
           <meta name="viewport" content="width=device-width, initial-scale=1">
           <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
           <style>
-            body, html, #chart { width: 100%; height: 100%; margin: 0; padding: 0; }
+            body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+            #chart { width: 100%; height: 100%; }
           </style>
         </head>
         <body>
@@ -298,34 +293,22 @@ const StatisticsScreen: React.FC = () => {
           <script>
             document.addEventListener('DOMContentLoaded', function() {
               var chart = echarts.init(document.getElementById('chart'));
-              var option = ${safeOption};
-              chart.setOption(option);
-              
-              // 添加调试信息
-              console.log('Chart initialized with options:', option);
-              
-              // 添加窗口大小变化监听
-              window.addEventListener('resize', function() {
-                chart.resize();
-              });
+              chart.setOption(${JSON.stringify(option)});
             });
           </script>
         </body>
       </html>
     `;
-
+    
     return (
-      <WebView
-        source={{ html }}
-        style={{ height, width: '100%' }}
-        originWhitelist={['*']}
-        scrollEnabled={false}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        onError={(e) => console.error('WebView error:', e.nativeEvent)}
-        onHttpError={(e) => console.error('WebView HTTP error:', e.nativeEvent)}
-        onMessage={(e) => console.log('WebView message:', e.nativeEvent.data)}
-      />
+      <View style={{ height, width: '100%', backgroundColor: '#fff' }}>
+        <WebView
+          source={{ html: htmlContent }}
+          style={{ flex: 1 }}
+          originWhitelist={['*']}
+          javaScriptEnabled={true}
+        />
+      </View>
     );
   };
 
@@ -456,9 +439,6 @@ const StatisticsScreen: React.FC = () => {
     };
 
     // 在渲染图表前检查数据
-    console.log('Industry data:', JSON.stringify(industryTypeData));
-    console.log('Chart option:', JSON.stringify(option));
-
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>支出类型分析</Card.Title>
@@ -557,9 +537,7 @@ const StatisticsScreen: React.FC = () => {
     const outData = monthData
       .slice(0, 6)
       .sort((a, b) => a.type.localeCompare(b.type))
-      .map(item => item.outSum);
-    console.log('inData',inData);
-    console.log('outData',outData);
+      .map(item => item.outSum.toFixed(2));
 
     // 准备 Echarts 选项
     const option = {
