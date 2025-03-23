@@ -130,10 +130,13 @@ const StatisticsScreen: React.FC = () => {
         const chartData = response.d.map((item: any, index: number) => ({
           name: item.type,
           value: item.outSum,
-          color: getChartColor(index), // 使用外部函数
+          color: getChartColor(index),
           legendFontColor: '#7F7F7F',
           legendFontSize: 12,
         }));
+
+        console.log('Raw industry data:', response.d);
+        console.log('Transformed chart data:', chartData);
 
         setIndustryTypeData(chartData);
       }
@@ -230,7 +233,7 @@ const StatisticsScreen: React.FC = () => {
   const renderMonthSelector = () => (
     <View style={styles.monthSelectorContainer}>
       <View style={styles.monthSelectorHeader}>
-        <Text style={styles.monthSelectorTitle}>统计分析</Text>
+        <Text style={styles.monthSelectorTitle}></Text>
         <TouchableOpacity
           style={styles.currentMonthButton}
           onPress={() => setShowMonthPicker(true)}
@@ -276,6 +279,9 @@ const StatisticsScreen: React.FC = () => {
 
   // 添加一个辅助函数来渲染 Echarts
   const renderEchartsWithWebView = (option: any, height: number) => {
+    // 确保选项是有效的 JSON
+    const safeOption = JSON.stringify(option).replace(/'/g, "\\'");
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -290,8 +296,19 @@ const StatisticsScreen: React.FC = () => {
         <body>
           <div id="chart"></div>
           <script>
-            var chart = echarts.init(document.getElementById('chart'));
-            chart.setOption(${JSON.stringify(option)});
+            document.addEventListener('DOMContentLoaded', function() {
+              var chart = echarts.init(document.getElementById('chart'));
+              var option = ${safeOption};
+              chart.setOption(option);
+              
+              // 添加调试信息
+              console.log('Chart initialized with options:', option);
+              
+              // 添加窗口大小变化监听
+              window.addEventListener('resize', function() {
+                chart.resize();
+              });
+            });
           </script>
         </body>
       </html>
@@ -303,6 +320,11 @@ const StatisticsScreen: React.FC = () => {
         style={{ height, width: '100%' }}
         originWhitelist={['*']}
         scrollEnabled={false}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        onError={(e) => console.error('WebView error:', e.nativeEvent)}
+        onHttpError={(e) => console.error('WebView HTTP error:', e.nativeEvent)}
+        onMessage={(e) => console.log('WebView message:', e.nativeEvent.data)}
       />
     );
   };
@@ -399,15 +421,35 @@ const StatisticsScreen: React.FC = () => {
       );
     }
 
-    // 简化图表配置
+    // 修改行业类型分析的图表配置
     const option = {
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}: {c} ({d}%)'
+      },
       series: [
         {
           type: 'pie',
           radius: ['40%', '70%'],
+          itemStyle: {
+            borderRadius: 5,
+            borderColor: '#fff',
+            borderWidth: 2
+          },
+          label: {
+            show: false
+          },
+          emphasis: {
+            label: {
+              show: true
+            }
+          },
           data: industryTypeData.map(item => ({
             value: item.value,
-            name: item.name
+            name: item.name,
+            itemStyle: {
+              color: item.color
+            }
           }))
         }
       ]
@@ -807,6 +849,8 @@ const styles = StyleSheet.create({
   chartContainer: {
     alignItems: 'center',
     marginVertical: 10,
+    height: 250,
+    width: '100%',
   },
 });
 
