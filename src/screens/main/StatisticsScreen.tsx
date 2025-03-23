@@ -277,7 +277,7 @@ const StatisticsScreen: React.FC = () => {
     </View>
   );
 
-  // 修改 renderEchartsWithWebView 函数，将图例移到底部
+  // 修改 renderEchartsWithWebView 函数，调整图例显示和交互行为
   const renderEchartsWithWebView = (option: any, height: number, onItemClick?: (item: any) => void) => {
     // 添加点击事件处理
     const enhancedOption = {
@@ -311,7 +311,18 @@ const StatisticsScreen: React.FC = () => {
         pageIconSize: 12, // 分页按钮大小
         pageTextStyle: {
           color: '#333'
-        }
+        },
+        // 设置图例为两行显示
+        itemGap: 10, // 图例项之间的间距
+        padding: [5, 10], // 图例内边距
+        grid: {
+          top: 10,
+          bottom: 10,
+          left: 10,
+          right: 10
+        },
+        // 禁用图例的选择功能，防止隐藏数据
+        selectedMode: false
       }
     };
 
@@ -343,12 +354,19 @@ const StatisticsScreen: React.FC = () => {
                 }));
               });
               
-              // 添加图例点击事件
+              // 添加图例点击事件，但不隐藏数据
               chart.on('legendselectchanged', function(params) {
+                // 阻止默认的图例选择行为
+                chart.setOption({
+                  legend: {
+                    selected: option.legend.selected || {}
+                  }
+                });
+                
+                // 发送点击消息
                 window.ReactNativeWebView.postMessage(JSON.stringify({
                   type: 'legendClick',
-                  name: params.name,
-                  selected: params.selected
+                  name: params.name
                 }));
               });
               
@@ -490,7 +508,7 @@ const StatisticsScreen: React.FC = () => {
         bottom: 0,
         left: 'center',
         data: industryTypeData.map(item => item.name),
-        // 不再隐藏任何项目
+        // 确保所有项目都显示
         selected: industryTypeData.reduce((acc, item) => {
           acc[item.name] = true;
           return acc;
@@ -536,10 +554,10 @@ const StatisticsScreen: React.FC = () => {
 
     // 处理图表项目点击
     const handleIndustryItemClick = (message: any) => {
-      if (message.type === 'itemClick') {
-        setSelectedIndustryItem(message.data.name);
-      } else if (message.type === 'legendClick') {
-        setSelectedIndustryItem(message.name);
+      if (message.type === 'itemClick' || message.type === 'legendClick') {
+        // 无论是点击图表还是图例，都执行相同的操作
+        const itemName = message.type === 'itemClick' ? message.data.name : message.name;
+        setSelectedIndustryItem(itemName);
       }
     };
 
@@ -632,10 +650,10 @@ const StatisticsScreen: React.FC = () => {
 
     // 处理图表项目点击
     const handlePayTypeItemClick = (message: any) => {
-      if (message.type === 'itemClick') {
-        setSelectedPayTypeItem(message.data.name);
-      } else if (message.type === 'legendClick') {
-        setSelectedPayTypeItem(message.name);
+      if (message.type === 'itemClick' || message.type === 'legendClick') {
+        // 无论是点击图表还是图例，都执行相同的操作
+        const itemName = message.type === 'itemClick' ? message.data.name : message.name;
+        setSelectedPayTypeItem(itemName);
       }
     };
 
@@ -698,8 +716,9 @@ const StatisticsScreen: React.FC = () => {
       },
       legend: {
         data: ['收入', '支出'],
-        bottom: 0, // 放置在底部
-        left: 'center', // 水平居中
+        bottom: 0,
+        left: 'center',
+        selectedMode: false, // 禁用图例选择功能
         textStyle: {
           color: '#333',
           fontSize: 12,
