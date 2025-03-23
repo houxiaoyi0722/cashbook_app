@@ -277,45 +277,45 @@ const StatisticsScreen: React.FC = () => {
     </View>
   );
 
-  // 修改 renderEchartsWithWebView 函数，支持不同类型的图表
+  // 修改 renderEchartsWithWebView 函数，实现点击图例显示/隐藏功能
   const renderEchartsWithWebView = (option: any, height: number, onItemClick?: (item: any) => void) => {
     // 检查是否为饼图类型
     const isPieChart = option.series && option.series[0] && option.series[0].type === 'pie';
-
+    
     // 如果是饼图，应用我们之前的逻辑
     if (isPieChart) {
       // 获取数据
       const data = option.series[0].data;
-
+      
       // 计算每行显示的图例数量，根据数据总量动态调整
       const totalItems = data.length;
       const itemsPerRow = Math.min(Math.ceil(totalItems / 2), 4); // 最多每行4个
-
+      
       // 计算需要的行数
       const rowCount = Math.ceil(totalItems / itemsPerRow);
-
+      
       // 创建多行图例
       const legends = [];
       for (let i = 0; i < rowCount; i++) {
         const startIdx = i * itemsPerRow;
         const endIdx = Math.min(startIdx + itemsPerRow, totalItems);
         const rowData = data.slice(startIdx, endIdx).map((item: { name: any; }) => item.name);
-
+        
         legends.push({
           data: rowData,
           bottom: 10 + (rowCount - 1 - i) * 25, // 从底部向上排列，每行25px高度
           left: 'center',
           itemWidth: 20,
           itemHeight: 10,
-          selectedMode: false,
+          selectedMode: true, // 启用选择模式，允许显示/隐藏
           textStyle: { fontSize: 10 },
           formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name
         });
       }
-
+      
       // 调整饼图位置，为图例留出足够空间
       const pieCenter = ['50%', Math.max(30, 50 - rowCount * 5) + '%'];
-
+      
       // 创建新的选项，修改强调样式，删除线条图例名称
       const newOption = {
         ...option,
@@ -343,13 +343,64 @@ const StatisticsScreen: React.FC = () => {
           }
         ]
       };
-
+      
       // 计算适当的容器高度，确保有足够空间显示图例
       const containerHeight = height + (rowCount > 2 ? (rowCount - 2) * 25 : 0);
-
+      
       // 创建HTML内容
-      const htmlContent = createChartHtml(newOption, data.map((item: { name: any; }) => item.name), rowCount);
-
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+            <style>
+              body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+              #chart { width: 100%; height: 100%; }
+            </style>
+          </head>
+          <body>
+            <div id="chart"></div>
+            <script>
+              document.addEventListener('DOMContentLoaded', function() {
+                var chart = echarts.init(document.getElementById('chart'));
+                var option = ${JSON.stringify(newOption)};
+                chart.setOption(option);
+                
+                // 存储所有数据项的名称
+                var allDataNames = ${JSON.stringify(data.map((item: { name: any; }) => item.name))};
+                
+                // 点击图表项
+                chart.on('click', function(params) {
+                  if (params.componentType === 'series') {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'itemClick',
+                      data: params.data
+                    }));
+                  }
+                });
+                
+                // 点击图例项 - 允许显示/隐藏
+                chart.on('legendselectchanged', function(params) {
+                  // 发送消息到 React Native
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'legendClick',
+                    name: params.name,
+                    selected: params.selected
+                  }));
+                });
+                
+                // 窗口大小变化时调整图表大小
+                window.addEventListener('resize', function() {
+                  chart.resize();
+                });
+              });
+            </script>
+          </body>
+        </html>
+      `;
+      
       return (
         <View style={{ height: containerHeight, width: '100%', backgroundColor: '#fff' }}>
           <WebView
@@ -403,7 +454,7 @@ const StatisticsScreen: React.FC = () => {
           </body>
         </html>
       `;
-
+      
       return (
         <View style={{ height, width: '100%', backgroundColor: '#fff' }}>
           <WebView
@@ -417,120 +468,26 @@ const StatisticsScreen: React.FC = () => {
     }
   };
 
-  // 辅助函数：创建图表HTML内容
-  const createChartHtml = (option: any, dataNames: string[], rowCount: number) => {
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-          <style>
-            body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
-            #chart { width: 100%; height: 100%; }
-          </style>
-        </head>
-        <body>
-          <div id="chart"></div>
-          <script>
-            document.addEventListener('DOMContentLoaded', function() {
-              var chart = echarts.init(document.getElementById('chart'));
-              var option = ${JSON.stringify(option)};
-              chart.setOption(option);
-              
-              // 存储所有数据项的名称
-              var allDataNames = ${JSON.stringify(dataNames)};
-              
-              // 点击图表项
-              chart.on('click', function(params) {
-                if (params.componentType === 'series') {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'itemClick',
-                    data: params.data
-                  }));
-                  
-                  // 高亮显示选中项
-                  highlightItem(params.data.name);
-                }
-              });
-              
-              // 点击图例项
-              chart.on('legendselectchanged', function(params) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                  type: 'legendClick',
-                  name: params.name
-                }));
-                
-                // 高亮显示选中项
-                highlightItem(params.name);
-                
-                // 阻止默认行为
-                setTimeout(function() {
-                  var selected = {};
-                  allDataNames.forEach(function(name) {
-                    selected[name] = true;
-                  });
-                  
-                  // 重置所有图例的选择状态
-                  var legendOptions = [];
-                  for (var i = 0; i < ${rowCount}; i++) {
-                    legendOptions.push({ selected: selected });
-                  }
-                  
-                  chart.setOption({
-                    legend: legendOptions
-                  });
-                }, 0);
-              });
-              
-              // 高亮显示选中项，但不显示标签
-              function highlightItem(name) {
-                // 应用强调状态
-                chart.dispatchAction({
-                  type: 'highlight',
-                  name: name
-                });
-                
-                // 取消其他项的高亮
-                allDataNames.forEach(function(dataName) {
-                  if (dataName !== name) {
-                    chart.dispatchAction({
-                      type: 'downplay',
-                      name: dataName
-                    });
-                  }
-                });
-              }
-              
-              // 窗口大小变化时调整图表大小
-              window.addEventListener('resize', function() {
-                chart.resize();
-              });
-            });
-          </script>
-        </body>
-      </html>
-    `;
-  };
-
-  // 修改处理点击事件的函数，确保正确处理点击事件
+  // 修改处理图表项目点击的函数
   const handleIndustryItemClick = (message: any) => {
+    console.log('Industry item click:', message);
     if (message.type === 'itemClick') {
-      // 点击图表区域
       setSelectedIndustryItem(message.data.name);
     } else if (message.type === 'legendClick') {
-      // 点击图例
+      // 点击图例时，只更新选中项，不执行其他操作
+      // 图例的显示/隐藏由 Echarts 内部处理
       setSelectedIndustryItem(message.name);
     }
   };
 
+  // 修改处理支付方式图表项目点击的函数
   const handlePayTypeItemClick = (message: any) => {
+    console.log('Pay type item click:', message);
     if (message.type === 'itemClick') {
-      // 点击图表区域
       setSelectedPayTypeItem(message.data.name);
     } else if (message.type === 'legendClick') {
-      // 点击图例
+      // 点击图例时，只更新选中项，不执行其他操作
+      // 图例的显示/隐藏由 Echarts 内部处理
       setSelectedPayTypeItem(message.name);
     }
   };
@@ -658,7 +615,7 @@ const StatisticsScreen: React.FC = () => {
             }
           },
           data: industryTypeData.map(item => ({
-            value: item.value,
+            value: parseFloat(item.value.toFixed(2)),
             name: item.name,
             itemStyle: {
               color: item.color
@@ -671,16 +628,16 @@ const StatisticsScreen: React.FC = () => {
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>支出类型分析</Card.Title>
-
+        
         <View style={styles.chartContainer}>
           {renderEchartsWithWebView(option, 300, handleIndustryItemClick)}
         </View>
-
+        
         {selectedIndustryItem && (
           <View style={styles.selectedItemInfo}>
             <Text style={styles.selectedItemTitle}>已选择: {selectedIndustryItem}</Text>
             <Text style={styles.selectedItemValue}>
-              金额: {industryTypeData.find(item => item.name === selectedIndustryItem)?.value || 0}
+              金额: {industryTypeData.find(item => item.name === selectedIndustryItem)?.value.toFixed(2) || '0.00'}
             </Text>
           </View>
         )}
