@@ -205,7 +205,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 处理查看流水详情
   const handleViewFlowDetail = (flowId: Flow) => {
-    navigation.navigate('FlowDetail', { currentFlow: flowId });
+    navigation.navigate('FlowForm', { currentFlow: flowId })
   };
 
   // 渲染月份选择器
@@ -239,6 +239,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 渲染月度概览
   const renderMonthOverview = () => {
+    console.log(monthAnalysis)
     if (!monthAnalysis) return null;
 
     return (
@@ -591,6 +592,7 @@ const styles = StyleSheet.create({
     color: '#757575',
   },
   monthSelector: {
+    height: 50,
     flexDirection: 'row',
     padding: 10,
     backgroundColor: 'white',

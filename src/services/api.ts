@@ -334,9 +334,7 @@ class Api {
     monthAnalysis: async (month: string, bookId: string): Promise<ApiResponse<MonthAnalysis>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
       console.log(`📊 Fetching month analysis for ${month}, book: ${bookId}`);
-      const response = await this.instance.post(`/api/entry/analytics/monthAnalysis`, {
-        params: { month, bookId }
-      });
+      const response = await this.instance.post(`/api/entry/analytics/monthAnalysis`, { month, bookId });
       return response.data;
     },
   };
