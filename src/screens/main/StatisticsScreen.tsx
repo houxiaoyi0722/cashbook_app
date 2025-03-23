@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import WebView from 'react-native-webview';
 import { Text, Card, Divider, Tab, TabView, Overlay, Icon } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Dimensions } from 'react-native';
 import moment from 'moment';
 import { MainStackParamList } from '../../navigation/types';
 import api from '../../services/api';
@@ -11,8 +11,6 @@ import BookSelector from '../../components/BookSelector';
 import {MonthAnalysis, AnalyticsItem, Flow} from '../../types';
 import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
 
-// 正确导入 @wuba/react-native-echarts
-import { SvgChart } from '@wuba/react-native-echarts';
 import * as echarts from 'echarts/core';
 import { PieChart as EchartsPie, BarChart as EchartsBar } from 'echarts/charts';
 import { SVGRenderer } from '@wuba/react-native-echarts';
@@ -35,8 +33,6 @@ echarts.use([
 ]);
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
-
-const screenWidth = Dimensions.get('window').width;
 
 const getChartColor = (index: number) => {
   const colors = [
@@ -233,13 +229,16 @@ const StatisticsScreen: React.FC = () => {
   // 渲染月份选择器
   const renderMonthSelector = () => (
     <View style={styles.monthSelectorContainer}>
-      <TouchableOpacity
-        style={styles.currentMonthButton}
-        onPress={() => setShowMonthPicker(true)}
-      >
-        <Text style={styles.currentMonthText}>{currentMonth}</Text>
-        <Icon name="arrow-drop-down" type="material" color="#1976d2" size={18} />
-      </TouchableOpacity>
+      <View style={styles.monthSelectorHeader}>
+        <Text style={styles.monthSelectorTitle}>统计分析</Text>
+        <TouchableOpacity
+          style={styles.currentMonthButton}
+          onPress={() => setShowMonthPicker(true)}
+        >
+          <Text style={styles.currentMonthText}>{currentMonth}</Text>
+          <Icon name="arrow-drop-down" type="material" color="#1976d2" size={16} />
+        </TouchableOpacity>
+      </View>
 
       <Overlay
         isVisible={showMonthPicker}
@@ -274,6 +273,39 @@ const StatisticsScreen: React.FC = () => {
       </Overlay>
     </View>
   );
+
+  // 添加一个辅助函数来渲染 Echarts
+  const renderEchartsWithWebView = (option: any, height: number) => {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+          <style>
+            body, html, #chart { width: 100%; height: 100%; margin: 0; padding: 0; }
+          </style>
+        </head>
+        <body>
+          <div id="chart"></div>
+          <script>
+            var chart = echarts.init(document.getElementById('chart'));
+            chart.setOption(${JSON.stringify(option)});
+          </script>
+        </body>
+      </html>
+    `;
+
+    return (
+      <WebView
+        source={{ html }}
+        style={{ height, width: '100%' }}
+        originWhitelist={['*']}
+        scrollEnabled={false}
+      />
+    );
+  };
 
   // 渲染月度概览
   const renderMonthOverview = () => {
@@ -367,38 +399,12 @@ const StatisticsScreen: React.FC = () => {
       );
     }
 
-    // 准备 Echarts 选项
+    // 简化图表配置
     const option = {
-      tooltip: {
-        trigger: 'item',
-        formatter: '{a} <br/>{b}: {c} ({d}%)'
-      },
-      legend: {
-        orient: 'vertical',
-        right: 10,
-        top: 'center',
-        data: industryTypeData.map(item => item.name)
-      },
-      color: industryTypeData.map(item => item.color),
       series: [
         {
-          name: '支出类型',
           type: 'pie',
           radius: ['40%', '70%'],
-          avoidLabelOverlap: false,
-          label: {
-            show: false
-          },
-          emphasis: {
-            label: {
-              show: true,
-              fontSize: '14',
-              fontWeight: 'bold'
-            }
-          },
-          labelLine: {
-            show: false
-          },
           data: industryTypeData.map(item => ({
             value: item.value,
             name: item.name
@@ -407,17 +413,16 @@ const StatisticsScreen: React.FC = () => {
       ]
     };
 
+    // 在渲染图表前检查数据
+    console.log('Industry data:', JSON.stringify(industryTypeData));
+    console.log('Chart option:', JSON.stringify(option));
+
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>支出类型分析</Card.Title>
-        
+
         <View style={styles.chartContainer}>
-          <SvgChart 
-            option={option}
-            width={screenWidth - 60}
-            height={250}
-            echarts={echarts}
-          />
+          {renderEchartsWithWebView(option, 250)}
         </View>
       </Card>
     );
@@ -477,14 +482,9 @@ const StatisticsScreen: React.FC = () => {
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>支付方式分析</Card.Title>
-        
+
         <View style={styles.chartContainer}>
-          <SvgChart 
-            option={option}
-            width={screenWidth - 60}
-            height={250}
-            echarts={echarts}
-          />
+          {renderEchartsWithWebView(option, 250)}
         </View>
       </Card>
     );
@@ -518,22 +518,6 @@ const StatisticsScreen: React.FC = () => {
       .map(item => item.outSum);
     console.log('inData',inData);
     console.log('outData',outData);
-    const chartData = {
-      labels,
-      datasets: [
-        {
-          data: inData,
-          color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
-          strokeWidth: 2,
-        },
-        {
-          data: outData,
-          color: (opacity = 1) => `rgba(244, 67, 54, ${opacity})`,
-          strokeWidth: 2,
-        },
-      ],
-      legend: ['收入', '支出'],
-    };
 
     // 准备 Echarts 选项
     const option = {
@@ -590,14 +574,9 @@ const StatisticsScreen: React.FC = () => {
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>月度趋势</Card.Title>
-        
+
         <View style={styles.chartContainer}>
-          <SvgChart 
-            option={option}
-            width={screenWidth - 40}
-            height={250}
-            echarts={echarts}
-          />
+          {renderEchartsWithWebView(option, 250)}
         </View>
       </Card>
     );
@@ -707,18 +686,28 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
+  monthSelectorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  monthSelectorTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
   currentMonthButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    alignSelf: 'center',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
   },
   currentMonthText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#1976d2',
     marginRight: 2,
