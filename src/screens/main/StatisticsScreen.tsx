@@ -3,7 +3,6 @@ import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Aler
 import { Text, Card, Divider, Tab, TabView, Overlay, Icon } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { PieChart, BarChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import moment from 'moment';
 import { MainStackParamList } from '../../navigation/types';
@@ -11,6 +10,29 @@ import api from '../../services/api';
 import BookSelector from '../../components/BookSelector';
 import {MonthAnalysis, AnalyticsItem, Flow} from '../../types';
 import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
+
+// 正确导入 @wuba/react-native-echarts
+import { SvgChart } from '@wuba/react-native-echarts';
+import * as echarts from 'echarts/core';
+import { PieChart as EchartsPie, BarChart as EchartsBar } from 'echarts/charts';
+import { SVGRenderer } from '@wuba/react-native-echarts';
+import {
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent
+} from 'echarts/components';
+
+// 注册必要的组件
+echarts.use([
+  SVGRenderer,
+  EchartsPie,
+  EchartsBar,
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent
+]);
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -345,37 +367,57 @@ const StatisticsScreen: React.FC = () => {
       );
     }
 
+    // 准备 Echarts 选项
+    const option = {
+      tooltip: {
+        trigger: 'item',
+        formatter: '{a} <br/>{b}: {c} ({d}%)'
+      },
+      legend: {
+        orient: 'vertical',
+        right: 10,
+        top: 'center',
+        data: industryTypeData.map(item => item.name)
+      },
+      color: industryTypeData.map(item => item.color),
+      series: [
+        {
+          name: '支出类型',
+          type: 'pie',
+          radius: ['40%', '70%'],
+          avoidLabelOverlap: false,
+          label: {
+            show: false
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: '14',
+              fontWeight: 'bold'
+            }
+          },
+          labelLine: {
+            show: false
+          },
+          data: industryTypeData.map(item => ({
+            value: item.value,
+            name: item.name
+          }))
+        }
+      ]
+    };
+
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>支出类型分析</Card.Title>
-
+        
         <View style={styles.chartContainer}>
-          <PieChart
-            data={industryTypeData}
+          <SvgChart 
+            option={option}
             width={screenWidth - 60}
-            height={200}
-            chartConfig={{
-              backgroundColor: '#ffffff',
-              backgroundGradientFrom: '#ffffff',
-              backgroundGradientTo: '#ffffff',
-              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            }}
-            accessor="value"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
+            height={250}
+            echarts={echarts}
           />
-        </View>
-
-        <View style={styles.legendContainer}>
-          {industryTypeData.map((item, index) => (
-            <View key={index} style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: item.color }]} />
-              <Text style={styles.legendText}>
-                {item.name}: {item.value.toFixed(2)}
-              </Text>
-            </View>
-          ))}
         </View>
       </Card>
     );
@@ -392,37 +434,57 @@ const StatisticsScreen: React.FC = () => {
       );
     }
 
+    // 准备 Echarts 选项
+    const option = {
+      tooltip: {
+        trigger: 'item',
+        formatter: '{a} <br/>{b}: {c} ({d}%)'
+      },
+      legend: {
+        orient: 'vertical',
+        right: 10,
+        top: 'center',
+        data: payTypeData.map(item => item.name)
+      },
+      color: payTypeData.map(item => item.color),
+      series: [
+        {
+          name: '支付方式',
+          type: 'pie',
+          radius: ['40%', '70%'],
+          avoidLabelOverlap: false,
+          label: {
+            show: false
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: '14',
+              fontWeight: 'bold'
+            }
+          },
+          labelLine: {
+            show: false
+          },
+          data: payTypeData.map(item => ({
+            value: item.value,
+            name: item.name
+          }))
+        }
+      ]
+    };
+
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>支付方式分析</Card.Title>
-
+        
         <View style={styles.chartContainer}>
-          <PieChart
-            data={payTypeData}
+          <SvgChart 
+            option={option}
             width={screenWidth - 60}
-            height={200}
-            chartConfig={{
-              backgroundColor: '#ffffff',
-              backgroundGradientFrom: '#ffffff',
-              backgroundGradientTo: '#ffffff',
-              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            }}
-            accessor="value"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
+            height={250}
+            echarts={echarts}
           />
-        </View>
-
-        <View style={styles.legendContainer}>
-          {payTypeData.map((item, index) => (
-            <View key={index} style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: item.color }]} />
-              <Text style={styles.legendText}>
-                {item.name}: {item.value.toFixed(2)}
-              </Text>
-            </View>
-          ))}
         </View>
       </Card>
     );
@@ -473,38 +535,70 @@ const StatisticsScreen: React.FC = () => {
       legend: ['收入', '支出'],
     };
 
+    // 准备 Echarts 选项
+    const option = {
+      tooltip: {
+        trigger: 'axis',
+        position: 'top',
+        textStyle: {
+          color: '#000',
+          fontSize: 12,
+        },
+      },
+      legend: {
+        data: ['收入', '支出'],
+        textStyle: {
+          color: '#333',
+          fontSize: 12,
+        },
+      },
+      xAxis: {
+        type: 'category',
+        data: labels,
+        axisLabel: {
+          color: '#333',
+          fontSize: 12,
+        },
+      },
+      yAxis: {
+        type: 'value',
+        axisLabel: {
+          color: '#333',
+          fontSize: 12,
+        },
+      },
+      series: [
+        {
+          name: '收入',
+          type: 'bar',
+          data: inData,
+          itemStyle: {
+            color: '#4caf50',
+          },
+        },
+        {
+          name: '支出',
+          type: 'bar',
+          data: outData,
+          itemStyle: {
+            color: '#f44336',
+          },
+        },
+      ],
+    };
+
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>月度趋势</Card.Title>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <BarChart
-            data={chartData}
-            width={Math.max(screenWidth - 40, labels.length * 80)}
-            height={220}
-            yAxisLabel=""
-            yAxisSuffix=""
-            chartConfig={{
-              backgroundColor: '#ffffff',
-              backgroundGradientFrom: '#ffffff',
-              backgroundGradientTo: '#ffffff',
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-              style: {
-                borderRadius: 16,
-              },
-              propsForDots: {
-                r: '6',
-                strokeWidth: '2',
-              },
-            }}
-            style={{
-              marginVertical: 8,
-              borderRadius: 16,
-            }}
+        
+        <View style={styles.chartContainer}>
+          <SvgChart 
+            option={option}
+            width={screenWidth - 40}
+            height={250}
+            echarts={echarts}
           />
-        </ScrollView>
+        </View>
       </Card>
     );
   };
@@ -724,28 +818,6 @@ const styles = StyleSheet.create({
   chartContainer: {
     alignItems: 'center',
     marginVertical: 10,
-  },
-  legendContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 10,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 15,
-    marginBottom: 5,
-    width: '45%',
-  },
-  legendColor: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 5,
-  },
-  legendText: {
-    fontSize: 12,
-    color: '#757575',
   },
 });
 
