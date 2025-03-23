@@ -216,10 +216,9 @@ const StatisticsScreen: React.FC = () => {
         onPress={() => setShowMonthPicker(true)}
       >
         <Text style={styles.currentMonthText}>{currentMonth}</Text>
-        <Icon name="arrow-drop-down" type="material" color="#1976d2" size={24} />
+        <Icon name="arrow-drop-down" type="material" color="#1976d2" size={18} />
       </TouchableOpacity>
 
-      {/* 月份选择弹出层 */}
       <Overlay
         isVisible={showMonthPicker}
         onBackdropPress={() => setShowMonthPicker(false)}
@@ -609,7 +608,7 @@ const styles = StyleSheet.create({
     color: '#757575',
   },
   monthSelectorContainer: {
-    padding: 10,
+    padding: 5,
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
@@ -618,36 +617,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 16,
     backgroundColor: '#f0f0f0',
     alignSelf: 'center',
   },
   currentMonthText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#1976d2',
-    marginRight: 5,
+    marginRight: 2,
   },
   monthPickerOverlay: {
-    width: '80%',
-    maxHeight: '60%',
+    width: '70%',
+    maxHeight: '50%',
     borderRadius: 10,
-    padding: 15,
+    padding: 12,
   },
   monthPickerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 15,
+    marginBottom: 10,
     textAlign: 'center',
   },
   monthPickerList: {
-    maxHeight: 300,
+    maxHeight: 250,
   },
   monthPickerItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 15,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
@@ -655,7 +654,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#e3f2fd',
   },
   monthPickerItemText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#333',
   },
   selectedMonthPickerItemText: {
