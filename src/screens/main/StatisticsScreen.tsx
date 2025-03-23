@@ -277,70 +277,149 @@ const StatisticsScreen: React.FC = () => {
     </View>
   );
 
-  // 修改 renderEchartsWithWebView 函数，删除选中时显示的线条图例名称
+  // 修改 renderEchartsWithWebView 函数，支持不同类型的图表
   const renderEchartsWithWebView = (option: any, height: number, onItemClick?: (item: any) => void) => {
-    // 获取数据
-    const data = option.series[0].data;
-
-    // 计算每行显示的图例数量，根据数据总量动态调整
-    const totalItems = data.length;
-    const itemsPerRow = Math.min(Math.ceil(totalItems / 2), 4); // 最多每行4个
-
-    // 计算需要的行数
-    const rowCount = Math.ceil(totalItems / itemsPerRow);
-
-    // 创建多行图例
-    const legends = [];
-    for (let i = 0; i < rowCount; i++) {
-      const startIdx = i * itemsPerRow;
-      const endIdx = Math.min(startIdx + itemsPerRow, totalItems);
-      const rowData = data.slice(startIdx, endIdx).map((item: { name: any; }) => item.name);
-
-      legends.push({
-        data: rowData,
-        bottom: 10 + (rowCount - 1 - i) * 25, // 从底部向上排列，每行25px高度
-        left: 'center',
-        itemWidth: 20,
-        itemHeight: 10,
-        selectedMode: false,
-        textStyle: { fontSize: 10 },
-        formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name
-      });
-    }
-
-    // 调整饼图位置，为图例留出足够空间
-    const pieCenter = ['50%', Math.max(30, 50 - rowCount * 5) + '%'];
-
-    // 创建新的选项，修改强调样式，删除线条图例名称
-    const newOption = {
-      ...option,
-      legend: legends,
-      series: [
-        {
-          ...option.series[0],
-          center: pieCenter,
-          radius: ['35%', '65%'], // 稍微缩小饼图
-          // 修改强调样式，删除线条图例名称
-          emphasis: {
-            label: {
-              show: false // 不显示标签
+    // 检查是否为饼图类型
+    const isPieChart = option.series && option.series[0] && option.series[0].type === 'pie';
+    
+    // 如果是饼图，应用我们之前的逻辑
+    if (isPieChart) {
+      // 获取数据
+      const data = option.series[0].data;
+      
+      // 计算每行显示的图例数量，根据数据总量动态调整
+      const totalItems = data.length;
+      const itemsPerRow = Math.min(Math.ceil(totalItems / 2), 4); // 最多每行4个
+      
+      // 计算需要的行数
+      const rowCount = Math.ceil(totalItems / itemsPerRow);
+      
+      // 创建多行图例
+      const legends = [];
+      for (let i = 0; i < rowCount; i++) {
+        const startIdx = i * itemsPerRow;
+        const endIdx = Math.min(startIdx + itemsPerRow, totalItems);
+        const rowData = data.slice(startIdx, endIdx).map((item: { name: any; }) => item.name);
+        
+        legends.push({
+          data: rowData,
+          bottom: 10 + (rowCount - 1 - i) * 25, // 从底部向上排列，每行25px高度
+          left: 'center',
+          itemWidth: 20,
+          itemHeight: 10,
+          selectedMode: false,
+          textStyle: { fontSize: 10 },
+          formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name
+        });
+      }
+      
+      // 调整饼图位置，为图例留出足够空间
+      const pieCenter = ['50%', Math.max(30, 50 - rowCount * 5) + '%'];
+      
+      // 创建新的选项，修改强调样式，删除线条图例名称
+      const newOption = {
+        ...option,
+        legend: legends,
+        series: [
+          {
+            ...option.series[0],
+            center: pieCenter,
+            radius: ['35%', '65%'], // 稍微缩小饼图
+            // 修改强调样式，删除线条图例名称
+            emphasis: {
+              label: {
+                show: false // 不显示标签
+              },
+              itemStyle: {
+                shadowBlur: 10,
+                shadowOffsetX: 0,
+                shadowColor: 'rgba(0, 0, 0, 0.5)'
+              }
             },
-            itemStyle: {
-              shadowBlur: 10,
-              shadowOffsetX: 0,
-              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            // 确保普通状态下也不显示标签
+            label: {
+              show: false
             }
-          },
-          // 确保普通状态下也不显示标签
-          label: {
-            show: false
           }
-        }
-      ]
-    };
+        ]
+      };
+      
+      // 计算适当的容器高度，确保有足够空间显示图例
+      const containerHeight = height + (rowCount > 2 ? (rowCount - 2) * 25 : 0);
+      
+      // 创建HTML内容
+      const htmlContent = createChartHtml(newOption, data.map((item: { name: any; }) => item.name), rowCount);
+      
+      return (
+        <View style={{ height: containerHeight, width: '100%', backgroundColor: '#fff' }}>
+          <WebView
+            source={{ html: htmlContent }}
+            style={{ flex: 1 }}
+            originWhitelist={['*']}
+            javaScriptEnabled={true}
+            onMessage={(event) => {
+              if (onItemClick) {
+                try {
+                  const message = JSON.parse(event.nativeEvent.data);
+                  if (message.type === 'itemClick' || message.type === 'legendClick') {
+                    onItemClick(message);
+                  }
+                } catch (e) {
+                  console.error('Failed to parse WebView message:', e);
+                }
+              }
+            }}
+          />
+        </View>
+      );
+    } else {
+      // 对于非饼图类型，使用原始选项直接渲染
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+            <style>
+              body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+              #chart { width: 100%; height: 100%; }
+            </style>
+          </head>
+          <body>
+            <div id="chart"></div>
+            <script>
+              document.addEventListener('DOMContentLoaded', function() {
+                var chart = echarts.init(document.getElementById('chart'));
+                var option = ${JSON.stringify(option)};
+                chart.setOption(option);
+                
+                // 窗口大小变化时调整图表大小
+                window.addEventListener('resize', function() {
+                  chart.resize();
+                });
+              });
+            </script>
+          </body>
+        </html>
+      `;
+      
+      return (
+        <View style={{ height, width: '100%', backgroundColor: '#fff' }}>
+          <WebView
+            source={{ html: htmlContent }}
+            style={{ flex: 1 }}
+            originWhitelist={['*']}
+            javaScriptEnabled={true}
+          />
+        </View>
+      );
+    }
+  };
 
-    // 创建HTML内容
-    const htmlContent = `
+  // 辅助函数：创建图表HTML内容
+  const createChartHtml = (option: any, dataNames: string[], rowCount: number) => {
+    return `
       <!DOCTYPE html>
       <html>
         <head>
@@ -357,11 +436,11 @@ const StatisticsScreen: React.FC = () => {
           <script>
             document.addEventListener('DOMContentLoaded', function() {
               var chart = echarts.init(document.getElementById('chart'));
-              var option = ${JSON.stringify(newOption)};
+              var option = ${JSON.stringify(option)};
               chart.setOption(option);
               
               // 存储所有数据项的名称
-              var allDataNames = ${JSON.stringify(data.map((item: { name: any; }) => item.name))};
+              var allDataNames = ${JSON.stringify(dataNames)};
               
               // 点击图表项
               chart.on('click', function(params) {
@@ -433,32 +512,6 @@ const StatisticsScreen: React.FC = () => {
         </body>
       </html>
     `;
-
-    // 计算适当的容器高度，确保有足够空间显示图例
-    const containerHeight = height + (rowCount > 2 ? (rowCount - 2) * 25 : 0);
-
-    return (
-      <View style={{ height: containerHeight, width: '100%', backgroundColor: '#fff' }}>
-        <WebView
-          source={{ html: htmlContent }}
-          style={{ flex: 1 }}
-          originWhitelist={['*']}
-          javaScriptEnabled={true}
-          onMessage={(event) => {
-            if (onItemClick) {
-              try {
-                const message = JSON.parse(event.nativeEvent.data);
-                if (message.type === 'itemClick' || message.type === 'legendClick') {
-                  onItemClick(message);
-                }
-              } catch (e) {
-                console.error('Failed to parse WebView message:', e);
-              }
-            }
-          }}
-        />
-      </View>
-    );
   };
 
   // 修改处理点击事件的函数，确保正确处理点击事件
@@ -707,7 +760,7 @@ const StatisticsScreen: React.FC = () => {
     );
   };
 
-  // 修改月度趋势图表
+  // 修改月度趋势图表渲染函数
   const renderMonthTrend = () => {
     if (monthData.length === 0) {
       return (
@@ -748,19 +801,19 @@ const StatisticsScreen: React.FC = () => {
         data: ['收入', '支出'],
         bottom: 0,
         left: 'center',
-        selectedMode: false, // 禁用图例选择功能
+        selectedMode: true, // 允许选择，因为这是柱状图
         textStyle: {
           color: '#333',
           fontSize: 12,
         },
-        icon: 'rect', // 使用矩形图标
-        itemWidth: 25, // 图例图标宽度
-        itemHeight: 14, // 图例图标高度
+        icon: 'rect',
+        itemWidth: 25,
+        itemHeight: 14,
       },
       grid: {
         left: '3%',
         right: '4%',
-        bottom: '15%', // 增加底部空间，为图例留出位置
+        bottom: '15%',
         top: '10%',
         containLabel: true
       },
