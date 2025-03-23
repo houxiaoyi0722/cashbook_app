@@ -277,55 +277,52 @@ const StatisticsScreen: React.FC = () => {
     </View>
   );
 
-  // 修改 renderEchartsWithWebView 函数，调整图例显示和交互行为
+  // 修改 renderEchartsWithWebView 函数，使用更简单的方法实现图例显示两排
   const renderEchartsWithWebView = (option: any, height: number, onItemClick?: (item: any) => void) => {
-    // 添加点击事件处理
-    const enhancedOption = {
+    // 修改图例配置，强制分成两行
+    const data = option.series[0].data;
+    const halfLength = Math.ceil(data.length / 2);
+    
+    // 创建两个图例组，分别显示在上下两行
+    const legendData1 = data.slice(0, halfLength).map(item => item.name);
+    const legendData2 = data.slice(halfLength).map(item => item.name);
+    
+    // 创建新的选项，包含两个图例
+    const newOption = {
       ...option,
-      tooltip: {
-        ...option.tooltip,
-        trigger: 'item',
-        formatter: '{b}: {c} ({d}%)'
-      },
-      legend: {
-        ...option.legend,
-        type: 'scroll', // 添加滚动功能
-        orient: 'horizontal', // 水平方向
-        bottom: 0, // 放置在底部
-        left: 'center', // 水平居中
-        itemWidth: 25, // 图例图标宽度
-        itemHeight: 14, // 图例图标高度
-        formatter: function(name: string) {
-          // 限制名称长度
-          return name.length > 8 ? name.slice(0, 8) + '...' : name;
+      legend: [
+        {
+          // 第一行图例
+          data: legendData1,
+          bottom: 30, // 放在倒数第二行
+          left: 'center',
+          itemWidth: 25,
+          itemHeight: 14,
+          selectedMode: false, // 禁用选择功能
+          textStyle: { fontSize: 12 },
+          formatter: name => name.length > 8 ? name.slice(0, 8) + '...' : name
         },
-        textStyle: {
-          fontSize: 12
-        },
-        icon: 'rect', // 使用矩形图标
-        pageButtonPosition: 'end', // 分页按钮位置
-        pageButtonItemGap: 5, // 分页按钮间距
-        pageButtonGap: 5, // 分页按钮与图例的间距
-        pageIconColor: '#1976d2', // 分页按钮颜色
-        pageIconInactiveColor: '#aaa', // 非活动状态分页按钮颜色
-        pageIconSize: 12, // 分页按钮大小
-        pageTextStyle: {
-          color: '#333'
-        },
-        // 设置图例为两行显示
-        itemGap: 10, // 图例项之间的间距
-        padding: [5, 10], // 图例内边距
-        grid: {
-          top: 10,
-          bottom: 10,
-          left: 10,
-          right: 10
-        },
-        // 禁用图例的选择功能，防止隐藏数据
-        selectedMode: false
-      }
+        {
+          // 第二行图例
+          data: legendData2,
+          bottom: 10, // 放在最后一行
+          left: 'center',
+          itemWidth: 25,
+          itemHeight: 14,
+          selectedMode: false, // 禁用选择功能
+          textStyle: { fontSize: 12 },
+          formatter: name => name.length > 8 ? name.slice(0, 8) + '...' : name
+        }
+      ],
+      series: [
+        {
+          ...option.series[0],
+          center: ['50%', '40%'] // 将饼图向上移动，为两行图例留出空间
+        }
+      ]
     };
 
+    // 创建HTML内容
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -343,34 +340,28 @@ const StatisticsScreen: React.FC = () => {
           <script>
             document.addEventListener('DOMContentLoaded', function() {
               var chart = echarts.init(document.getElementById('chart'));
-              var option = ${JSON.stringify(enhancedOption)};
+              var option = ${JSON.stringify(newOption)};
               chart.setOption(option);
               
-              // 添加点击事件
+              // 点击图表项
               chart.on('click', function(params) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                  type: 'itemClick',
-                  data: params.data
-                }));
+                if (params.componentType === 'series') {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'itemClick',
+                    data: params.data
+                  }));
+                }
               });
               
-              // 添加图例点击事件，但不隐藏数据
+              // 点击图例项
               chart.on('legendselectchanged', function(params) {
-                // 阻止默认的图例选择行为
-                chart.setOption({
-                  legend: {
-                    selected: option.legend.selected || {}
-                  }
-                });
-                
-                // 发送点击消息
                 window.ReactNativeWebView.postMessage(JSON.stringify({
                   type: 'legendClick',
                   name: params.name
                 }));
               });
               
-              // 自适应大小
+              // 窗口大小变化时调整图表大小
               window.addEventListener('resize', function() {
                 chart.resize();
               });
@@ -379,7 +370,7 @@ const StatisticsScreen: React.FC = () => {
         </body>
       </html>
     `;
-
+    
     return (
       <View style={{ height, width: '100%', backgroundColor: '#fff' }}>
         <WebView
@@ -402,6 +393,27 @@ const StatisticsScreen: React.FC = () => {
         />
       </View>
     );
+  };
+
+  // 修改处理点击事件的函数，确保正确处理点击事件
+  const handleIndustryItemClick = (message: any) => {
+    if (message.type === 'itemClick') {
+      // 点击图表区域
+      setSelectedIndustryItem(message.data.name);
+    } else if (message.type === 'legendClick') {
+      // 点击图例
+      setSelectedIndustryItem(message.name);
+    }
+  };
+
+  const handlePayTypeItemClick = (message: any) => {
+    if (message.type === 'itemClick') {
+      // 点击图表区域
+      setSelectedPayTypeItem(message.data.name);
+    } else if (message.type === 'legendClick') {
+      // 点击图例
+      setSelectedPayTypeItem(message.name);
+    }
   };
 
   // 渲染月度概览
@@ -519,7 +531,7 @@ const StatisticsScreen: React.FC = () => {
           name: '支出类型',
           type: 'pie',
           radius: ['40%', '70%'],
-          center: ['50%', '45%'], // 将饼图向上移动，为底部图例留出空间
+          center: ['50%', '40%'], // 将饼图向上移动更多，为底部图例留出更多空间
           avoidLabelOverlap: false,
           itemStyle: {
             borderRadius: 5,
@@ -550,15 +562,6 @@ const StatisticsScreen: React.FC = () => {
           }))
         }
       ]
-    };
-
-    // 处理图表项目点击
-    const handleIndustryItemClick = (message: any) => {
-      if (message.type === 'itemClick' || message.type === 'legendClick') {
-        // 无论是点击图表还是图例，都执行相同的操作
-        const itemName = message.type === 'itemClick' ? message.data.name : message.name;
-        setSelectedIndustryItem(itemName);
-      }
     };
 
     return (
@@ -646,15 +649,6 @@ const StatisticsScreen: React.FC = () => {
           }))
         }
       ]
-    };
-
-    // 处理图表项目点击
-    const handlePayTypeItemClick = (message: any) => {
-      if (message.type === 'itemClick' || message.type === 'legendClick') {
-        // 无论是点击图表还是图例，都执行相同的操作
-        const itemName = message.type === 'itemClick' ? message.data.name : message.name;
-        setSelectedPayTypeItem(itemName);
-      }
     };
 
     return (
