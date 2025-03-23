@@ -57,7 +57,7 @@ const StatisticsScreen: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState(moment().format('YYYY-MM'));
   const [previousMonths, setPreviousMonths] = useState<string[]>([]);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
-  
+
   // 添加选中项状态到组件顶层
   const [selectedIndustryItem, setSelectedIndustryItem] = useState<string | null>(null);
   const [selectedPayTypeItem, setSelectedPayTypeItem] = useState<string | null>(null);
@@ -277,25 +277,25 @@ const StatisticsScreen: React.FC = () => {
     </View>
   );
 
-  // 修改 renderEchartsWithWebView 函数，完全解决图例重叠和高度自适应问题
+  // 修改 renderEchartsWithWebView 函数，删除选中时显示的线条图例名称
   const renderEchartsWithWebView = (option: any, height: number, onItemClick?: (item: any) => void) => {
     // 获取数据
     const data = option.series[0].data;
-    
+
     // 计算每行显示的图例数量，根据数据总量动态调整
     const totalItems = data.length;
     const itemsPerRow = Math.min(Math.ceil(totalItems / 2), 4); // 最多每行4个
-    
+
     // 计算需要的行数
     const rowCount = Math.ceil(totalItems / itemsPerRow);
-    
+
     // 创建多行图例
     const legends = [];
     for (let i = 0; i < rowCount; i++) {
       const startIdx = i * itemsPerRow;
       const endIdx = Math.min(startIdx + itemsPerRow, totalItems);
-      const rowData = data.slice(startIdx, endIdx).map(item => item.name);
-      
+      const rowData = data.slice(startIdx, endIdx).map((item: { name: any; }) => item.name);
+
       legends.push({
         data: rowData,
         bottom: 10 + (rowCount - 1 - i) * 25, // 从底部向上排列，每行25px高度
@@ -304,14 +304,14 @@ const StatisticsScreen: React.FC = () => {
         itemHeight: 10,
         selectedMode: false,
         textStyle: { fontSize: 10 },
-        formatter: name => name.length > 6 ? name.slice(0, 6) + '...' : name
+        formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name
       });
     }
-    
+
     // 调整饼图位置，为图例留出足够空间
     const pieCenter = ['50%', Math.max(30, 50 - rowCount * 5) + '%'];
-    
-    // 创建新的选项
+
+    // 创建新的选项，修改强调样式，删除线条图例名称
     const newOption = {
       ...option,
       legend: legends,
@@ -319,7 +319,22 @@ const StatisticsScreen: React.FC = () => {
         {
           ...option.series[0],
           center: pieCenter,
-          radius: ['35%', '65%'] // 稍微缩小饼图
+          radius: ['35%', '65%'], // 稍微缩小饼图
+          // 修改强调样式，删除线条图例名称
+          emphasis: {
+            label: {
+              show: false // 不显示标签
+            },
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            }
+          },
+          // 确保普通状态下也不显示标签
+          label: {
+            show: false
+          }
         }
       ]
     };
@@ -346,7 +361,7 @@ const StatisticsScreen: React.FC = () => {
               chart.setOption(option);
               
               // 存储所有数据项的名称
-              var allDataNames = ${JSON.stringify(data.map(item => item.name))};
+              var allDataNames = ${JSON.stringify(data.map((item: { name: any; }) => item.name))};
               
               // 点击图表项
               chart.on('click', function(params) {
@@ -390,7 +405,7 @@ const StatisticsScreen: React.FC = () => {
                 }, 0);
               });
               
-              // 高亮显示选中项
+              // 高亮显示选中项，但不显示标签
               function highlightItem(name) {
                 // 应用强调状态
                 chart.dispatchAction({
@@ -418,10 +433,10 @@ const StatisticsScreen: React.FC = () => {
         </body>
       </html>
     `;
-    
+
     // 计算适当的容器高度，确保有足够空间显示图例
     const containerHeight = height + (rowCount > 2 ? (rowCount - 2) * 25 : 0);
-    
+
     return (
       <View style={{ height: containerHeight, width: '100%', backgroundColor: '#fff' }}>
         <WebView
@@ -565,24 +580,11 @@ const StatisticsScreen: React.FC = () => {
         trigger: 'item',
         formatter: '{b}: {c} ({d}%)'
       },
-      legend: {
-        type: 'scroll',
-        orient: 'horizontal',
-        bottom: 0,
-        left: 'center',
-        data: industryTypeData.map(item => item.name),
-        // 确保所有项目都显示
-        selected: industryTypeData.reduce((acc, item) => {
-          acc[item.name] = true;
-          return acc;
-        }, {})
-      },
       series: [
         {
           name: '支出类型',
           type: 'pie',
           radius: ['40%', '70%'],
-          center: ['50%', '40%'], // 将饼图向上移动更多，为底部图例留出更多空间
           avoidLabelOverlap: false,
           itemStyle: {
             borderRadius: 5,
@@ -590,13 +592,11 @@ const StatisticsScreen: React.FC = () => {
             borderWidth: 2
           },
           label: {
-            show: false
+            show: false // 确保不显示标签
           },
           emphasis: {
             label: {
-              show: true,
-              fontSize: 14,
-              fontWeight: 'bold'
+              show: false // 确保强调状态下也不显示标签
             },
             itemStyle: {
               shadowBlur: 10,
@@ -618,11 +618,11 @@ const StatisticsScreen: React.FC = () => {
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>支出类型分析</Card.Title>
-        
+
         <View style={styles.chartContainer}>
           {renderEchartsWithWebView(option, 300, handleIndustryItemClick)}
         </View>
-        
+
         {selectedIndustryItem && (
           <View style={styles.selectedItemInfo}>
             <Text style={styles.selectedItemTitle}>已选择: {selectedIndustryItem}</Text>
@@ -652,24 +652,11 @@ const StatisticsScreen: React.FC = () => {
         trigger: 'item',
         formatter: '{b}: {c} ({d}%)'
       },
-      legend: {
-        type: 'scroll',
-        orient: 'horizontal',
-        bottom: 0,
-        left: 'center',
-        data: payTypeData.map(item => item.name),
-        // 不再隐藏任何项目
-        selected: payTypeData.reduce((acc, item) => {
-          acc[item.name] = true;
-          return acc;
-        }, {})
-      },
       series: [
         {
           name: '支付方式',
           type: 'pie',
           radius: ['40%', '70%'],
-          center: ['50%', '45%'], // 将饼图向上移动，为底部图例留出空间
           avoidLabelOverlap: false,
           itemStyle: {
             borderRadius: 5,
@@ -677,13 +664,11 @@ const StatisticsScreen: React.FC = () => {
             borderWidth: 2
           },
           label: {
-            show: false
+            show: false // 确保不显示标签
           },
           emphasis: {
             label: {
-              show: true,
-              fontSize: 14,
-              fontWeight: 'bold'
+              show: false // 确保强调状态下也不显示标签
             },
             itemStyle: {
               shadowBlur: 10,
@@ -705,11 +690,11 @@ const StatisticsScreen: React.FC = () => {
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>支付方式分析</Card.Title>
-        
+
         <View style={styles.chartContainer}>
           {renderEchartsWithWebView(option, 300, handlePayTypeItemClick)}
         </View>
-        
+
         {selectedPayTypeItem && (
           <View style={styles.selectedItemInfo}>
             <Text style={styles.selectedItemTitle}>已选择: {selectedPayTypeItem}</Text>
