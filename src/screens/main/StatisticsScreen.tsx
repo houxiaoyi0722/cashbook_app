@@ -57,6 +57,10 @@ const StatisticsScreen: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState(moment().format('YYYY-MM'));
   const [previousMonths, setPreviousMonths] = useState<string[]>([]);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+  
+  // 添加选中项状态到组件顶层
+  const [selectedIndustryItem, setSelectedIndustryItem] = useState<string | null>(null);
+  const [selectedPayTypeItem, setSelectedPayTypeItem] = useState<string | null>(null);
 
   // 获取月度数据
   const fetchMonthData = useCallback(async () => {
@@ -273,9 +277,41 @@ const StatisticsScreen: React.FC = () => {
     </View>
   );
 
-  // 添加一个辅助函数来渲染 Echarts
-  const renderEchartsWithWebView = (option: any, height: number) => {
-    // 使用 base64 编码 HTML 内容，避免字符转义问题
+  // 修改 renderEchartsWithWebView 函数，添加消息传递功能
+  const renderEchartsWithWebView = (option: any, height: number, onItemClick?: (item: any) => void) => {
+    // 添加点击事件处理
+    const enhancedOption = {
+      ...option,
+      tooltip: {
+        ...option.tooltip,
+        trigger: 'item',
+        formatter: '{b}: {c} ({d}%)'
+      },
+      legend: {
+        ...option.legend,
+        type: 'scroll', // 添加滚动功能
+        orient: 'vertical',
+        right: 10,
+        top: 'center',
+        formatter: function(name: string) {
+          // 限制名称长度
+          return name.length > 10 ? name.slice(0, 10) + '...' : name;
+        },
+        textStyle: {
+          fontSize: 12
+        },
+        pageButtonPosition: 'end', // 分页按钮位置
+        pageButtonItemGap: 5, // 分页按钮间距
+        pageButtonGap: 5, // 分页按钮与图例的间距
+        pageIconColor: '#1976d2', // 分页按钮颜色
+        pageIconInactiveColor: '#aaa', // 非活动状态分页按钮颜色
+        pageIconSize: 12, // 分页按钮大小
+        pageTextStyle: {
+          color: '#333'
+        }
+      }
+    };
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -293,13 +329,36 @@ const StatisticsScreen: React.FC = () => {
           <script>
             document.addEventListener('DOMContentLoaded', function() {
               var chart = echarts.init(document.getElementById('chart'));
-              chart.setOption(${JSON.stringify(option)});
+              var option = ${JSON.stringify(enhancedOption)};
+              chart.setOption(option);
+              
+              // 添加点击事件
+              chart.on('click', function(params) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'itemClick',
+                  data: params.data
+                }));
+              });
+              
+              // 添加图例点击事件
+              chart.on('legendselectchanged', function(params) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'legendClick',
+                  name: params.name,
+                  selected: params.selected
+                }));
+              });
+              
+              // 自适应大小
+              window.addEventListener('resize', function() {
+                chart.resize();
+              });
             });
           </script>
         </body>
       </html>
     `;
-    
+
     return (
       <View style={{ height, width: '100%', backgroundColor: '#fff' }}>
         <WebView
@@ -307,6 +366,18 @@ const StatisticsScreen: React.FC = () => {
           style={{ flex: 1 }}
           originWhitelist={['*']}
           javaScriptEnabled={true}
+          onMessage={(event) => {
+            if (onItemClick) {
+              try {
+                const message = JSON.parse(event.nativeEvent.data);
+                if (message.type === 'itemClick' || message.type === 'legendClick') {
+                  onItemClick(message);
+                }
+              } catch (e) {
+                console.error('Failed to parse WebView message:', e);
+              }
+            }
+          }}
         />
       </View>
     );
@@ -393,7 +464,25 @@ const StatisticsScreen: React.FC = () => {
     );
   };
 
-  // 渲染行业类型分析
+  // 处理行业类型图表项目点击
+  const handleIndustryItemClick = (message: any) => {
+    if (message.type === 'itemClick') {
+      setSelectedIndustryItem(message.data.name);
+    } else if (message.type === 'legendClick') {
+      setSelectedIndustryItem(message.name);
+    }
+  };
+
+  // 处理支付方式图表项目点击
+  const handlePayTypeItemClick = (message: any) => {
+    if (message.type === 'itemClick') {
+      setSelectedPayTypeItem(message.data.name);
+    } else if (message.type === 'legendClick') {
+      setSelectedPayTypeItem(message.name);
+    }
+  };
+
+  // 修改行业类型分析渲染函数，使用顶层状态
   const renderIndustryTypeAnalysis = () => {
     if (industryTypeData.length === 0) {
       return (
@@ -404,16 +493,30 @@ const StatisticsScreen: React.FC = () => {
       );
     }
 
-    // 修改行业类型分析的图表配置
+    // 准备图表数据
     const option = {
       tooltip: {
         trigger: 'item',
         formatter: '{b}: {c} ({d}%)'
       },
+      legend: {
+        type: 'scroll',
+        orient: 'vertical',
+        right: 10,
+        top: 'center',
+        data: industryTypeData.map(item => item.name),
+        selected: industryTypeData.reduce((acc, item) => {
+          acc[item.name] = selectedIndustryItem ? item.name === selectedIndustryItem : true;
+          return acc;
+        }, {})
+      },
       series: [
         {
+          name: '支出类型',
           type: 'pie',
           radius: ['40%', '70%'],
+          center: ['40%', '50%'], // 将饼图向左移动，为图例留出空间
+          avoidLabelOverlap: false,
           itemStyle: {
             borderRadius: 5,
             borderColor: '#fff',
@@ -424,7 +527,14 @@ const StatisticsScreen: React.FC = () => {
           },
           emphasis: {
             label: {
-              show: true
+              show: true,
+              fontSize: 14,
+              fontWeight: 'bold'
+            },
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
             }
           },
           data: industryTypeData.map(item => ({
@@ -438,19 +548,27 @@ const StatisticsScreen: React.FC = () => {
       ]
     };
 
-    // 在渲染图表前检查数据
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>支出类型分析</Card.Title>
-
+        
         <View style={styles.chartContainer}>
-          {renderEchartsWithWebView(option, 250)}
+          {renderEchartsWithWebView(option, 300, handleIndustryItemClick)}
         </View>
+        
+        {selectedIndustryItem && (
+          <View style={styles.selectedItemInfo}>
+            <Text style={styles.selectedItemTitle}>已选择: {selectedIndustryItem}</Text>
+            <Text style={styles.selectedItemValue}>
+              金额: {industryTypeData.find(item => item.name === selectedIndustryItem)?.value || 0}
+            </Text>
+          </View>
+        )}
       </Card>
     );
   };
 
-  // 渲染支付方式分析
+  // 同样修改支付方式分析渲染函数
   const renderPayTypeAnalysis = () => {
     if (payTypeData.length === 0) {
       return (
@@ -506,8 +624,17 @@ const StatisticsScreen: React.FC = () => {
         <Card.Title>支付方式分析</Card.Title>
 
         <View style={styles.chartContainer}>
-          {renderEchartsWithWebView(option, 250)}
+          {renderEchartsWithWebView(option, 300, handlePayTypeItemClick)}
         </View>
+
+        {selectedPayTypeItem && (
+          <View style={styles.selectedItemInfo}>
+            <Text style={styles.selectedItemTitle}>已选择: {selectedPayTypeItem}</Text>
+            <Text style={styles.selectedItemValue}>
+              金额: {payTypeData.find(item => item.name === selectedPayTypeItem)?.value || 0}
+            </Text>
+          </View>
+        )}
       </Card>
     );
   };
@@ -827,8 +954,24 @@ const styles = StyleSheet.create({
   chartContainer: {
     alignItems: 'center',
     marginVertical: 10,
-    height: 250,
+    height: 300, // 增加高度以适应滚动图例
     width: '100%',
+  },
+  selectedItemInfo: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 5,
+  },
+  selectedItemTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  selectedItemValue: {
+    fontSize: 14,
+    color: '#1976d2',
+    marginTop: 5,
   },
 });
 
