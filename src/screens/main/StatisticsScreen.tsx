@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
-import { Text, Card, Divider, Tab, TabView } from '@rneui/themed';
+import { Text, Card, Divider, Tab, TabView, Overlay, Icon } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { PieChart, BarChart } from 'react-native-chart-kit';
@@ -38,6 +38,7 @@ const StatisticsScreen: React.FC = () => {
   const [payTypeData, setPayTypeData] = useState<any[]>([]);
   const [currentMonth, setCurrentMonth] = useState(moment().format('YYYY-MM'));
   const [previousMonths, setPreviousMonths] = useState<string[]>([]);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
 
   // 获取月度数据
   const fetchMonthData = useCallback(async () => {
@@ -209,31 +210,48 @@ const StatisticsScreen: React.FC = () => {
 
   // 渲染月份选择器
   const renderMonthSelector = () => (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.monthSelector}
-    >
-      {previousMonths.map((month) => (
-        <TouchableOpacity
-          key={month}
-          style={[
-            styles.monthItem,
-            month === currentMonth && styles.selectedMonthItem,
-          ]}
-          onPress={() => handleMonthSelect(month)}
-        >
-          <Text
-            style={[
-              styles.monthText,
-              month === currentMonth && styles.selectedMonthText,
-            ]}
-          >
-            {month}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
+    <View style={styles.monthSelectorContainer}>
+      <TouchableOpacity
+        style={styles.currentMonthButton}
+        onPress={() => setShowMonthPicker(true)}
+      >
+        <Text style={styles.currentMonthText}>{currentMonth}</Text>
+        <Icon name="arrow-drop-down" type="material" color="#1976d2" size={24} />
+      </TouchableOpacity>
+
+      {/* 月份选择弹出层 */}
+      <Overlay
+        isVisible={showMonthPicker}
+        onBackdropPress={() => setShowMonthPicker(false)}
+        overlayStyle={styles.monthPickerOverlay}
+      >
+        <Text style={styles.monthPickerTitle}>选择月份</Text>
+        <ScrollView style={styles.monthPickerList}>
+          {previousMonths.map((month) => (
+            <TouchableOpacity
+              key={month}
+              style={[
+                styles.monthPickerItem,
+                month === currentMonth && styles.selectedMonthPickerItem,
+              ]}
+              onPress={() => {
+                handleMonthSelect(month);
+                setShowMonthPicker(false);
+              }}
+            >
+              <Text
+                style={[
+                  styles.monthPickerItemText,
+                  month === currentMonth && styles.selectedMonthPickerItemText,
+                ]}
+              >
+                {month}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </Overlay>
+    </View>
   );
 
   // 渲染月度概览
@@ -590,28 +608,59 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: '#757575',
   },
-  monthSelector: {
-    height: 50,
-    flexDirection: 'row',
+  monthSelectorContainer: {
     padding: 10,
     backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
-  monthItem: {
-    paddingHorizontal: 15,
+  currentMonthButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 8,
-    marginRight: 10,
+    paddingHorizontal: 15,
     borderRadius: 20,
     backgroundColor: '#f0f0f0',
+    alignSelf: 'center',
   },
-  selectedMonthItem: {
-    backgroundColor: '#1976d2',
-  },
-  monthText: {
-    color: '#757575',
+  currentMonthText: {
+    fontSize: 16,
     fontWeight: 'bold',
+    color: '#1976d2',
+    marginRight: 5,
   },
-  selectedMonthText: {
-    color: 'white',
+  monthPickerOverlay: {
+    width: '80%',
+    maxHeight: '60%',
+    borderRadius: 10,
+    padding: 15,
+  },
+  monthPickerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  monthPickerList: {
+    maxHeight: 300,
+  },
+  monthPickerItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  selectedMonthPickerItem: {
+    backgroundColor: '#e3f2fd',
+  },
+  monthPickerItemText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  selectedMonthPickerItemText: {
+    color: '#1976d2',
+    fontWeight: 'bold',
   },
   tabContainer: {
     backgroundColor: 'white',
