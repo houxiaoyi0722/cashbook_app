@@ -277,47 +277,49 @@ const StatisticsScreen: React.FC = () => {
     </View>
   );
 
-  // 修改 renderEchartsWithWebView 函数，使用更简单的方法实现图例显示两排
+  // 修改 renderEchartsWithWebView 函数，完全解决图例重叠和高度自适应问题
   const renderEchartsWithWebView = (option: any, height: number, onItemClick?: (item: any) => void) => {
-    // 修改图例配置，强制分成两行
+    // 获取数据
     const data = option.series[0].data;
-    const halfLength = Math.ceil(data.length / 2);
     
-    // 创建两个图例组，分别显示在上下两行
-    const legendData1 = data.slice(0, halfLength).map(item => item.name);
-    const legendData2 = data.slice(halfLength).map(item => item.name);
+    // 计算每行显示的图例数量，根据数据总量动态调整
+    const totalItems = data.length;
+    const itemsPerRow = Math.min(Math.ceil(totalItems / 2), 4); // 最多每行4个
     
-    // 创建新的选项，包含两个图例
+    // 计算需要的行数
+    const rowCount = Math.ceil(totalItems / itemsPerRow);
+    
+    // 创建多行图例
+    const legends = [];
+    for (let i = 0; i < rowCount; i++) {
+      const startIdx = i * itemsPerRow;
+      const endIdx = Math.min(startIdx + itemsPerRow, totalItems);
+      const rowData = data.slice(startIdx, endIdx).map(item => item.name);
+      
+      legends.push({
+        data: rowData,
+        bottom: 10 + (rowCount - 1 - i) * 25, // 从底部向上排列，每行25px高度
+        left: 'center',
+        itemWidth: 20,
+        itemHeight: 10,
+        selectedMode: false,
+        textStyle: { fontSize: 10 },
+        formatter: name => name.length > 6 ? name.slice(0, 6) + '...' : name
+      });
+    }
+    
+    // 调整饼图位置，为图例留出足够空间
+    const pieCenter = ['50%', Math.max(30, 50 - rowCount * 5) + '%'];
+    
+    // 创建新的选项
     const newOption = {
       ...option,
-      legend: [
-        {
-          // 第一行图例
-          data: legendData1,
-          bottom: 30, // 放在倒数第二行
-          left: 'center',
-          itemWidth: 25,
-          itemHeight: 14,
-          selectedMode: false, // 禁用选择功能
-          textStyle: { fontSize: 12 },
-          formatter: name => name.length > 8 ? name.slice(0, 8) + '...' : name
-        },
-        {
-          // 第二行图例
-          data: legendData2,
-          bottom: 10, // 放在最后一行
-          left: 'center',
-          itemWidth: 25,
-          itemHeight: 14,
-          selectedMode: false, // 禁用选择功能
-          textStyle: { fontSize: 12 },
-          formatter: name => name.length > 8 ? name.slice(0, 8) + '...' : name
-        }
-      ],
+      legend: legends,
       series: [
         {
           ...option.series[0],
-          center: ['50%', '40%'] // 将饼图向上移动，为两行图例留出空间
+          center: pieCenter,
+          radius: ['35%', '65%'] // 稍微缩小饼图
         }
       ]
     };
@@ -343,6 +345,9 @@ const StatisticsScreen: React.FC = () => {
               var option = ${JSON.stringify(newOption)};
               chart.setOption(option);
               
+              // 存储所有数据项的名称
+              var allDataNames = ${JSON.stringify(data.map(item => item.name))};
+              
               // 点击图表项
               chart.on('click', function(params) {
                 if (params.componentType === 'series') {
@@ -350,6 +355,9 @@ const StatisticsScreen: React.FC = () => {
                     type: 'itemClick',
                     data: params.data
                   }));
+                  
+                  // 高亮显示选中项
+                  highlightItem(params.data.name);
                 }
               });
               
@@ -359,7 +367,47 @@ const StatisticsScreen: React.FC = () => {
                   type: 'legendClick',
                   name: params.name
                 }));
+                
+                // 高亮显示选中项
+                highlightItem(params.name);
+                
+                // 阻止默认行为
+                setTimeout(function() {
+                  var selected = {};
+                  allDataNames.forEach(function(name) {
+                    selected[name] = true;
+                  });
+                  
+                  // 重置所有图例的选择状态
+                  var legendOptions = [];
+                  for (var i = 0; i < ${rowCount}; i++) {
+                    legendOptions.push({ selected: selected });
+                  }
+                  
+                  chart.setOption({
+                    legend: legendOptions
+                  });
+                }, 0);
               });
+              
+              // 高亮显示选中项
+              function highlightItem(name) {
+                // 应用强调状态
+                chart.dispatchAction({
+                  type: 'highlight',
+                  name: name
+                });
+                
+                // 取消其他项的高亮
+                allDataNames.forEach(function(dataName) {
+                  if (dataName !== name) {
+                    chart.dispatchAction({
+                      type: 'downplay',
+                      name: dataName
+                    });
+                  }
+                });
+              }
               
               // 窗口大小变化时调整图表大小
               window.addEventListener('resize', function() {
@@ -371,8 +419,11 @@ const StatisticsScreen: React.FC = () => {
       </html>
     `;
     
+    // 计算适当的容器高度，确保有足够空间显示图例
+    const containerHeight = height + (rowCount > 2 ? (rowCount - 2) * 25 : 0);
+    
     return (
-      <View style={{ height, width: '100%', backgroundColor: '#fff' }}>
+      <View style={{ height: containerHeight, width: '100%', backgroundColor: '#fff' }}>
         <WebView
           source={{ html: htmlContent }}
           style={{ flex: 1 }}
@@ -999,8 +1050,7 @@ const styles = StyleSheet.create({
   chartContainer: {
     alignItems: 'center',
     marginVertical: 10,
-    height: 300, // 增加高度以适应滚动图例
-    width: '100%',
+    width: '100%', // 移除固定高度，让内容决定高度
   },
   selectedItemInfo: {
     marginTop: 10,
