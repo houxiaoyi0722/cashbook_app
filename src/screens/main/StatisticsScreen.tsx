@@ -277,7 +277,7 @@ const StatisticsScreen: React.FC = () => {
     </View>
   );
 
-  // 修改 renderEchartsWithWebView 函数，添加消息传递功能
+  // 修改 renderEchartsWithWebView 函数，将图例移到底部
   const renderEchartsWithWebView = (option: any, height: number, onItemClick?: (item: any) => void) => {
     // 添加点击事件处理
     const enhancedOption = {
@@ -290,16 +290,19 @@ const StatisticsScreen: React.FC = () => {
       legend: {
         ...option.legend,
         type: 'scroll', // 添加滚动功能
-        orient: 'vertical',
-        right: 10,
-        top: 'center',
+        orient: 'horizontal', // 水平方向
+        bottom: 0, // 放置在底部
+        left: 'center', // 水平居中
+        itemWidth: 25, // 图例图标宽度
+        itemHeight: 14, // 图例图标高度
         formatter: function(name: string) {
           // 限制名称长度
-          return name.length > 10 ? name.slice(0, 10) + '...' : name;
+          return name.length > 8 ? name.slice(0, 8) + '...' : name;
         },
         textStyle: {
           fontSize: 12
         },
+        icon: 'rect', // 使用矩形图标
         pageButtonPosition: 'end', // 分页按钮位置
         pageButtonItemGap: 5, // 分页按钮间距
         pageButtonGap: 5, // 分页按钮与图例的间距
@@ -464,25 +467,7 @@ const StatisticsScreen: React.FC = () => {
     );
   };
 
-  // 处理行业类型图表项目点击
-  const handleIndustryItemClick = (message: any) => {
-    if (message.type === 'itemClick') {
-      setSelectedIndustryItem(message.data.name);
-    } else if (message.type === 'legendClick') {
-      setSelectedIndustryItem(message.name);
-    }
-  };
-
-  // 处理支付方式图表项目点击
-  const handlePayTypeItemClick = (message: any) => {
-    if (message.type === 'itemClick') {
-      setSelectedPayTypeItem(message.data.name);
-    } else if (message.type === 'legendClick') {
-      setSelectedPayTypeItem(message.name);
-    }
-  };
-
-  // 修改行业类型分析渲染函数，使用顶层状态
+  // 修改行业类型分析渲染函数
   const renderIndustryTypeAnalysis = () => {
     if (industryTypeData.length === 0) {
       return (
@@ -501,12 +486,13 @@ const StatisticsScreen: React.FC = () => {
       },
       legend: {
         type: 'scroll',
-        orient: 'vertical',
-        right: 10,
-        top: 'center',
+        orient: 'horizontal',
+        bottom: 0,
+        left: 'center',
         data: industryTypeData.map(item => item.name),
+        // 不再隐藏任何项目
         selected: industryTypeData.reduce((acc, item) => {
-          acc[item.name] = selectedIndustryItem ? item.name === selectedIndustryItem : true;
+          acc[item.name] = true;
           return acc;
         }, {})
       },
@@ -515,7 +501,7 @@ const StatisticsScreen: React.FC = () => {
           name: '支出类型',
           type: 'pie',
           radius: ['40%', '70%'],
-          center: ['40%', '50%'], // 将饼图向左移动，为图例留出空间
+          center: ['50%', '45%'], // 将饼图向上移动，为底部图例留出空间
           avoidLabelOverlap: false,
           itemStyle: {
             borderRadius: 5,
@@ -546,6 +532,15 @@ const StatisticsScreen: React.FC = () => {
           }))
         }
       ]
+    };
+
+    // 处理图表项目点击
+    const handleIndustryItemClick = (message: any) => {
+      if (message.type === 'itemClick') {
+        setSelectedIndustryItem(message.data.name);
+      } else if (message.type === 'legendClick') {
+        setSelectedIndustryItem(message.name);
+      }
     };
 
     return (
@@ -579,54 +574,79 @@ const StatisticsScreen: React.FC = () => {
       );
     }
 
-    // 准备 Echarts 选项
+    // 准备图表数据
     const option = {
       tooltip: {
         trigger: 'item',
-        formatter: '{a} <br/>{b}: {c} ({d}%)'
+        formatter: '{b}: {c} ({d}%)'
       },
       legend: {
-        orient: 'vertical',
-        right: 10,
-        top: 'center',
-        data: payTypeData.map(item => item.name)
+        type: 'scroll',
+        orient: 'horizontal',
+        bottom: 0,
+        left: 'center',
+        data: payTypeData.map(item => item.name),
+        // 不再隐藏任何项目
+        selected: payTypeData.reduce((acc, item) => {
+          acc[item.name] = true;
+          return acc;
+        }, {})
       },
-      color: payTypeData.map(item => item.color),
       series: [
         {
           name: '支付方式',
           type: 'pie',
           radius: ['40%', '70%'],
+          center: ['50%', '45%'], // 将饼图向上移动，为底部图例留出空间
           avoidLabelOverlap: false,
+          itemStyle: {
+            borderRadius: 5,
+            borderColor: '#fff',
+            borderWidth: 2
+          },
           label: {
             show: false
           },
           emphasis: {
             label: {
               show: true,
-              fontSize: '14',
+              fontSize: 14,
               fontWeight: 'bold'
+            },
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
             }
-          },
-          labelLine: {
-            show: false
           },
           data: payTypeData.map(item => ({
             value: item.value,
-            name: item.name
+            name: item.name,
+            itemStyle: {
+              color: item.color
+            }
           }))
         }
       ]
     };
 
+    // 处理图表项目点击
+    const handlePayTypeItemClick = (message: any) => {
+      if (message.type === 'itemClick') {
+        setSelectedPayTypeItem(message.data.name);
+      } else if (message.type === 'legendClick') {
+        setSelectedPayTypeItem(message.name);
+      }
+    };
+
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>支付方式分析</Card.Title>
-
+        
         <View style={styles.chartContainer}>
           {renderEchartsWithWebView(option, 300, handlePayTypeItemClick)}
         </View>
-
+        
         {selectedPayTypeItem && (
           <View style={styles.selectedItemInfo}>
             <Text style={styles.selectedItemTitle}>已选择: {selectedPayTypeItem}</Text>
@@ -639,7 +659,7 @@ const StatisticsScreen: React.FC = () => {
     );
   };
 
-  // 渲染月度趋势
+  // 修改月度趋势图表
   const renderMonthTrend = () => {
     if (monthData.length === 0) {
       return (
@@ -678,10 +698,22 @@ const StatisticsScreen: React.FC = () => {
       },
       legend: {
         data: ['收入', '支出'],
+        bottom: 0, // 放置在底部
+        left: 'center', // 水平居中
         textStyle: {
           color: '#333',
           fontSize: 12,
         },
+        icon: 'rect', // 使用矩形图标
+        itemWidth: 25, // 图例图标宽度
+        itemHeight: 14, // 图例图标高度
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '15%', // 增加底部空间，为图例留出位置
+        top: '10%',
+        containLabel: true
       },
       xAxis: {
         type: 'category',
@@ -723,7 +755,7 @@ const StatisticsScreen: React.FC = () => {
         <Card.Title>月度趋势</Card.Title>
 
         <View style={styles.chartContainer}>
-          {renderEchartsWithWebView(option, 250)}
+          {renderEchartsWithWebView(option, 300)}
         </View>
       </Card>
     );
