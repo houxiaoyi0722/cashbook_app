@@ -129,14 +129,16 @@ const StatisticsScreen: React.FC = () => {
       });
 
       if (response.c === 200 && response.d) {
-        // 转换为图表数据格式
-        const chartData = response.d.map((item: any, index: number) => ({
-          name: item.type,
-          value: item.outSum,
-          color: getChartColor(index),
-          legendFontColor: '#7F7F7F',
-          legendFontSize: 12,
-        }));
+        // 转换为图表数据格式，并格式化数值
+        const chartData = response.d
+          .map((item: any, index: number) => ({
+            name: item.type,
+            value: parseFloat(item.outSum.toFixed(2)), // 确保数值格式化
+            color: getChartColor(index),
+            legendFontColor: '#7F7F7F',
+            legendFontSize: 12,
+          }))
+          .sort((a, b) => b.value - a.value); // 按数值从大到小排序
 
         setIndustryTypeData(chartData);
       }
@@ -166,14 +168,16 @@ const StatisticsScreen: React.FC = () => {
       });
 
       if (response.c === 200 && response.d) {
-        // 转换为图表数据格式
-        const chartData = response.d.map((item: any, index: number) => ({
-          name: item.type,
-          value: item.outSum.toFixed(2),
-          color: getChartColor(index + 5), // 使用外部函数
-          legendFontColor: '#7F7F7F',
-          legendFontSize: 12,
-        }));
+        // 转换为图表数据格式，并格式化数值
+        const chartData = response.d
+          .map((item: any, index: number) => ({
+            name: item.type,
+            value: parseFloat(item.outSum.toFixed(2)), // 确保数值格式化
+            color: getChartColor(index + 5),
+            legendFontColor: '#7F7F7F',
+            legendFontSize: 12,
+          }))
+          .sort((a, b) => b.value - a.value); // 按数值从大到小排序
 
         setPayTypeData(chartData);
       }
@@ -281,26 +285,26 @@ const StatisticsScreen: React.FC = () => {
   const renderEchartsWithWebView = (option: any, height: number, onItemClick?: (item: any) => void) => {
     // 检查是否为饼图类型
     const isPieChart = option.series && option.series[0] && option.series[0].type === 'pie';
-    
+
     // 如果是饼图，应用我们之前的逻辑
     if (isPieChart) {
       // 获取数据
       const data = option.series[0].data;
-      
+
       // 计算每行显示的图例数量，根据数据总量动态调整
       const totalItems = data.length;
       const itemsPerRow = Math.min(Math.ceil(totalItems / 2), 4); // 最多每行4个
-      
+
       // 计算需要的行数
       const rowCount = Math.ceil(totalItems / itemsPerRow);
-      
-      // 创建多行图例
+
+      // 创建多行图例 - 数据已经在传入前排序好了，所以这里保持顺序
       const legends = [];
       for (let i = 0; i < rowCount; i++) {
         const startIdx = i * itemsPerRow;
         const endIdx = Math.min(startIdx + itemsPerRow, totalItems);
         const rowData = data.slice(startIdx, endIdx).map((item: { name: any; }) => item.name);
-        
+
         legends.push({
           data: rowData,
           bottom: 10 + (rowCount - 1 - i) * 25, // 从底部向上排列，每行25px高度
@@ -312,10 +316,10 @@ const StatisticsScreen: React.FC = () => {
           formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name
         });
       }
-      
+
       // 调整饼图位置，为图例留出足够空间
       const pieCenter = ['50%', Math.max(30, 50 - rowCount * 5) + '%'];
-      
+
       // 创建新的选项，修改强调样式，删除线条图例名称
       const newOption = {
         ...option,
@@ -343,10 +347,10 @@ const StatisticsScreen: React.FC = () => {
           }
         ]
       };
-      
+
       // 计算适当的容器高度，确保有足够空间显示图例
       const containerHeight = height + (rowCount > 2 ? (rowCount - 2) * 25 : 0);
-      
+
       // 创建HTML内容
       const htmlContent = `
         <!DOCTYPE html>
@@ -400,7 +404,7 @@ const StatisticsScreen: React.FC = () => {
           </body>
         </html>
       `;
-      
+
       return (
         <View style={{ height: containerHeight, width: '100%', backgroundColor: '#fff' }}>
           <WebView
@@ -454,7 +458,7 @@ const StatisticsScreen: React.FC = () => {
           </body>
         </html>
       `;
-      
+
       return (
         <View style={{ height, width: '100%', backgroundColor: '#fff' }}>
           <WebView
@@ -584,6 +588,9 @@ const StatisticsScreen: React.FC = () => {
       );
     }
 
+    // 按数值从大到小排序数据
+    const sortedData = [...industryTypeData].sort((a, b) => b.value - a.value);
+
     // 准备图表数据
     const option = {
       tooltip: {
@@ -614,8 +621,8 @@ const StatisticsScreen: React.FC = () => {
               shadowColor: 'rgba(0, 0, 0, 0.5)'
             }
           },
-          data: industryTypeData.map(item => ({
-            value: parseFloat(item.value.toFixed(2)),
+          data: sortedData.map(item => ({
+            value: parseFloat(item.value).toFixed(2),
             name: item.name,
             itemStyle: {
               color: item.color
@@ -628,11 +635,11 @@ const StatisticsScreen: React.FC = () => {
     return (
       <Card containerStyle={styles.card}>
         <Card.Title>支出类型分析</Card.Title>
-        
+
         <View style={styles.chartContainer}>
           {renderEchartsWithWebView(option, 300, handleIndustryItemClick)}
         </View>
-        
+
         {selectedIndustryItem && (
           <View style={styles.selectedItemInfo}>
             <Text style={styles.selectedItemTitle}>已选择: {selectedIndustryItem}</Text>
@@ -645,7 +652,7 @@ const StatisticsScreen: React.FC = () => {
     );
   };
 
-  // 同样修改支付方式分析渲染函数
+  // 修改支付方式分析渲染函数
   const renderPayTypeAnalysis = () => {
     if (payTypeData.length === 0) {
       return (
@@ -655,6 +662,9 @@ const StatisticsScreen: React.FC = () => {
         </Card>
       );
     }
+
+    // 按数值从大到小排序数据
+    const sortedData = [...payTypeData].sort((a, b) => b.value - a.value);
 
     // 准备图表数据
     const option = {
@@ -686,8 +696,8 @@ const StatisticsScreen: React.FC = () => {
               shadowColor: 'rgba(0, 0, 0, 0.5)'
             }
           },
-          data: payTypeData.map(item => ({
-            value: item.value,
+          data: sortedData.map(item => ({
+            value: parseFloat(item.value.toFixed(2)),
             name: item.name,
             itemStyle: {
               color: item.color
@@ -709,7 +719,7 @@ const StatisticsScreen: React.FC = () => {
           <View style={styles.selectedItemInfo}>
             <Text style={styles.selectedItemTitle}>已选择: {selectedPayTypeItem}</Text>
             <Text style={styles.selectedItemValue}>
-              金额: {payTypeData.find(item => item.name === selectedPayTypeItem)?.value || 0}
+              金额: {payTypeData.find(item => item.name === selectedPayTypeItem)?.value.toFixed(2) || '0.00'}
             </Text>
           </View>
         )}
