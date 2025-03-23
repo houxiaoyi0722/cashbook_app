@@ -308,7 +308,7 @@ class Api {
     }>>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
       console.log(`💳 Fetching payment type analytics: `, params);
-      const response = await this.instance.post(`/api/entry/analytics/payType`, { params });
+      const response = await this.instance.post(`/api/entry/analytics/payType`, params);
       return response.data;
     },
 
@@ -326,7 +326,7 @@ class Api {
     }>>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
       console.log(`🏭 Fetching industry type analytics: `, params);
-      const response = await this.instance.post(`/api/entry/analytics/industryType`, { params });
+      const response = await this.instance.post(`/api/entry/analytics/industryType`, params);
       return response.data;
     },
 

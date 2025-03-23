@@ -46,7 +46,7 @@ const StatisticsScreen: React.FC = () => {
     try {
       setIsLoading(true);
       const response = await api.analytics.month(currentBook.bookId);
-
+      console.log('month',response)
       if (response.c === 200 && response.d) {
         setMonthData(response.d);
 
@@ -99,10 +99,9 @@ const StatisticsScreen: React.FC = () => {
       // 构建查询参数
       const startDate = `${currentMonth}-01`;
       const endDate = moment(startDate).endOf('month').format('YYYY-MM-DD');
-      // todo
       const response = await api.analytics.industryType({
         bookId: currentBook.bookId,
-        flowType: '',
+        flowType: '支出',
         startDay: startDate,
         endDay: endDate
       });
@@ -111,7 +110,7 @@ const StatisticsScreen: React.FC = () => {
         // 转换为图表数据格式
         const chartData = response.d.map((item: any, index: number) => ({
           name: item.type,
-          value: item.sum,
+          value: item.outSum,
           color: getChartColor(index), // 使用外部函数
           legendFontColor: '#7F7F7F',
           legendFontSize: 12,
@@ -148,7 +147,7 @@ const StatisticsScreen: React.FC = () => {
         // 转换为图表数据格式
         const chartData = response.d.map((item: any, index: number) => ({
           name: item.type,
-          value: item.sum,
+          value: item.outSum,
           color: getChartColor(index + 5), // 使用外部函数
           legendFontColor: '#7F7F7F',
           legendFontSize: 12,
@@ -239,7 +238,6 @@ const StatisticsScreen: React.FC = () => {
 
   // 渲染月度概览
   const renderMonthOverview = () => {
-    console.log(monthAnalysis)
     if (!monthAnalysis) return null;
 
     return (
@@ -439,7 +437,8 @@ const StatisticsScreen: React.FC = () => {
       .slice(0, 6)
       .sort((a, b) => a.type.localeCompare(b.type))
       .map(item => item.outSum);
-
+    console.log('inData',inData);
+    console.log('outData',outData);
     const chartData = {
       labels,
       datasets: [
