@@ -1,5 +1,13 @@
 ﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  TouchableOpacity,
+  RefreshControl,
+  ScrollView
+} from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Text, Card, Button, Icon, Divider, Overlay } from '@rneui/themed';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
@@ -39,6 +47,7 @@ const CalendarScreen: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedYear, setSelectedYear] = useState(moment().year());
   const [selectedMonth, setSelectedMonth] = useState(moment().month() + 1);
+  const [refreshing, setRefreshing] = useState(false);
 
   // 使用 useRef 存储状态
   const dailyDataRef = useRef<DailyData>({});
@@ -483,6 +492,18 @@ const CalendarScreen: React.FC = () => {
     </Overlay>
   );
 
+  // 下拉刷新处理函数
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchCalendarFlows().catch(err => {
+        console.error('获取月度流水失败', err instanceof Error ? err.message : String(err));
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchCalendarFlows]);
+
   if (!currentBook) {
     return (
       <View style={styles.container}>
@@ -505,98 +526,107 @@ const CalendarScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <BookSelector />
-
-      <Card containerStyle={styles.calendarCard}>
-        <Calendar
-          current={currentMonth}
-          key={currentMonth}
-          onDayPress={handleDayPress}
-          onMonthChange={handleMonthChange}
-          markingType="custom"
-          markedDates={{
-            ...calendarMarks,
-            [selectedDate]: {
-              ...(calendarMarks[selectedDate] || {}),
-              selected: true,
-              customStyles: {
-                container: {
-                  backgroundColor: '#1976d2',
+      <ScrollView style={styles.container}
+                  refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        colors={['#1976d2']}
+                        tintColor="#1976d2"
+                    />
+                  }>
+        <Card containerStyle={styles.calendarCard}>
+          <Calendar
+              current={currentMonth}
+              key={currentMonth}
+              onDayPress={handleDayPress}
+              onMonthChange={handleMonthChange}
+              markingType="custom"
+              markedDates={{
+                ...calendarMarks,
+                [selectedDate]: {
+                  ...(calendarMarks[selectedDate] || {}),
+                  selected: true,
+                  customStyles: {
+                    container: {
+                      backgroundColor: '#1976d2',
+                    },
+                    text: {
+                      color: 'white',
+                    },
+                  },
                 },
-                text: {
-                  color: 'white',
-                },
-              },
-            },
-          }}
-          theme={{
-            todayTextColor: '#1976d2',
-            arrowColor: '#1976d2',
-            monthTextColor: '#1976d2',
-            selectedDayBackgroundColor: '#1976d2',
-            selectedDayTextColor: 'white',
-          }}
-          monthFormat={'yyyy年 MM月'}
-          // 添加自定义标题组件
-          renderHeader={(date) => (
-            <TouchableOpacity onPress={handleMonthHeaderPress} style={styles.calendarHeader}>
-              <Text style={styles.calendarHeaderText}>
-                {currentMonth ? `${currentMonth.split('-')[0]}年${currentMonth.split('-')[1]}月` : moment(date).format('YYYY年 MM月')}
-              </Text>
-              <Icon name="arrow-drop-down" type="material" size={24} color="#1976d2" />
-            </TouchableOpacity>
-          )}
-        />
+              }}
+              theme={{
+                todayTextColor: '#1976d2',
+                arrowColor: '#1976d2',
+                monthTextColor: '#1976d2',
+                selectedDayBackgroundColor: '#1976d2',
+                selectedDayTextColor: 'white',
+              }}
+              monthFormat={'yyyy年 MM月'}
+              // 添加自定义标题组件
+              renderHeader={(date) => (
+                  <TouchableOpacity onPress={handleMonthHeaderPress} style={styles.calendarHeader}>
+                    <Text style={styles.calendarHeaderText}>
+                      {currentMonth ? `${currentMonth.split('-')[0]}年${currentMonth.split('-')[1]}月` : moment(date).format('YYYY年 MM月')}
+                    </Text>
+                    <Icon name="arrow-drop-down" type="material" size={24} color="#1976d2" />
+                  </TouchableOpacity>
+              )}
+          />
 
-        {/* 将月度汇总直接放在日历卡片内部 */}
-        <View style={styles.monthSummaryContent}>
-          <View style={styles.monthSummaryRow}>
-            <View style={styles.monthSummaryItem}>
-              <Text style={styles.monthSummaryLabel}>总收入</Text>
-              <Text style={[styles.monthSummaryValue, { color: '#4caf50' }]}>
-                {/* 计算总收入 */}
-                {Object.entries(dailyData)
-                  .filter(([date]) => date.startsWith(currentMonth))
-                  .reduce((sum, [, data]) => sum + (data.inSum || 0), 0)
-                  .toFixed(2)}
-              </Text>
-            </View>
+          {/* 将月度汇总直接放在日历卡片内部 */}
+          <View style={styles.monthSummaryContent}>
+            <View style={styles.monthSummaryRow}>
+              <View style={styles.monthSummaryItem}>
+                <Text style={styles.monthSummaryLabel}>总收入</Text>
+                <Text style={[styles.monthSummaryValue, { color: '#4caf50' }]}>
+                  {/* 计算总收入 */}
+                  {Object.entries(dailyData)
+                      .filter(([date]) => date.startsWith(currentMonth))
+                      .reduce((sum, [, data]) => sum + (data.inSum || 0), 0)
+                      .toFixed(2)}
+                </Text>
+              </View>
 
-            <View style={styles.monthSummaryItem}>
-              <Text style={styles.monthSummaryLabel}>总支出</Text>
-              <Text style={[styles.monthSummaryValue, { color: '#f44336' }]}>
-                {/* 计算总支出 */}
-                {Object.entries(dailyData)
-                  .filter(([date]) => date.startsWith(currentMonth))
-                  .reduce((sum, [, data]) => sum + (data.outSum || 0), 0)
-                  .toFixed(2)}
-              </Text>
-            </View>
+              <View style={styles.monthSummaryItem}>
+                <Text style={styles.monthSummaryLabel}>总支出</Text>
+                <Text style={[styles.monthSummaryValue, { color: '#f44336' }]}>
+                  {/* 计算总支出 */}
+                  {Object.entries(dailyData)
+                      .filter(([date]) => date.startsWith(currentMonth))
+                      .reduce((sum, [, data]) => sum + (data.outSum || 0), 0)
+                      .toFixed(2)}
+                </Text>
+              </View>
 
-            <View style={styles.monthSummaryItem}>
-              <Text style={styles.monthSummaryLabel}>不计收支</Text>
-              <Text style={[styles.monthSummaryValue, { color: '#070707' }]}>
-                {/* 计算不计收支 */}
-                {Object.entries(dailyData)
-                  .filter(([date]) => date.startsWith(currentMonth))
-                  .reduce((sum, [, data]) => sum + (data.zeroSum || 0), 0)
-                  .toFixed(2)}
-              </Text>
+              <View style={styles.monthSummaryItem}>
+                <Text style={styles.monthSummaryLabel}>不计收支</Text>
+                <Text style={[styles.monthSummaryValue, { color: '#070707' }]}>
+                  {/* 计算不计收支 */}
+                  {Object.entries(dailyData)
+                      .filter(([date]) => date.startsWith(currentMonth))
+                      .reduce((sum, [, data]) => sum + (data.zeroSum || 0), 0)
+                      .toFixed(2)}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-      </Card>
+        </Card>
 
-      {/* 使用 React.memo 包装的卡片组件 */}
-      <DayCard
-        selectedDate={dayCardData.selectedDate}
-        dailyData={dayCardData.dailyData}
-        dayFlows={dayCardData.dayFlows}
-        onViewDetail={handleViewDayDetail}
-        onAddFlow={handleAddFlow}
-      />
+        {/* 使用 React.memo 包装的卡片组件 */}
+        <DayCard
+            selectedDate={dayCardData.selectedDate}
+            dailyData={dayCardData.dailyData}
+            dayFlows={dayCardData.dayFlows}
+            onViewDetail={handleViewDayDetail}
+            onAddFlow={handleAddFlow}
+        />
 
-      {renderDayDetail()}
-      {renderYearMonthSelector()}
+        {renderDayDetail()}
+        {renderYearMonthSelector()}
+      </ScrollView>
     </View>
   );
 };

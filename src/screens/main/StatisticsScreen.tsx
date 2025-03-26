@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import {View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, RefreshControl} from 'react-native';
 import WebView from 'react-native-webview';
 import { Text, Card, Divider, Tab, TabView, Overlay, Icon } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
@@ -57,6 +57,8 @@ const StatisticsScreen: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState(moment().format('YYYY-MM'));
   const [previousMonths, setPreviousMonths] = useState<string[]>([]);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
 
   // 添加选中项状态到组件顶层
   const [selectedIndustryItem, setSelectedIndustryItem] = useState<string | null>(null);
@@ -232,6 +234,20 @@ const StatisticsScreen: React.FC = () => {
   const handleViewFlowDetail = (flowId: Flow) => {
     navigation.navigate('FlowForm', { currentFlow: flowId })
   };
+
+  // 下拉刷新处理函数
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      renderMonthSelector();
+      renderMonthOverview();
+      renderIndustryTypeAnalysis();
+      renderPayTypeAnalysis();
+      renderMonthTrend();
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   // 渲染月份选择器
   const renderMonthSelector = () => (
@@ -847,63 +863,71 @@ const StatisticsScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <BookSelector />
+      <ScrollView style={styles.container}
+                  refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        colors={['#1976d2']}
+                        tintColor="#1976d2"
+                    />
+                  }>
+        {renderMonthSelector()}
+        <Tab
+            value={tabIndex}
+            onChange={setTabIndex}
+            indicatorStyle={{ backgroundColor: '#1976d2' }}
+        >
+          <Tab.Item
+              title="概览"
+              titleStyle={styles.tabTitle}
+              containerStyle={styles.tabContainer}
+          />
+          <Tab.Item
+              title="分析"
+              titleStyle={styles.tabTitle}
+              containerStyle={styles.tabContainer}
+          />
+          <Tab.Item
+              title="趋势"
+              titleStyle={styles.tabTitle}
+              containerStyle={styles.tabContainer}
+          />
+        </Tab>
 
-      {renderMonthSelector()}
+        <TabView value={tabIndex} onChange={setTabIndex} animationType="spring">
+          <TabView.Item style={styles.tabViewItem}>
+            {isLoading ? (
+                <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
+            ) : (
+                <ScrollView>
+                  {renderMonthOverview()}
+                </ScrollView>
+            )}
+          </TabView.Item>
 
-      <Tab
-        value={tabIndex}
-        onChange={setTabIndex}
-        indicatorStyle={{ backgroundColor: '#1976d2' }}
-      >
-        <Tab.Item
-          title="概览"
-          titleStyle={styles.tabTitle}
-          containerStyle={styles.tabContainer}
-        />
-        <Tab.Item
-          title="分析"
-          titleStyle={styles.tabTitle}
-          containerStyle={styles.tabContainer}
-        />
-        <Tab.Item
-          title="趋势"
-          titleStyle={styles.tabTitle}
-          containerStyle={styles.tabContainer}
-        />
-      </Tab>
+          <TabView.Item style={styles.tabViewItem}>
+            {isLoading ? (
+                <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
+            ) : (
+                <ScrollView>
+                  {renderIndustryTypeAnalysis()}
+                  {renderPayTypeAnalysis()}
+                </ScrollView>
+            )}
+          </TabView.Item>
 
-      <TabView value={tabIndex} onChange={setTabIndex} animationType="spring">
-        <TabView.Item style={styles.tabViewItem}>
-          {isLoading ? (
-            <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
-          ) : (
-            <ScrollView>
-              {renderMonthOverview()}
-            </ScrollView>
-          )}
-        </TabView.Item>
-
-        <TabView.Item style={styles.tabViewItem}>
-          {isLoading ? (
-            <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
-          ) : (
-            <ScrollView>
-              {renderIndustryTypeAnalysis()}
-              {renderPayTypeAnalysis()}
-            </ScrollView>
-          )}
-        </TabView.Item>
-
-        <TabView.Item style={styles.tabViewItem}>
-          {isLoading ? (
-            <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
-          ) : (
-            <ScrollView>
-              {renderMonthTrend()}
-            </ScrollView>
-          )}
-        </TabView.Item>
-      </TabView>
+          <TabView.Item style={styles.tabViewItem}>
+            {isLoading ? (
+                <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
+            ) : (
+                <ScrollView>
+                  {renderMonthTrend()}
+                </ScrollView>
+            )}
+          </TabView.Item>
+        </TabView>
+      </ScrollView>
     </View>
   );
 };
