@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, RefreshControl} from 'react-native';
 import WebView from 'react-native-webview';
-import { Text, Card, Divider, Tab, TabView, Overlay, Icon } from '@rneui/themed';
+import {Text, Card, Divider, Tab, TabView, Overlay, Icon, Button} from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import moment from 'moment';
@@ -685,6 +685,7 @@ const StatisticsScreen: React.FC = () => {
             <Text style={styles.selectedItemValue}>
               金额: {industryTypeData.find(item => item.name === selectedIndustryItem)?.value.toFixed(2) || '0.00'}
             </Text>
+            <Button>查看详情</Button>
           </View>
         )}
       </Card>
@@ -760,6 +761,7 @@ const StatisticsScreen: React.FC = () => {
             <Text style={styles.selectedItemValue}>
               金额: {payTypeData.find(item => item.name === selectedPayTypeItem)?.value.toFixed(2) || '0.00'}
             </Text>
+            <Button>查看详情</Button>
           </View>
         )}
       </Card>
