@@ -77,8 +77,7 @@ const StatisticsScreen: React.FC = () => {
         // 提取最近6个月
         const months = response.d
           .map((item: AnalyticsItem) => item.type)
-          .sort((a: string, b: string) => b.localeCompare(a))
-          .slice(0, 6);
+          .sort((a: string, b: string) => b.localeCompare(a));
 
         setPreviousMonths(months);
 
@@ -863,15 +862,6 @@ const StatisticsScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <BookSelector />
-      <ScrollView style={styles.container}
-                  refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        colors={['#1976d2']}
-                        tintColor="#1976d2"
-                    />
-                  }>
         {renderMonthSelector()}
         <Tab
             value={tabIndex}
@@ -900,7 +890,14 @@ const StatisticsScreen: React.FC = () => {
             {isLoading ? (
                 <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
             ) : (
-                <ScrollView>
+                <ScrollView refreshControl={
+                  <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={onRefresh}
+                      colors={['#1976d2']}
+                      tintColor="#1976d2"
+                  />
+                }>
                   {renderMonthOverview()}
                 </ScrollView>
             )}
@@ -910,7 +907,14 @@ const StatisticsScreen: React.FC = () => {
             {isLoading ? (
                 <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
             ) : (
-                <ScrollView>
+                <ScrollView refreshControl={
+                  <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={onRefresh}
+                      colors={['#1976d2']}
+                      tintColor="#1976d2"
+                  />
+                }>
                   {renderIndustryTypeAnalysis()}
                   {renderPayTypeAnalysis()}
                 </ScrollView>
@@ -921,13 +925,19 @@ const StatisticsScreen: React.FC = () => {
             {isLoading ? (
                 <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
             ) : (
-                <ScrollView>
+                <ScrollView refreshControl={
+                  <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={onRefresh}
+                      colors={['#1976d2']}
+                      tintColor="#1976d2"
+                  />
+                }>
                   {renderMonthTrend()}
                 </ScrollView>
             )}
           </TabView.Item>
         </TabView>
-      </ScrollView>
     </View>
   );
 };
