@@ -55,7 +55,7 @@ const StatisticsScreen: React.FC = () => {
   const [industryTypeData, setIndustryTypeData] = useState<any[]>([]);
   const [payTypeData, setPayTypeData] = useState<any[]>([]);
   const [currentMonth, setCurrentMonth] = useState(moment().format('YYYY-MM'));
-  const [previousMonths, setPreviousMonths] = useState<string[]>([]);
+  const [previousMonths, setPreviousMonths] = useState<{[year: string]: string[]}>({});
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -74,14 +74,24 @@ const StatisticsScreen: React.FC = () => {
       if (response.c === 200 && response.d) {
         setMonthData(response.d);
 
-        // 提取最近6个月
+        // 按年份分组
+        const monthsByYear: {[year: string]: string[]} = {};
+
         const months = response.d
-          .map((item: AnalyticsItem) => item.type)
-          .sort((a: string, b: string) => b.localeCompare(a));
+            .map((item: AnalyticsItem) => item.type)
+            .sort((a: string, b: string) => b.localeCompare(a));
 
-        setPreviousMonths(months);
+        months.forEach((month: string) => {
+              const year = month.substring(0, 4);
+              if (!monthsByYear[year]) {
+                monthsByYear[year] = [];
+              }
+              monthsByYear[year].push(month);
+            });
 
-        // 只在初始化或月份列表变化时设置当前月份
+        setPreviousMonths(monthsByYear);
+
+        // 初始化设置当前月份
         if (months.length > 0 && (!currentMonth || !months.includes(currentMonth))) {
           setCurrentMonth(months[0]);
         }
@@ -227,6 +237,7 @@ const StatisticsScreen: React.FC = () => {
   // 处理月份选择
   const handleMonthSelect = (month: string) => {
     setCurrentMonth(month);
+    setShowMonthPicker(false);
   };
 
   // 处理查看流水详情
@@ -238,63 +249,70 @@ const StatisticsScreen: React.FC = () => {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      renderMonthSelector();
-      renderMonthOverview();
-      renderIndustryTypeAnalysis();
-      renderPayTypeAnalysis();
-      renderMonthTrend();
+      await fetchMonthData();
+      await fetchMonthAnalysis();
+      await fetchIndustryTypeData();
+      await fetchPayTypeData();
     } finally {
       setRefreshing(false);
     }
   }, []);
 
   // 渲染月份选择器
-  const renderMonthSelector = () => (
-    <View style={styles.monthSelectorContainer}>
-      <View style={styles.monthSelectorHeader}>
-        <Text style={styles.monthSelectorTitle}></Text>
+  const renderMonthSelector = () => {
+    return (
+      <View style={styles.header}>
         <TouchableOpacity
-          style={styles.currentMonthButton}
+          style={styles.monthSelector}
           onPress={() => setShowMonthPicker(true)}
         >
-          <Text style={styles.currentMonthText}>{currentMonth}</Text>
-          <Icon name="arrow-drop-down" type="material" color="#1976d2" size={16} />
+          <Icon name="calendar-today" type="material" size={20} color="#1976d2" />
+          <Text style={styles.monthSelectorText}>{currentMonth}</Text>
         </TouchableOpacity>
-      </View>
-
-      <Overlay
-        isVisible={showMonthPicker}
-        onBackdropPress={() => setShowMonthPicker(false)}
-        overlayStyle={styles.monthPickerOverlay}
-      >
-        <Text style={styles.monthPickerTitle}>选择月份</Text>
-        <ScrollView style={styles.monthPickerList}>
-          {previousMonths.map((month) => (
-            <TouchableOpacity
-              key={month}
-              style={[
-                styles.monthPickerItem,
-                month === currentMonth && styles.selectedMonthPickerItem,
-              ]}
-              onPress={() => {
-                handleMonthSelect(month);
-                setShowMonthPicker(false);
-              }}
-            >
-              <Text
-                style={[
-                  styles.monthPickerItemText,
-                  month === currentMonth && styles.selectedMonthPickerItemText,
-                ]}
-              >
-                {month}
-              </Text>
+        <Overlay
+            isVisible={showMonthPicker}
+            onBackdropPress={() => setShowMonthPicker(false)}
+            overlayStyle={styles.monthPickerOverlay}
+        >
+          <View style={styles.monthPickerHeader}>
+            <Text style={styles.monthPickerTitle}>选择月份</Text>
+            <TouchableOpacity onPress={() => setShowMonthPicker(false)}>
+              <Icon name="close" type="material" size={24} color="#757575" />
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </Overlay>
-    </View>
-  );
+          </View>
+
+          <ScrollView style={styles.yearGroupsContainer}>
+            {Object.keys(previousMonths).sort((a, b) => b.localeCompare(a)).map((year) => (
+              <View key={year} style={styles.yearGroup}>
+                <Text style={styles.yearTitle}>{year}年</Text>
+                <View style={styles.monthList}>
+                  {previousMonths[year].map((month) => (
+                    <TouchableOpacity
+                      key={month}
+                      style={[
+                        styles.monthItem,
+                        month === currentMonth && styles.selectedMonthItem,
+                      ]}
+                      onPress={() => handleMonthSelect(month)}
+                    >
+                      <Text
+                        style={[
+                          styles.monthItemText,
+                          month === currentMonth && styles.selectedMonthItemText,
+                        ]}
+                      >
+                        {month.substring(5)}月
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </Overlay>
+      </View>
+    );
+  };
 
   // 修改 renderEchartsWithWebView 函数，实现点击图例显示/隐藏功能
   const renderEchartsWithWebView = (option: any, height: number, onItemClick?: (item: any) => void) => {
@@ -513,11 +531,17 @@ const StatisticsScreen: React.FC = () => {
 
   // 渲染月度概览
   const renderMonthOverview = () => {
-    if (!monthAnalysis) return null;
-
+    if (!monthAnalysis) {
+      return (
+          <Card containerStyle={styles.card}>
+            <Card.Title>月度概览</Card.Title>
+            <Text style={styles.emptyText}>暂无数据</Text>
+          </Card>
+      );
+    }
     return (
       <Card containerStyle={styles.card}>
-        <Card.Title>{currentMonth} 月度概览</Card.Title>
+        <Card.Title>月度概览</Card.Title>
 
         <View style={styles.overviewRow}>
           <View style={styles.overviewItem}>
@@ -744,28 +768,29 @@ const StatisticsScreen: React.FC = () => {
 
   // 修改月度趋势图表渲染函数
   const renderMonthTrend = () => {
+    const year = currentMonth.substring(0,4);
+
     if (monthData.length === 0) {
       return (
         <Card containerStyle={styles.card}>
-          <Card.Title>月度趋势</Card.Title>
+          <Card.Title>{year + '月度趋势'}</Card.Title>
           <Text style={styles.emptyText}>暂无数据</Text>
         </Card>
       );
     }
-
     // 准备图表数据
     const labels = monthData
-      .slice(0, 6)
+      .filter(item => item.type.match(`.*${year}.*`))
       .sort((a, b) => a.type.localeCompare(b.type))
       .map(item => item.type.substring(5)); // 只显示月份
 
     const inData = monthData
-      .slice(0, 6)
+      .filter(item => item.type.match(`.*${year}.*`))
       .sort((a, b) => a.type.localeCompare(b.type))
-      .map(item => item.inSum);
+      .map(item => item.inSum.toFixed(2));
 
     const outData = monthData
-      .slice(0, 6)
+      .filter(item => item.type.match(`.*${year}.*`))
       .sort((a, b) => a.type.localeCompare(b.type))
       .map(item => item.outSum.toFixed(2));
 
@@ -836,7 +861,7 @@ const StatisticsScreen: React.FC = () => {
 
     return (
       <Card containerStyle={styles.card}>
-        <Card.Title>月度趋势</Card.Title>
+        <Card.Title>{year + '月度趋势'}</Card.Title>
 
         <View style={styles.chartContainer}>
           {renderEchartsWithWebView(option, 300)}
@@ -878,11 +903,6 @@ const StatisticsScreen: React.FC = () => {
               titleStyle={styles.tabTitle}
               containerStyle={styles.tabContainer}
           />
-          <Tab.Item
-              title="趋势"
-              titleStyle={styles.tabTitle}
-              containerStyle={styles.tabContainer}
-          />
         </Tab>
 
         <TabView value={tabIndex} onChange={setTabIndex} animationType="spring">
@@ -899,6 +919,7 @@ const StatisticsScreen: React.FC = () => {
                   />
                 }>
                   {renderMonthOverview()}
+                  {renderMonthTrend()}
                 </ScrollView>
             )}
           </TabView.Item>
@@ -917,23 +938,6 @@ const StatisticsScreen: React.FC = () => {
                 }>
                   {renderIndustryTypeAnalysis()}
                   {renderPayTypeAnalysis()}
-                </ScrollView>
-            )}
-          </TabView.Item>
-
-          <TabView.Item style={styles.tabViewItem}>
-            {isLoading ? (
-                <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
-            ) : (
-                <ScrollView refreshControl={
-                  <RefreshControl
-                      refreshing={refreshing}
-                      onRefresh={onRefresh}
-                      colors={['#1976d2']}
-                      tintColor="#1976d2"
-                  />
-                }>
-                  {renderMonthTrend()}
                 </ScrollView>
             )}
           </TabView.Item>
@@ -962,37 +966,27 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: '#757575',
   },
-  monthSelectorContainer: {
-    padding: 5,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  monthSelectorHeader: {
+  header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    padding: 10,
   },
-  monthSelectorTitle: {
+  title: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
   },
-  currentMonthButton: {
+  monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+    padding: 5,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
     borderRadius: 12,
-    backgroundColor: 'transparent',
   },
-  currentMonthText: {
-    fontSize: 13,
-    fontWeight: 'bold',
+  monthSelectorText: {
+    fontSize: 14,
     color: '#1976d2',
-    marginRight: 2,
   },
   monthPickerOverlay: {
     width: '70%',
@@ -1000,29 +994,51 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
   },
+  monthPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   monthPickerTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 10,
     textAlign: 'center',
   },
-  monthPickerList: {
-    maxHeight: 250,
+  yearGroupsContainer: {
+    maxHeight: 300,
   },
-  monthPickerItem: {
+  yearGroup: {
+    marginBottom: 15,
+  },
+  yearTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1976d2',
+    marginBottom: 8,
+    paddingLeft: 5,
+  },
+  monthList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+  },
+  monthItem: {
+    width: '25%', // 每行4个月份
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingHorizontal: 5,
+    marginBottom: 5,
+    borderRadius: 4,
+    alignItems: 'center',
   },
-  selectedMonthPickerItem: {
+  selectedMonthItem: {
     backgroundColor: '#e3f2fd',
   },
-  monthPickerItemText: {
+  monthItemText: {
     fontSize: 14,
     color: '#333',
   },
-  selectedMonthPickerItemText: {
+  selectedMonthItemText: {
     color: '#1976d2',
     fontWeight: 'bold',
   },
