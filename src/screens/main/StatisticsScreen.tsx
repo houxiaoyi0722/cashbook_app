@@ -1309,7 +1309,7 @@ const StatisticsScreen: React.FC = () => {
     setSelectedAttributionItem(null);
   };
 
-  // 添加流水类型选择器组件
+  // 优化流水类型选择器组件
   const renderFlowTypeSelector = () => (
     <View style={styles.flowTypeSelectorContainer}>
       <TouchableOpacity
@@ -1324,7 +1324,7 @@ const StatisticsScreen: React.FC = () => {
           selectedFlowType === '支出' && styles.selectedFlowTypeText
         ]}>支出</Text>
       </TouchableOpacity>
-
+      
       <TouchableOpacity
         style={[
           styles.flowTypeButton,
@@ -1337,7 +1337,7 @@ const StatisticsScreen: React.FC = () => {
           selectedFlowType === '收入' && styles.selectedFlowTypeText
         ]}>收入</Text>
       </TouchableOpacity>
-
+      
       <TouchableOpacity
         style={[
           styles.flowTypeButton,
@@ -1725,20 +1725,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     backgroundColor: 'white',
-    margin: 10,
-    borderRadius: 10,
-    padding: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    marginTop: 0,
+    marginHorizontal: 0,
+    borderRadius: 0,
+    shadowColor: 'transparent',
+    elevation: 0,
   },
   flowTypeButton: {
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 16,
     borderRadius: 20,
     backgroundColor: '#f5f5f5',
+    minWidth: 80,
+    alignItems: 'center',
   },
   selectedFlowTypeButton: {
     backgroundColor: '#1976d2',
@@ -1746,6 +1749,7 @@ const styles = StyleSheet.create({
   flowTypeText: {
     fontSize: 14,
     color: '#757575',
+    textAlign: 'center',
   },
   selectedFlowTypeText: {
     color: 'white',
