@@ -62,6 +62,7 @@ const StatisticsScreen: React.FC = () => {
   // 添加选中项状态到组件顶层
   const [selectedIndustryItem, setSelectedIndustryItem] = useState<string | null>(null);
   const [selectedPayTypeItem, setSelectedPayTypeItem] = useState<string | null>(null);
+  const [currentItem, setCurrentItem] = useState<string | null>(null);
   const [selectedMoney, setSelectedMoney] = useState<string | null>(null);
 
   // 添加流水详情相关状态
@@ -619,9 +620,10 @@ const StatisticsScreen: React.FC = () => {
     if (detailsLoadingMore || !detailsHasMore) return;
 
     const nextPage = detailsPage + 1;
-    if (selectedIndustryItem) {
+
+    if (currentItem === 'selectedIndustryItem' && selectedIndustryItem) {
       fetchFlowDetails(selectedIndustryItem, 'industry', nextPage, true);
-    } else if (selectedPayTypeItem) {
+    } else if (currentItem === 'selectedPayTypeItem' && selectedPayTypeItem) {
       fetchFlowDetails(selectedPayTypeItem, 'payment', nextPage, true);
     }
   };
@@ -641,7 +643,7 @@ const StatisticsScreen: React.FC = () => {
     if (selectedData) {
       setDetailsColor(selectedData.color);
     }
-
+    setCurrentItem('selectedIndustryItem');
     fetchFlowDetails(selectedIndustryItem, 'industry', 1, false);
   }, [selectedIndustryItem, industryTypeData, fetchFlowDetails]);
 
@@ -660,7 +662,7 @@ const StatisticsScreen: React.FC = () => {
     if (selectedData) {
       setDetailsColor(selectedData.color);
     }
-
+    setCurrentItem('selectedPayTypeItem');
     fetchFlowDetails(selectedPayTypeItem, 'payment', 1, false);
   }, [selectedPayTypeItem, payTypeData, fetchFlowDetails]);
 
@@ -682,10 +684,13 @@ const StatisticsScreen: React.FC = () => {
       />
       <ListItem.Content>
         <ListItem.Title style={styles.detailItemTitle}>
-          {item.name || `${item.industryType}`}
+          {item.name || `${item.industryType}`}{item.attribution? ' - ' + item.attribution : ''}
         </ListItem.Title>
         <ListItem.Subtitle style={styles.detailItemSubtitle}>
-          {moment(item.day).format('YYYY-MM-DD')} · {item.payType}
+          {moment(item.day).format('YYYY-MM-DD')} · {item.payType} · {item.industryType}
+        </ListItem.Subtitle>
+        <ListItem.Subtitle style={styles.detailItemSubtitle}>
+          {item.description}
         </ListItem.Subtitle>
       </ListItem.Content>
       <Text style={[styles.detailItemAmount, { color: item.flowType === '支出' ? '#f44336' : '#4caf50' }]}>
