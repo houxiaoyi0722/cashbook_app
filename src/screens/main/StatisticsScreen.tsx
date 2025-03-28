@@ -674,7 +674,7 @@ const StatisticsScreen: React.FC = () => {
       setDetailsLoading(false);
       setDetailsLoadingMore(false);
     }
-  }, [currentBook, currentMonth]);
+  }, [currentBook, currentMonth, selectedFlowType]);
 
   // 处理加载更多数据
   const handleLoadMoreDetails = () => {
@@ -1309,47 +1309,72 @@ const StatisticsScreen: React.FC = () => {
     setSelectedAttributionItem(null);
   };
 
-  // 优化流水类型选择器组件
+  // 优化流水类型选择器为分段控件，添加图标
   const renderFlowTypeSelector = () => (
     <View style={styles.flowTypeSelectorContainer}>
-      <TouchableOpacity
-        style={[
-          styles.flowTypeButton,
-          selectedFlowType === '支出' && styles.selectedFlowTypeButton
-        ]}
-        onPress={() => handleFlowTypeChange('支出')}
-      >
-        <Text style={[
-          styles.flowTypeText,
-          selectedFlowType === '支出' && styles.selectedFlowTypeText
-        ]}>支出</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[
-          styles.flowTypeButton,
-          selectedFlowType === '收入' && styles.selectedFlowTypeButton
-        ]}
-        onPress={() => handleFlowTypeChange('收入')}
-      >
-        <Text style={[
-          styles.flowTypeText,
-          selectedFlowType === '收入' && styles.selectedFlowTypeText
-        ]}>收入</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[
-          styles.flowTypeButton,
-          selectedFlowType === '不计收支' && styles.selectedFlowTypeButton
-        ]}
-        onPress={() => handleFlowTypeChange('不计收支')}
-      >
-        <Text style={[
-          styles.flowTypeText,
-          selectedFlowType === '不计收支' && styles.selectedFlowTypeText
-        ]}>不计收支</Text>
-      </TouchableOpacity>
+      <View style={styles.flowTypeButtonGroup}>
+        <TouchableOpacity
+          style={[
+            styles.flowTypeButton,
+            selectedFlowType === '支出' && styles.selectedFlowTypeButton,
+            { borderTopLeftRadius: 20, borderBottomLeftRadius: 20 }
+          ]}
+          onPress={() => handleFlowTypeChange('支出')}
+        >
+          <Icon
+            name="trending-down"
+            type="material"
+            size={16}
+            color={selectedFlowType === '支出' ? 'white' : '#757575'}
+            style={styles.flowTypeIcon}
+          />
+          <Text style={[
+            styles.flowTypeText,
+            selectedFlowType === '支出' && styles.selectedFlowTypeText
+          ]}>支出</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.flowTypeButton,
+            selectedFlowType === '收入' && styles.selectedFlowTypeButton
+          ]}
+          onPress={() => handleFlowTypeChange('收入')}
+        >
+          <Icon
+            name="trending-up"
+            type="material"
+            size={16}
+            color={selectedFlowType === '收入' ? 'white' : '#757575'}
+            style={styles.flowTypeIcon}
+          />
+          <Text style={[
+            styles.flowTypeText,
+            selectedFlowType === '收入' && styles.selectedFlowTypeText
+          ]}>收入</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.flowTypeButton,
+            selectedFlowType === '不计收支' && styles.selectedFlowTypeButton,
+            { borderTopRightRadius: 20, borderBottomRightRadius: 20 }
+          ]}
+          onPress={() => handleFlowTypeChange('不计收支')}
+        >
+          <Icon
+            name="remove"
+            type="material"
+            size={16}
+            color={selectedFlowType === '不计收支' ? 'white' : '#757575'}
+            style={styles.flowTypeIcon}
+          />
+          <Text style={[
+            styles.flowTypeText,
+            selectedFlowType === '不计收支' && styles.selectedFlowTypeText
+          ]}>不计收支</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -1722,8 +1747,6 @@ const styles = StyleSheet.create({
     color: '#757575',
   },
   flowTypeSelectorContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
@@ -1734,22 +1757,38 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     shadowColor: 'transparent',
     elevation: 0,
+    alignItems: 'center',
+  },
+  flowTypeButtonGroup: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   flowTypeButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f5',
-    minWidth: 80,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: 'white',
+    borderRadius: 0,
+    borderRightWidth: 1,
+    borderRightColor: '#e0e0e0',
+    minWidth: 90,
   },
   selectedFlowTypeButton: {
     backgroundColor: '#1976d2',
+    borderRightColor: '#1976d2',
+  },
+  flowTypeIcon: {
+    marginRight: 4,
   },
   flowTypeText: {
     fontSize: 14,
     color: '#757575',
-    textAlign: 'center',
+    fontWeight: '500',
   },
   selectedFlowTypeText: {
     color: 'white',
