@@ -79,6 +79,10 @@ const StatisticsScreen: React.FC = () => {
   const [detailsLoadingMore, setDetailsLoadingMore] = useState(false);
   const PAGE_SIZE = 20; // 每页数据条数
 
+  // 添加流水归属相关状态
+  const [attributionData, setAttributionData] = useState<any[]>([]);
+  const [selectedAttributionItem, setSelectedAttributionItem] = useState<string | null>(null);
+
   // 获取月度数据
   const fetchMonthData = useCallback(async () => {
     if (!currentBook) return;
@@ -215,6 +219,42 @@ const StatisticsScreen: React.FC = () => {
     }
   }, [currentBook, currentMonth]);
 
+  // 获取流水归属数据
+  const fetchAttributionData = useCallback(async () => {
+    if (!currentBook || !currentMonth) return;
+
+    try {
+      setIsLoading(true);
+      // 构建查询参数
+      const startDate = `${currentMonth}-01`;
+      const endDate = moment(startDate).endOf('month').format('YYYY-MM-DD');
+
+      const response = await api.analytics.attribution({
+        bookId: currentBook.bookId,
+        startDay: startDate,
+        endDay: endDate,
+        flowType: '支出'
+      });
+
+      if (response.c === 200 && response.d) {
+        // 处理数据，格式化为饼图所需格式
+        const formattedData = response.d.map((item: any, index: number) => ({
+          name: item.type || '未分类',
+          value: item.outSum.toFixed(2),
+          color: getChartColor(index),
+          percentage: ((item.outSum / response.d.reduce((sum: number, i: any) => sum + i.outSum, 0)) * 100).toFixed(2)
+        }));
+
+        setAttributionData(formattedData);
+      }
+    } catch (error) {
+      console.error('获取流水归属数据失败', error instanceof Error ? error.message : String(error));
+      Alert.alert('错误', '获取流水归属数据失败');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentBook, currentMonth]);
+
   // 当前账本变化时，重新获取数据
   useEffect(() => {
     let isMounted = true;
@@ -237,6 +277,7 @@ const StatisticsScreen: React.FC = () => {
           await fetchMonthAnalysis();
           if (isMounted) await fetchIndustryTypeData();
           if (isMounted) await fetchPayTypeData();
+          if (isMounted) await fetchAttributionData();
         } catch (err) {
           if (isMounted) {
             console.error('获取分析数据失败', err instanceof Error ? err.message : String(err));
@@ -247,7 +288,7 @@ const StatisticsScreen: React.FC = () => {
       fetchData();
     }
     return () => { isMounted = false; };
-  }, [currentBook, currentMonth, fetchMonthAnalysis, fetchIndustryTypeData, fetchPayTypeData]);
+  }, [currentBook, currentMonth, fetchMonthAnalysis, fetchIndustryTypeData, fetchPayTypeData, fetchAttributionData]);
 
   // 处理月份选择
   const handleMonthSelect = (month: string) => {
@@ -264,14 +305,19 @@ const StatisticsScreen: React.FC = () => {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetchMonthData();
-      await fetchMonthAnalysis();
-      await fetchIndustryTypeData();
-      await fetchPayTypeData();
+      await Promise.all([
+        fetchMonthAnalysis(),
+        fetchIndustryTypeData(),
+        fetchPayTypeData(),
+        fetchAttributionData()
+      ]);
+    } catch (error) {
+      console.error('刷新数据失败', error instanceof Error ? error.message : String(error));
+      Alert.alert('错误', '刷新数据失败');
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [fetchMonthAnalysis, fetchIndustryTypeData, fetchPayTypeData, fetchAttributionData]);
 
   // 渲染月份选择器
   const renderMonthSelector = () => {
@@ -546,8 +592,19 @@ const StatisticsScreen: React.FC = () => {
     }
   };
 
+  // 处理归属图表项目点击
+  const handleAttributionItemClick = (message: any) => {
+    console.log('Attribution item click:', message);
+    if (message.type === 'itemClick') {
+      setSelectedAttributionItem(message.data.name);
+      setSelectedMoney(message.data.value);
+    } else if (message.type === 'legendClick') {
+      setSelectedAttributionItem(message.name);
+    }
+  };
+
   // 修改获取流水详情数据的函数，支持分页
-  const fetchFlowDetails = useCallback(async (type: string, category: 'industry' | 'payment', page = 1, append = false) => {
+  const fetchFlowDetails = useCallback(async (type: string, category: 'industry' | 'payment' | 'attribution', page = 1, append = false) => {
     if (!currentBook || !currentMonth || !type) return;
 
     try {
@@ -586,7 +643,7 @@ const StatisticsScreen: React.FC = () => {
         params.industryType = type
       } else if (category === 'payment') {
         params.payType = type
-      } else {
+      } else if (category === 'attribution') {
         params.attribution = type
       }
 
@@ -625,6 +682,8 @@ const StatisticsScreen: React.FC = () => {
       fetchFlowDetails(selectedIndustryItem, 'industry', nextPage, true);
     } else if (currentItem === 'selectedPayTypeItem' && selectedPayTypeItem) {
       fetchFlowDetails(selectedPayTypeItem, 'payment', nextPage, true);
+    } else if (currentItem === 'selectedAttributionItem' && selectedAttributionItem) {
+      fetchFlowDetails(selectedAttributionItem, 'attribution', nextPage, true);
     }
   };
 
@@ -665,6 +724,26 @@ const StatisticsScreen: React.FC = () => {
     setCurrentItem('selectedPayTypeItem');
     fetchFlowDetails(selectedPayTypeItem, 'payment', 1, false);
   }, [selectedPayTypeItem, payTypeData, fetchFlowDetails]);
+
+  // 处理查看归属详情
+  const handleViewAttributionDetails = useCallback(() => {
+    if (!selectedAttributionItem) return;
+
+    setDetailsTitle(`${selectedAttributionItem} 支出明细`);
+    setDetailsVisible(true);
+    setDetailsPage(1);
+    setDetailsHasMore(true);
+    setDetailsData([]);
+
+    // 设置详情颜色与图表项颜色一致
+    const selectedData = attributionData.find(item => item.name === selectedAttributionItem);
+    if (selectedData) {
+      setDetailsColor(selectedData.color);
+    }
+
+    setCurrentItem('selectedAttributionItem');
+    fetchFlowDetails(selectedAttributionItem, 'attribution', 1, false);
+  }, [selectedAttributionItem, attributionData, fetchFlowDetails]);
 
   // 关闭详情弹窗
   const handleCloseDetails = () => {
@@ -1131,6 +1210,92 @@ const StatisticsScreen: React.FC = () => {
     );
   };
 
+  // 添加渲染归属分析的函数
+  const renderAttributionAnalysis = () => {
+    if (!attributionData || attributionData.length === 0) {
+      return (
+        <Card containerStyle={styles.card}>
+          <Card.Title>流水归属分析</Card.Title>
+          <Text style={styles.emptyText}>暂无归属数据</Text>
+        </Card>
+      );
+    }
+
+    // 准备饼图数据
+    const pieData = attributionData.map(item => ({
+      name: item.name,
+      value: parseFloat(item.value),
+      itemStyle: { color: item.color }
+    }));
+
+    // 配置饼图选项
+    const option = {
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}: {c} ({d}%)'
+      },
+      legend: {
+        orient: 'vertical',
+        right: 10,
+        top: 'center',
+        data: attributionData.map(item => item.name)
+      },
+      series: [
+        {
+          name: '流水归属',
+          type: 'pie',
+          radius: ['40%', '70%'],
+          avoidLabelOverlap: false,
+          label: {
+            show: false,
+            position: 'center'
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: '18',
+              fontWeight: 'bold'
+            }
+          },
+          labelLine: {
+            show: false
+          },
+          data: pieData
+        }
+      ]
+    };
+
+    return (
+      <Card containerStyle={styles.card}>
+        <Card.Title>流水归属分析</Card.Title>
+
+        <View style={styles.chartContainer}>
+          {renderEchartsWithWebView(option, 300, handleAttributionItemClick)}
+        </View>
+
+        {selectedAttributionItem && (
+          <View style={styles.selectedItemInfo}>
+            <View style={styles.selectedItemHeader}>
+              <Text style={styles.selectedItemTitle}>{selectedAttributionItem}</Text>
+              <TouchableOpacity
+                style={[styles.viewDetailsButton, { backgroundColor: attributionData.find(item => item.name === selectedAttributionItem)?.color || '#1976d2' }]}
+                onPress={handleViewAttributionDetails}
+              >
+                <Icon name="visibility" type="material" size={14} color="#fff" />
+                <Text style={styles.viewDetailsText}>查看详情</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.selectedItemValue}>
+              金额: {attributionData.find(item => item.name === selectedAttributionItem)?.value || 0}
+              ({attributionData.find(item => item.name === selectedAttributionItem)?.percentage || 0}%)
+            </Text>
+          </View>
+        )}
+      </Card>
+    );
+  };
+
   if (!currentBook) {
     return (
       <View style={styles.container}>
@@ -1199,6 +1364,7 @@ const StatisticsScreen: React.FC = () => {
                 }>
                   {renderIndustryTypeAnalysis()}
                   {renderPayTypeAnalysis()}
+                  {renderAttributionAnalysis()}
                 </ScrollView>
             )}
           </TabView.Item>

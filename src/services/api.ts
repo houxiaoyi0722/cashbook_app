@@ -266,7 +266,12 @@ class Api {
   // 分析相关API
   analytics = {
     // 流水归属统计
-    attribution: async (params: any) => {
+    attribution: async (params: {
+      bookId: string;
+      flowType: string;
+      startDay: string;
+      endDay: string;
+    }) => {
       if (!this.instance) {throw new Error('API实例未初始化');}
       console.log(`📊 Fetching attribution analytics: `, params);
       const response = await this.instance.post<ApiResponse<any>>('/api/entry/analytics/attribution', params);
