@@ -146,7 +146,7 @@ const SettingsScreen: React.FC = () => {
     <Card containerStyle={styles.card}>
       <Card.Title>账户设置</Card.Title>
 
-      <ListItem onPress={() => setIsChangePasswordVisible(true)} bottomDivider>
+      <ListItem onPress={() => setIsChangePasswordVisible(true)} bottomDivider key="change-password">
         <Icon name="lock" type="material" color="#1976d2" />
         <ListItem.Content>
           <ListItem.Title>修改密码</ListItem.Title>
@@ -154,7 +154,7 @@ const SettingsScreen: React.FC = () => {
         <ListItem.Chevron />
       </ListItem>
 
-      <ListItem onPress={handleSwitchServer} bottomDivider>
+      <ListItem onPress={handleSwitchServer} bottomDivider key="switch-server">
         <Icon name="swap-horiz" type="material" color="#1976d2" />
         <ListItem.Content>
           <ListItem.Title>切换服务器</ListItem.Title>
@@ -162,7 +162,7 @@ const SettingsScreen: React.FC = () => {
         <ListItem.Chevron />
       </ListItem>
 
-      <ListItem onPress={handleLogout}>
+      <ListItem onPress={handleLogout} key="logout">
         <Icon name="logout" type="material" color="#f44336" />
         <ListItem.Content>
           <ListItem.Title style={{ color: '#f44336' }}>退出登录</ListItem.Title>
@@ -177,7 +177,7 @@ const SettingsScreen: React.FC = () => {
     <Card containerStyle={styles.card}>
       <Card.Title>应用设置</Card.Title>
 
-      <ListItem bottomDivider>
+      <ListItem bottomDivider key="dark-mode">
         <Icon name="brightness-6" type="material" color="#1976d2" />
         <ListItem.Content>
           <ListItem.Title>深色模式</ListItem.Title>
@@ -197,7 +197,7 @@ const SettingsScreen: React.FC = () => {
     <Card containerStyle={styles.card}>
       <Card.Title>关于</Card.Title>
 
-      <ListItem bottomDivider>
+      <ListItem bottomDivider key="version">
         <Icon name="info" type="material" color="#1976d2" />
         <ListItem.Content>
           <ListItem.Title>版本</ListItem.Title>
@@ -205,7 +205,7 @@ const SettingsScreen: React.FC = () => {
         </ListItem.Content>
       </ListItem>
 
-      <ListItem>
+      <ListItem key="developer">
         <Icon name="code" type="material" color="#1976d2" />
         <ListItem.Content>
           <ListItem.Title>开发者</ListItem.Title>
