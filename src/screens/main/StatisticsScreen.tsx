@@ -960,12 +960,13 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     margin: 20,
-    padding: 20,
     borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
   },
   emptyText: {
     textAlign: 'center',
-    marginBottom: 10,
+    marginVertical: 10,
     color: '#757575',
   },
   header: {

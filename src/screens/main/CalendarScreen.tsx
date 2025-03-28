@@ -506,20 +506,15 @@ const CalendarScreen: React.FC = () => {
 
   if (!currentBook) {
     return (
-      <View style={styles.container}>
-        <BookSelector />
-        <Card containerStyle={styles.emptyCard}>
-          <Card.Title>未选择账本</Card.Title>
-          <Text style={styles.emptyText}>
-            请先选择或创建一个账本
-          </Text>
-          <Button
-            title="选择账本"
-            onPress={() => navigation.navigate('BookList')}
-            containerStyle={styles.emptyButton}
-          />
-        </Card>
-      </View>
+        <View style={styles.container}>
+          <BookSelector />
+          <Card containerStyle={styles.emptyCard}>
+            <Card.Title>未选择账本</Card.Title>
+            <Text style={styles.emptyText}>
+              请先选择或创建一个账本
+            </Text>
+          </Card>
+        </View>
     );
   }
 
