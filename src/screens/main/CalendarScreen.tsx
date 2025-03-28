@@ -157,7 +157,7 @@ const CalendarScreen: React.FC = () => {
           backgroundColor: '#ffffff',
         },
         text: {
-          color: 'black',
+          color: selectedDate === moment().format('YYYY-MM-DD') ? '#1976d2' : '#111111',
         },
       };
     }
