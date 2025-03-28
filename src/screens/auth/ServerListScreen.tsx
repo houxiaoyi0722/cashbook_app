@@ -91,17 +91,17 @@ const ServerListScreen: React.FC = () => {
   const renderServerItem = useCallback(({ item }: { item: ServerConfig }) => {
     const isSelected = item.id === selectedServerId;
     return (
-      <ListItem
-        containerStyle={[
-          styles.serverItem,
+      <TouchableOpacity
+        style={[
+          styles.customServerItem,
           isSelected && styles.selectedServerItem,
         ]}
         onPress={() => handleSelectServer(item.id)}
       >
-        <ListItem.Content>
-          <ListItem.Title style={styles.serverName}>{item.name}</ListItem.Title>
-          <ListItem.Subtitle style={styles.serverUrl}>{item.url}</ListItem.Subtitle>
-        </ListItem.Content>
+        <View style={styles.serverContent}>
+          <Text style={styles.serverName}>{item.name}</Text>
+          <Text style={styles.serverUrl}>{item.url}</Text>
+        </View>
 
         <View style={styles.serverActions}>
           {isSelected && (
@@ -115,20 +115,26 @@ const ServerListScreen: React.FC = () => {
           )}
 
           <TouchableOpacity
-            onPress={() => handleEditServer(item)}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleEditServer(item);
+            }}
             style={styles.actionButton}
           >
             <Icon name="edit" type="material" color="#2196f3" size={20} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => handleDeleteServer(item)}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleDeleteServer(item);
+            }}
             style={styles.actionButton}
           >
             <Icon name="delete" type="material" color="#f44336" size={20} />
           </TouchableOpacity>
         </View>
-      </ListItem>
+      </TouchableOpacity>
     );
   }, [handleSelectServer, handleEditServer, handleDeleteServer, selectedServerId]);
 
@@ -177,7 +183,11 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
   },
-  serverItem: {
+  customServerItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
     marginBottom: 8,
     borderRadius: 8,
     backgroundColor: 'white',
@@ -244,6 +254,9 @@ const styles = StyleSheet.create({
     lineHeight: 50,
   },
   loading: {
+    flex: 1,
+  },
+  serverContent: {
     flex: 1,
   },
 });
