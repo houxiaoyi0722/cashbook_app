@@ -83,6 +83,9 @@ const StatisticsScreen: React.FC = () => {
   const [attributionData, setAttributionData] = useState<any[]>([]);
   const [selectedAttributionItem, setSelectedAttributionItem] = useState<string | null>(null);
 
+  // 添加流水类型选择状态
+  const [selectedFlowType, setSelectedFlowType] = useState<'支出' | '收入' | '不计收支'>('支出');
+
   // 获取月度数据
   const fetchMonthData = useCallback(async () => {
     if (!currentBook) return;
@@ -153,7 +156,7 @@ const StatisticsScreen: React.FC = () => {
       const endDate = moment(startDate).endOf('month').format('YYYY-MM-DD');
       const response = await api.analytics.industryType({
         bookId: currentBook.bookId,
-        flowType: '支出',
+        flowType: selectedFlowType,
         startDay: startDate,
         endDay: endDate
       });
@@ -163,7 +166,7 @@ const StatisticsScreen: React.FC = () => {
         const chartData = response.d
           .map((item: any, index: number) => ({
             name: item.type,
-            value: parseFloat(item.outSum.toFixed(2)), // 确保数值格式化
+            value: parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)), // 根据类型选择不同的值
             color: getChartColor(index),
             legendFontColor: '#7F7F7F',
             legendFontSize: 12,
@@ -178,7 +181,7 @@ const StatisticsScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentBook, currentMonth]);
+  }, [currentBook, currentMonth, selectedFlowType]);
 
   // 获取支付方式数据
   const fetchPayTypeData = useCallback(async () => {
@@ -192,7 +195,7 @@ const StatisticsScreen: React.FC = () => {
 
       const response = await api.analytics.payType({
         bookId: currentBook.bookId,
-        flowType: '',
+        flowType: selectedFlowType,
         startDay: startDate,
         endDay: endDate,
       });
@@ -202,7 +205,7 @@ const StatisticsScreen: React.FC = () => {
         const chartData = response.d
           .map((item: any, index: number) => ({
             name: item.type,
-            value: parseFloat(item.outSum.toFixed(2)), // 确保数值格式化
+            value: parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)), // 根据类型选择不同的值
             color: getChartColor(index + 5),
             legendFontColor: '#7F7F7F',
             legendFontSize: 12,
@@ -217,7 +220,7 @@ const StatisticsScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentBook, currentMonth]);
+  }, [currentBook, currentMonth, selectedFlowType]);
 
   // 获取流水归属数据
   const fetchAttributionData = useCallback(async () => {
@@ -233,16 +236,17 @@ const StatisticsScreen: React.FC = () => {
         bookId: currentBook.bookId,
         startDay: startDate,
         endDay: endDate,
-        flowType: '支出'
+        flowType: selectedFlowType
       });
 
       if (response.c === 200 && response.d) {
         // 处理数据，格式化为饼图所需格式
         const formattedData = response.d.map((item: any, index: number) => ({
           name: item.type || '未分类',
-          value: item.outSum.toFixed(2),
-          color: getChartColor(index),
-          percentage: ((item.outSum / response.d.reduce((sum: number, i: any) => sum + i.outSum, 0)) * 100).toFixed(2)
+          value: parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)),
+          color: getChartColor(index + 10),
+          percentage: ((parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)) /
+                       response.d.reduce((sum: number, i: any) => sum + parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)), 0)) * 100).toFixed(2)
         }));
 
         setAttributionData(formattedData);
@@ -253,7 +257,7 @@ const StatisticsScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentBook, currentMonth]);
+  }, [currentBook, currentMonth, selectedFlowType]);
 
   // 当前账本变化时，重新获取数据
   useEffect(() => {
@@ -636,7 +640,7 @@ const StatisticsScreen: React.FC = () => {
         bookId: currentBook.bookId,
         startDay: startDate,
         endDay: endDate,
-        flowType: '支出'
+        flowType: selectedFlowType
       };
 
       if (category === 'industry') {
@@ -691,7 +695,7 @@ const StatisticsScreen: React.FC = () => {
   const handleViewIndustryDetails = useCallback(() => {
     if (!selectedIndustryItem) return;
 
-    setDetailsTitle(`${selectedIndustryItem} 支出明细`);
+    setDetailsTitle(`${selectedIndustryItem} 交易明细`);
     setDetailsVisible(true);
     setDetailsPage(1);
     setDetailsHasMore(true);
@@ -710,7 +714,7 @@ const StatisticsScreen: React.FC = () => {
   const handleViewPayTypeDetails = useCallback(() => {
     if (!selectedPayTypeItem) return;
 
-    setDetailsTitle(`${selectedPayTypeItem} 支出明细`);
+    setDetailsTitle(`${selectedPayTypeItem} 交易明细`);
     setDetailsVisible(true);
     setDetailsPage(1);
     setDetailsHasMore(true);
@@ -729,7 +733,7 @@ const StatisticsScreen: React.FC = () => {
   const handleViewAttributionDetails = useCallback(() => {
     if (!selectedAttributionItem) return;
 
-    setDetailsTitle(`${selectedAttributionItem} 支出明细`);
+    setDetailsTitle(`${selectedAttributionItem} 交易明细`);
     setDetailsVisible(true);
     setDetailsPage(1);
     setDetailsHasMore(true);
@@ -772,8 +776,8 @@ const StatisticsScreen: React.FC = () => {
           {item.description}
         </ListItem.Subtitle>
       </ListItem.Content>
-      <Text style={[styles.detailItemAmount, { color: item.flowType === '支出' ? '#f44336' : '#4caf50' }]}>
-        {item.flowType === '支出' ? '-' : '+'}{item.money.toFixed(2)}
+      <Text style={[styles.detailItemAmount, { color: item.flowType === '支出' ? '#f44336' : item.flowType === '收入' ? '#4caf50' : '#111111' }]}>
+        {item.flowType === '支出' ? '-' : item.flowType === '收入' ? '+' : ''}{item.money.toFixed(2)}
       </Text>
     </ListItem>
   );
@@ -940,10 +944,10 @@ const StatisticsScreen: React.FC = () => {
 
   // 修改行业类型分析渲染函数
   const renderIndustryTypeAnalysis = () => {
-    if (industryTypeData.length === 0) {
+    if (!industryTypeData || industryTypeData.length === 0) {
       return (
         <Card containerStyle={styles.card}>
-          <Card.Title>支出类型分析</Card.Title>
+          <Card.Title>{`类型分析 (${selectedFlowType})`}</Card.Title>
           <Text style={styles.emptyText}>暂无数据</Text>
         </Card>
       );
@@ -995,7 +999,7 @@ const StatisticsScreen: React.FC = () => {
 
     return (
       <Card containerStyle={styles.card}>
-        <Card.Title>支出类型分析</Card.Title>
+        <Card.Title>{`类型分析 (${selectedFlowType})`}</Card.Title>
 
         <View style={styles.chartContainer}>
           {renderEchartsWithWebView(option, 300, handleIndustryItemClick)}
@@ -1024,10 +1028,10 @@ const StatisticsScreen: React.FC = () => {
 
   // 修改支付方式分析渲染函数
   const renderPayTypeAnalysis = () => {
-    if (payTypeData.length === 0) {
+    if (!payTypeData || payTypeData.length === 0) {
       return (
         <Card containerStyle={styles.card}>
-          <Card.Title>支付方式分析</Card.Title>
+          <Card.Title>{`支付方式分析 (${selectedFlowType})`}</Card.Title>
           <Text style={styles.emptyText}>暂无数据</Text>
         </Card>
       );
@@ -1079,7 +1083,7 @@ const StatisticsScreen: React.FC = () => {
 
     return (
       <Card containerStyle={styles.card}>
-        <Card.Title>支付方式分析</Card.Title>
+        <Card.Title>{`支付方式分析 (${selectedFlowType})`}</Card.Title>
 
         <View style={styles.chartContainer}>
           {renderEchartsWithWebView(option, 300, handlePayTypeItemClick)}
@@ -1215,7 +1219,7 @@ const StatisticsScreen: React.FC = () => {
     if (!attributionData || attributionData.length === 0) {
       return (
         <Card containerStyle={styles.card}>
-          <Card.Title>流水归属分析</Card.Title>
+          <Card.Title>{`流水归属分析 (${selectedFlowType})`}</Card.Title>
           <Text style={styles.emptyText}>暂无归属数据</Text>
         </Card>
       );
@@ -1267,7 +1271,7 @@ const StatisticsScreen: React.FC = () => {
 
     return (
       <Card containerStyle={styles.card}>
-        <Card.Title>流水归属分析</Card.Title>
+        <Card.Title>{`流水归属分析 (${selectedFlowType})`}</Card.Title>
 
         <View style={styles.chartContainer}>
           {renderEchartsWithWebView(option, 300, handleAttributionItemClick)}
@@ -1295,6 +1299,59 @@ const StatisticsScreen: React.FC = () => {
       </Card>
     );
   };
+
+  // 添加流水类型切换处理函数
+  const handleFlowTypeChange = (type: '支出' | '收入' | '不计收支') => {
+    setSelectedFlowType(type);
+    // 重置选中状态
+    setSelectedIndustryItem(null);
+    setSelectedPayTypeItem(null);
+    setSelectedAttributionItem(null);
+  };
+
+  // 添加流水类型选择器组件
+  const renderFlowTypeSelector = () => (
+    <View style={styles.flowTypeSelectorContainer}>
+      <TouchableOpacity
+        style={[
+          styles.flowTypeButton,
+          selectedFlowType === '支出' && styles.selectedFlowTypeButton
+        ]}
+        onPress={() => handleFlowTypeChange('支出')}
+      >
+        <Text style={[
+          styles.flowTypeText,
+          selectedFlowType === '支出' && styles.selectedFlowTypeText
+        ]}>支出</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          styles.flowTypeButton,
+          selectedFlowType === '收入' && styles.selectedFlowTypeButton
+        ]}
+        onPress={() => handleFlowTypeChange('收入')}
+      >
+        <Text style={[
+          styles.flowTypeText,
+          selectedFlowType === '收入' && styles.selectedFlowTypeText
+        ]}>收入</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          styles.flowTypeButton,
+          selectedFlowType === '不计收支' && styles.selectedFlowTypeButton
+        ]}
+        onPress={() => handleFlowTypeChange('不计收支')}
+      >
+        <Text style={[
+          styles.flowTypeText,
+          selectedFlowType === '不计收支' && styles.selectedFlowTypeText
+        ]}>不计收支</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   if (!currentBook) {
     return (
@@ -1362,6 +1419,7 @@ const StatisticsScreen: React.FC = () => {
                       tintColor="#1976d2"
                   />
                 }>
+                  {renderFlowTypeSelector()}
                   {renderIndustryTypeAnalysis()}
                   {renderPayTypeAnalysis()}
                   {renderAttributionAnalysis()}
@@ -1662,6 +1720,36 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     color: '#757575',
+  },
+  flowTypeSelectorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: 'white',
+    margin: 10,
+    borderRadius: 10,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  flowTypeButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  selectedFlowTypeButton: {
+    backgroundColor: '#1976d2',
+  },
+  flowTypeText: {
+    fontSize: 14,
+    color: '#757575',
+  },
+  selectedFlowTypeText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
 
