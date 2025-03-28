@@ -237,3 +237,148 @@ Content-Type: application/json
 Authorization: {{auth_token}}
 
 {"id":139,"bookId":"3-DD4nQeLb","invoice":"3-DD4nQeLb-139-1741661927193-1.jpg"}
+
+
+### 平账
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": [
+#        {
+#            "out": {
+#                "id": 164,
+#                "userId": 3,
+#                "bookId": "3-DD4nQeLb",
+#                "day": "2025-02-22",
+#                "flowType": "支出",
+#                "industryType": "日用百货",
+#                "payType": "支付宝",
+#                "money": 17.2,
+#                "name": "拼多多平台商户",
+#                "description": "商户单号XP2225022201501717620082005122-",
+#                "invoice": null,
+#                "origin": null,
+#                "attribution": null,
+#                "eliminate": 0
+#            },
+#            "in": {
+#                "id": 162,
+#                "userId": 3,
+#                "bookId": "3-DD4nQeLb",
+#                "day": "2025-02-22",
+#                "flowType": "不计收支",
+#                "industryType": "日用百货",
+#                "payType": "支付宝",
+#                "money": 17.2,
+#                "name": "拼多多平台商户",
+#                "description": "退款-商户单号XP2225022201501717620082005122-",
+#                "invoice": null,
+#                "origin": null,
+#                "attribution": null,
+#                "eliminate": 0
+#            }
+#        }
+#    ]
+#}
+POST https://cashbook.sang0722.com:8881/api/entry/flow/condidate/autos
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"3-DD4nQeLb"}
+
+### 平账
+#{"c":200,"m":""}
+POST https://cashbook.sang0722.com:8881/api/entry/flow/condidate/confirm
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"outId":164,"inIds":[162],"bookId":"3-DD4nQeLb"}
+
+
+
+### 平账忽略
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": {
+#        "id": 166,
+#        "userId": 3,
+#        "bookId": "3-DD4nQeLb",
+#        "day": "2025-02-22",
+#        "flowType": "支出",
+#        "industryType": "日用百货",
+#        "payType": "支付宝",
+#        "money": 16.56,
+#        "name": "拼多多平台商户",
+#        "description": "商户单号XP1825022201501717412433006529-",
+#        "invoice": null,
+#        "origin": null,
+#        "attribution": null,
+#        "eliminate": -1
+#    }
+#}
+POST https://cashbook.sang0722.com:8881/api/entry/flow/condidate/ignore
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"id":166,"bookId":"3-DD4nQeLb"}
+
+### 平账忽略全部
+#{"c":200,"m":"","d":4}
+POST https://cashbook.sang0722.com:8881/api/entry/flow/condidate/ignoreAll
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"3-DD4nQeLb","ids":[184,192,268,267]}
+
+
+### 重复数据查询
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": {
+#        "duplicateGroups": [
+#            [
+#                {
+#                    "id": 277,
+#                    "userId": 3,
+#                    "bookId": "3-DD4nQeLb",
+#                    "day": "2025-02-25",
+#                    "flowType": "支出",
+#                    "industryType": "餐饮美食",
+#                    "payType": "现金",
+#                    "money": 123,
+#                    "name": "123",
+#                    "description": "",
+#                    "invoice": null,
+#                    "origin": null,
+#                    "attribution": "",
+#                    "eliminate": 0
+#                },
+#                {
+#                    "id": 276,
+#                    "userId": 3,
+#                    "bookId": "3-DD4nQeLb",
+#                    "day": "2025-02-25",
+#                    "flowType": "支出",
+#                    "industryType": "餐饮美食",
+#                    "payType": "现金",
+#                    "money": 123,
+#                    "name": "123",
+#                    "description": "",
+#                    "invoice": null,
+#                    "origin": null,
+#                    "attribution": "houxiaoyi",
+#                    "eliminate": 0
+#                }
+#            ]
+#        ],
+#        "totalGroups": 1,
+#        "totalDuplicates": 2
+#    }
+#}
+POST https://cashbook.sang0722.com:8881/api/entry/flow/deduplication/autos
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"3-DD4nQeLb","criteria":{"name":true,"description":true,"industryType":true,"flowType":true,"payType":true}}

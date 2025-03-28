@@ -47,7 +47,7 @@ const MainTabs = () => {
         name="Calendar"
         component={CalendarScreen}
         options={{
-          tabBarLabel: '日历',
+          tabBarLabel: '流水日历',
           tabBarIcon: ({ color, size }) => (
             <Icon name="calendar-today" type="material" color={color} size={size} />
           ),
