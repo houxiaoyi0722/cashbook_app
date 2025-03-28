@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, RefreshControl} from 'react-native';
+import {View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, FlatList, Modal} from 'react-native';
 import WebView from 'react-native-webview';
-import {Text, Card, Divider, Tab, TabView, Overlay, Icon, Button} from '@rneui/themed';
+import {Text, Card, Divider, Tab, TabView, Overlay, Icon, Button, ListItem, Avatar} from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import moment from 'moment';
@@ -59,10 +59,24 @@ const StatisticsScreen: React.FC = () => {
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-
   // 添加选中项状态到组件顶层
   const [selectedIndustryItem, setSelectedIndustryItem] = useState<string | null>(null);
   const [selectedPayTypeItem, setSelectedPayTypeItem] = useState<string | null>(null);
+  const [selectedMoney, setSelectedMoney] = useState<string | null>(null);
+
+  // 添加流水详情相关状态
+  const [detailsVisible, setDetailsVisible] = useState(false);
+  const [detailsTitle, setDetailsTitle] = useState('');
+  const [detailsData, setDetailsData] = useState<Flow[]>([]);
+  const [totalItem, setTotalItem] = useState<number>(0);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsColor, setDetailsColor] = useState('#1976d2');
+
+  // 添加分页相关状态
+  const [detailsPage, setDetailsPage] = useState(1);
+  const [detailsHasMore, setDetailsHasMore] = useState(true);
+  const [detailsLoadingMore, setDetailsLoadingMore] = useState(false);
+  const PAGE_SIZE = 20; // 每页数据条数
 
   // 获取月度数据
   const fetchMonthData = useCallback(async () => {
@@ -510,6 +524,7 @@ const StatisticsScreen: React.FC = () => {
     console.log('Industry item click:', message);
     if (message.type === 'itemClick') {
       setSelectedIndustryItem(message.data.name);
+      setSelectedMoney(message.data.value);
     } else if (message.type === 'legendClick') {
       // 点击图例时，只更新选中项，不执行其他操作
       // 图例的显示/隐藏由 Echarts 内部处理
@@ -522,12 +537,235 @@ const StatisticsScreen: React.FC = () => {
     console.log('Pay type item click:', message);
     if (message.type === 'itemClick') {
       setSelectedPayTypeItem(message.data.name);
+      setSelectedMoney(message.data.value);
     } else if (message.type === 'legendClick') {
       // 点击图例时，只更新选中项，不执行其他操作
       // 图例的显示/隐藏由 Echarts 内部处理
       setSelectedPayTypeItem(message.name);
     }
   };
+
+  // 修改获取流水详情数据的函数，支持分页
+  const fetchFlowDetails = useCallback(async (type: string, category: 'industry' | 'payment', page = 1, append = false) => {
+    if (!currentBook || !currentMonth || !type) return;
+
+    try {
+      if (page === 1) {
+        setDetailsLoading(true);
+      } else {
+        setDetailsLoadingMore(true);
+      }
+
+      // 构建查询参数
+      const startDate = `${currentMonth}-01`;
+      const endDate = moment(startDate).endOf('month').format('YYYY-MM-DD');
+      let params: {
+        pageNum: number;
+        pageSize: number;
+        bookId: string;
+        startDay?: string;
+        endDay?: string;
+        flowType?: string;
+        industryType?: string;
+        payType?: string;
+        moneySort?: string;
+        attribution?: string;
+        name?: string;
+        description?: string;
+      } = {
+        pageNum: page,
+        pageSize: PAGE_SIZE,
+        bookId: currentBook.bookId,
+        startDay: startDate,
+        endDay: endDate,
+        flowType: '支出'
+      };
+
+      if (category === 'industry') {
+        params.industryType = type
+      } else if (category === 'payment') {
+        params.payType = type
+      } else {
+        params.attribution = type
+      }
+
+      const response = await api.flow.page(params);
+      if (response.c === 200 && response.d) {
+        if (append) {
+          setDetailsData(prev => [...prev, ...response.d.data]);
+        } else {
+          setDetailsData(response.d.data);
+        }
+        // 计算总页数
+        const totalItems = response.d.total;
+        const totalPages = Math.ceil(totalItems / PAGE_SIZE);
+        const hasMore = page < totalPages;
+        setTotalItem(totalItems);
+        setDetailsHasMore(hasMore);
+      }
+      setDetailsPage(page);
+      setDetailsLoading(false);
+      setDetailsLoadingMore(false);
+    } catch (error) {
+      console.error('获取流水详情失败', error instanceof Error ? error.message : String(error));
+      Alert.alert('错误', '获取流水详情失败');
+      setDetailsLoading(false);
+      setDetailsLoadingMore(false);
+    }
+  }, [currentBook, currentMonth]);
+
+  // 处理加载更多数据
+  const handleLoadMoreDetails = () => {
+    if (detailsLoadingMore || !detailsHasMore) return;
+
+    const nextPage = detailsPage + 1;
+    if (selectedIndustryItem) {
+      fetchFlowDetails(selectedIndustryItem, 'industry', nextPage, true);
+    } else if (selectedPayTypeItem) {
+      fetchFlowDetails(selectedPayTypeItem, 'payment', nextPage, true);
+    }
+  };
+
+  // 处理查看行业类型详情
+  const handleViewIndustryDetails = useCallback(() => {
+    if (!selectedIndustryItem) return;
+
+    setDetailsTitle(`${selectedIndustryItem} 支出明细`);
+    setDetailsVisible(true);
+    setDetailsPage(1);
+    setDetailsHasMore(true);
+    setDetailsData([]);
+
+    // 设置详情颜色与图表项颜色一致
+    const selectedData = industryTypeData.find(item => item.name === selectedIndustryItem);
+    if (selectedData) {
+      setDetailsColor(selectedData.color);
+    }
+
+    fetchFlowDetails(selectedIndustryItem, 'industry', 1, false);
+  }, [selectedIndustryItem, industryTypeData, fetchFlowDetails]);
+
+  // 处理查看支付方式详情
+  const handleViewPayTypeDetails = useCallback(() => {
+    if (!selectedPayTypeItem) return;
+
+    setDetailsTitle(`${selectedPayTypeItem} 支出明细`);
+    setDetailsVisible(true);
+    setDetailsPage(1);
+    setDetailsHasMore(true);
+    setDetailsData([]);
+
+    // 设置详情颜色与图表项颜色一致
+    const selectedData = payTypeData.find(item => item.name === selectedPayTypeItem);
+    if (selectedData) {
+      setDetailsColor(selectedData.color);
+    }
+
+    fetchFlowDetails(selectedPayTypeItem, 'payment', 1, false);
+  }, [selectedPayTypeItem, payTypeData, fetchFlowDetails]);
+
+  // 关闭详情弹窗
+  const handleCloseDetails = () => {
+    setDetailsVisible(false);
+    setDetailsData([]);
+    setDetailsPage(1);
+    setDetailsHasMore(true);
+  };
+
+  // 渲染流水详情项
+  const renderFlowDetailItem = ({ item }: { item: Flow }) => (
+    <ListItem key={item.id} bottomDivider containerStyle={styles.detailItem}>
+      <Avatar
+        rounded
+        icon={{ name: 'receipt', type: 'material' }}
+        containerStyle={{ backgroundColor: detailsColor + '40' }}
+      />
+      <ListItem.Content>
+        <ListItem.Title style={styles.detailItemTitle}>
+          {item.name || `${item.industryType}`}
+        </ListItem.Title>
+        <ListItem.Subtitle style={styles.detailItemSubtitle}>
+          {moment(item.day).format('YYYY-MM-DD')} · {item.payType}
+        </ListItem.Subtitle>
+      </ListItem.Content>
+      <Text style={[styles.detailItemAmount, { color: item.flowType === '支出' ? '#f44336' : '#4caf50' }]}>
+        {item.flowType === '支出' ? '-' : '+'}{item.money.toFixed(2)}
+      </Text>
+    </ListItem>
+  );
+
+  // 渲染底部加载更多指示器
+  const renderFooter = () => {
+    if (!detailsLoadingMore) return null;
+
+    return (
+      <View style={styles.loadMoreFooter}>
+        <ActivityIndicator size="small" color={detailsColor} />
+        <Text style={styles.loadMoreText}>加载更多...</Text>
+      </View>
+    );
+  };
+
+  // 渲染流水详情弹窗
+  const renderFlowDetailsModal = () => (
+    <Modal
+      visible={detailsVisible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={handleCloseDetails}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{detailsTitle}</Text>
+            <TouchableOpacity onPress={handleCloseDetails} style={styles.closeButton}>
+              <Icon name="close" type="material" size={24} color="#757575" />
+            </TouchableOpacity>
+          </View>
+
+          <Divider style={styles.modalDivider} />
+
+          {detailsLoading ? (
+            <ActivityIndicator size="large" color={detailsColor} style={styles.detailsLoader} />
+          ) : (
+            <>
+              {detailsData.length === 0 ? (
+                <View style={styles.emptyDetails}>
+                  <Icon name="receipt-long" type="material" size={48} color="#e0e0e0" />
+                  <Text style={styles.emptyDetailsText}>暂无流水记录</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={detailsData}
+                  renderItem={renderFlowDetailItem}
+                  keyExtractor={(item) => item.id.toString()}
+                  contentContainerStyle={styles.detailsList}
+                  showsVerticalScrollIndicator={false}
+                  onEndReached={handleLoadMoreDetails}
+                  onEndReachedThreshold={0.3}
+                  ListFooterComponent={renderFooter}
+                />
+              )}
+
+              <View style={styles.modalFooter}>
+                <Text style={styles.totalText}>
+                  {totalItem} 笔交易，合计：
+                  <Text style={{ color: detailsColor, fontWeight: 'bold' }}>
+                    {selectedMoney}
+                  </Text>
+                </Text>
+                <Button
+                  title="关闭"
+                  onPress={handleCloseDetails}
+                  buttonStyle={[styles.closeModalButton, { backgroundColor: detailsColor }]}
+                />
+              </View>
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
 
   // 渲染月度概览
   const renderMonthOverview = () => {
@@ -681,11 +919,19 @@ const StatisticsScreen: React.FC = () => {
 
         {selectedIndustryItem && (
           <View style={styles.selectedItemInfo}>
-            <Text style={styles.selectedItemTitle}>已选择: {selectedIndustryItem}</Text>
+            <View style={styles.selectedItemHeader}>
+              <Text style={styles.selectedItemTitle}>{selectedIndustryItem}</Text>
+              <TouchableOpacity
+                style={[styles.viewDetailsButton, { backgroundColor: industryTypeData.find(item => item.name === selectedIndustryItem)?.color || '#1976d2' }]}
+                onPress={handleViewIndustryDetails}
+              >
+                <Icon name="visibility" type="material" size={16} color="#fff" />
+                <Text style={styles.viewDetailsText}>查看详情</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.selectedItemValue}>
               金额: {industryTypeData.find(item => item.name === selectedIndustryItem)?.value.toFixed(2) || '0.00'}
             </Text>
-            <Button>查看详情</Button>
           </View>
         )}
       </Card>
@@ -757,11 +1003,19 @@ const StatisticsScreen: React.FC = () => {
 
         {selectedPayTypeItem && (
           <View style={styles.selectedItemInfo}>
-            <Text style={styles.selectedItemTitle}>已选择: {selectedPayTypeItem}</Text>
+            <View style={styles.selectedItemHeader}>
+              <Text style={styles.selectedItemTitle}>{selectedPayTypeItem}</Text>
+              <TouchableOpacity
+                style={[styles.viewDetailsButton, { backgroundColor: payTypeData.find(item => item.name === selectedPayTypeItem)?.color || '#1976d2' }]}
+                onPress={handleViewPayTypeDetails}
+              >
+                <Icon name="visibility" type="material" size={16} color="#fff" />
+                <Text style={styles.viewDetailsText}>查看详情</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.selectedItemValue}>
               金额: {payTypeData.find(item => item.name === selectedPayTypeItem)?.value.toFixed(2) || '0.00'}
             </Text>
-            <Button>查看详情</Button>
           </View>
         )}
       </Card>
@@ -944,6 +1198,9 @@ const StatisticsScreen: React.FC = () => {
             )}
           </TabView.Item>
         </TabView>
+
+      {/* 流水详情弹窗 */}
+      {renderFlowDetailsModal()}
     </View>
   );
 };
@@ -1116,6 +1373,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderRadius: 5,
   },
+  selectedItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   selectedItemTitle: {
     fontSize: 14,
     fontWeight: 'bold',
@@ -1125,6 +1388,109 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#1976d2',
     marginTop: 5,
+  },
+  viewDetailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#1976d2',
+  },
+  viewDetailsText: {
+    color: '#fff',
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingTop: 16,
+    maxHeight: '80%',
+    minHeight: '50%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalDivider: {
+    marginBottom: 8,
+  },
+  detailsLoader: {
+    padding: 32,
+  },
+  detailsList: {
+    paddingBottom: 16,
+  },
+  detailItem: {
+    paddingVertical: 12,
+  },
+  detailItemTitle: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  detailItemSubtitle: {
+    fontSize: 13,
+    color: '#757575',
+    marginTop: 4,
+  },
+  detailItemAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  emptyDetails: {
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyDetailsText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#757575',
+    textAlign: 'center',
+  },
+  modalFooter: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    backgroundColor: '#f9f9f9',
+  },
+  totalText: {
+    fontSize: 14,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  closeModalButton: {
+    borderRadius: 8,
+    paddingVertical: 10,
+  },
+  loadMoreFooter: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 10,
+  },
+  loadMoreText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#757575',
   },
 });
 
