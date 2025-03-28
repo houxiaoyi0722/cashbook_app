@@ -172,26 +172,6 @@ const SettingsScreen: React.FC = () => {
     </Card>
   );
 
-  // 渲染应用设置
-  const renderAppSettings = () => (
-    <Card containerStyle={styles.card}>
-      <Card.Title>应用设置</Card.Title>
-
-      <ListItem bottomDivider key="dark-mode">
-        <Icon name="brightness-6" type="material" color="#1976d2" />
-        <ListItem.Content>
-          <ListItem.Title>深色模式</ListItem.Title>
-        </ListItem.Content>
-        <Switch
-          value={isDarkMode}
-          onValueChange={toggleDarkMode}
-          trackColor={{ false: '#767577', true: '#81b0ff' }}
-          thumbColor={isDarkMode ? '#1976d2' : '#f4f3f4'}
-        />
-      </ListItem>
-    </Card>
-  );
-
   // 渲染关于信息
   const renderAboutInfo = () => (
     <Card containerStyle={styles.card}>
@@ -209,7 +189,7 @@ const SettingsScreen: React.FC = () => {
         <Icon name="code" type="material" color="#1976d2" />
         <ListItem.Content>
           <ListItem.Title>开发者</ListItem.Title>
-          <ListItem.Subtitle>CashBook Team</ListItem.Subtitle>
+          <ListItem.Subtitle>sang</ListItem.Subtitle>
         </ListItem.Content>
       </ListItem>
     </Card>
@@ -271,7 +251,6 @@ const SettingsScreen: React.FC = () => {
       <ScrollView>
         {renderUserInfo()}
         {renderAccountSettings()}
-        {renderAppSettings()}
         {renderAboutInfo()}
       </ScrollView>
 
