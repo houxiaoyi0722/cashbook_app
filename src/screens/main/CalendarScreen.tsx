@@ -276,21 +276,19 @@ const CalendarScreen: React.FC = () => {
                 <Text
                   style={[
                     styles.flowItemMoney,
-                    { color: item.flowType === '支出' ? '#f44336' : '#4caf50' },
+                    { color: item.flowType === '支出' ? '#f44336' : item.flowType === '收入' ? '#4caf50' : '#111111' },
                   ]}
                 >
-                  {item.flowType === '支出' ? '-' : '+'}
+                  {item.flowType === '支出' ? '-' : item.flowType === '收入' ? '+' : ''}
                   {item.money.toFixed(2)}
                 </Text>
               </View>
               <Text style={styles.flowItemType}>
                 {item.flowType} | {item.industryType} | {item.payType}
               </Text>
-              {item.description && (
-                <Text style={styles.flowItemDesc} numberOfLines={1}>
-                  {item.description}
-                </Text>
-              )}
+              <Text style={styles.flowItemDesc} numberOfLines={1}>
+                {item.description ? item.description : ''}
+              </Text>
             </View>
           )}
           renderHiddenItem={({ item }) => (
