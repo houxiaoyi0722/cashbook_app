@@ -84,6 +84,7 @@ export interface MonthAnalysis {
 // 日历标记类型
 export interface CalendarMark {
   [date: string]: {
+    selected: boolean,
     marked?: boolean;
     dotColor?: string;
     customStyles?: {

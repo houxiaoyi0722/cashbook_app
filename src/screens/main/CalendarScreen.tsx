@@ -21,12 +21,12 @@ import moment from 'moment';
 import {eventBus} from '../../navigation';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import api from '../../services/api';
-import {DayState} from "react-native-calendars/src/types";
+import {DayState} from 'react-native-calendars/src/types';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 // 配置中文日历
-LocaleConfig.locales['zh'] = {
+LocaleConfig.locales.zh = {
   monthNames: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
   monthNamesShort: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
   dayNames: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'],
@@ -68,23 +68,42 @@ const CalendarScreen: React.FC = () => {
       // 获取日历数据
       const { dailyData, calendarMarks } = await fetchCalendarData();
 
-      // 更新日历数据引用，但不触发重新渲染
+      // 更新日历数据引用
       dailyDataRef.current = dailyData;
 
-      // 只有在初始加载或账本切换时才更新日历标记
-      if (Object.keys(calendarMarksRef.current).length === 0) {
-        // 保留当前选中日期的样式
-        const updatedMarks = { ...calendarMarks };
-        calendarMarksRef.current = updatedMarks;
-        setCalendarMarks(updatedMarks);
+      // 创建新的标记对象
+      const updatedMarks = { ...calendarMarks };
+
+      // 确保当前选中日期的样式正确
+      if (selectedDate) {
+        updatedMarks[selectedDate] = {
+          ...(updatedMarks[selectedDate] || {}),
+          selected: true,
+          customStyles: {
+            container: {
+              backgroundColor: '#1976d2',
+            },
+            text: {
+              color: 'white',
+            },
+          }
+        };
       }
-      // 始终更新下方卡片数据
+
+      // 更新状态
+      calendarMarksRef.current = updatedMarks;
+      setCalendarMarks(updatedMarks);
       setDailyData(dailyData);
+
+      // 获取选中日期的流水详情
+      if (selectedDate) {
+        await fetchDayDetail(selectedDate);
+      }
     } catch (error) {
       console.error('获取流水失败', error instanceof Error ? error.message : String(error));
       Alert.alert('错误', '获取流水失败');
     }
-  }, [currentBook, selectedDate, fetchCalendarData]);
+  }, [currentBook, currentMonth, selectedDate, fetchCalendarData]);
 
   // 获取某天的流水详情
   const fetchDayDetail = useCallback(async (date: string) => {
@@ -148,30 +167,39 @@ const CalendarScreen: React.FC = () => {
   }, [currentBook]);
 
   // 处理日期选择 - 只更新下方卡片，不刷新日历
-  const handleDayPress = useCallback((day: any) => {
+  const handleDayPress = useCallback(async (day: any) => {
+    console.log(123)
     // 避免重复选择同一天
-    if (selectedDate === day.dateString) return;
-    if (calendarMarks[selectedDate]) {
-      calendarMarks[selectedDate].customStyles = {
-        container: {
-          backgroundColor: '#ffffff',
-        },
-        text: {
-          color: selectedDate === moment().format('YYYY-MM-DD') ? '#1976d2' : '#111111',
-        },
+    if (selectedDate === day.dateString) {
+      // 即使是同一天，也要获取流水详情，确保数据是最新的
+      await fetchDayDetail(day.dateString);
+      return;
+    }
+
+    // 创建新的标记对象，而不是直接修改现有对象
+    const newMarks = {...calendarMarks};
+
+    // 重置之前选中日期的样式
+    if (newMarks[selectedDate]) {
+      newMarks[selectedDate] = {
+        ...newMarks[selectedDate],
+        selected: false,
+        customStyles: {
+          container: {
+            backgroundColor: '#ffffff',
+          },
+          text: {
+            color: selectedDate === moment().format('YYYY-MM-DD') ? '#1976d2' : '#111111',
+          },
+        }
       };
     }
-    if (calendarMarks[day.dateString]) {
-      calendarMarks[day.dateString].customStyles = {
-        container: {
-          backgroundColor: '#1976d2',
-        },
-        text: {
-          color: 'white',
-        },
-      };
-    } else {
-      calendarMarks[day.dateString] = {
+
+    // 设置新选中日期的样式
+    if (newMarks[day.dateString]) {
+      newMarks[day.dateString] = {
+        ...newMarks[day.dateString],
+        selected: true,
         customStyles: {
           container: {
             backgroundColor: '#1976d2',
@@ -179,11 +207,29 @@ const CalendarScreen: React.FC = () => {
           text: {
             color: 'white',
           },
-        },
+        }
+      };
+    } else {
+      newMarks[day.dateString] = {
+        selected: true,
+        customStyles: {
+          container: {
+            backgroundColor: '#1976d2',
+          },
+          text: {
+            color: 'white',
+          },
+        }
       };
     }
+
+    // 更新状态
+    setCalendarMarks(newMarks);
     setSelectedDate(day.dateString);
-  }, [selectedDate]);
+
+    // 获取选中日期的流水详情
+    await fetchDayDetail(day.dateString);
+  }, [selectedDate, calendarMarks, fetchDayDetail]);
 
   // 处理月份变化
   const handleMonthChange = useCallback((month: any) => {
@@ -400,9 +446,10 @@ const CalendarScreen: React.FC = () => {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetchCalendarFlows().catch(err => {
-        console.error('获取月度流水失败', err instanceof Error ? err.message : String(err));
-      });
+      await fetchCalendarFlows();
+      // 不需要重新设置 selectedDate，因为 fetchCalendarFlows 已经处理了选中状态
+    } catch (error) {
+      console.error('刷新失败', error instanceof Error ? error.message : String(error));
     } finally {
       setRefreshing(false);
     }
@@ -411,16 +458,29 @@ const CalendarScreen: React.FC = () => {
   // 自定义日期单元格渲染函数
   const renderCustomDay = (day: any, state: DayState | undefined) => {
     // 获取当天的收支数据
-    const dayTotals = dailyData[day.dateString] || { income: 0, expense: 0 };
+    const dayTotals = dailyData[day.dateString] || { inSum: 0, outSum: 0, zeroSum: 0 };
     const hasData = dayTotals.inSum > 0 || dayTotals.outSum > 0;
 
+    // 检查是否是选中日期
+    const isSelected = day.dateString === selectedDate;
+
     return (
-      <View style={{ alignItems: 'center' }}>
+      <View style={{
+        alignItems: 'center',
+        backgroundColor: isSelected ? '#1976d2' : 'transparent',
+        borderRadius: 16,
+        padding: 2,
+        width: 32,
+        height: 32,
+        justifyContent: 'center'
+      }}>
         {/* 日期数字 */}
         <Text
           style={{
-            color: state === 'today' ? '#1976d2' : day.dateString === selectedDate ? 'white' : state === 'disabled' ? '#949494' : '#111111',
-            fontWeight: day.dateString === moment().format('YYYY-MM-DD') ? 'bold' : 'normal'
+            color: isSelected ? 'white' :
+                  state === 'today' ? '#1976d2' :
+                  state === 'disabled' ? '#949494' : '#111111',
+            fontWeight: state === 'today' ? 'bold' : 'normal'
           }}
         >
           {day.day}
@@ -430,12 +490,12 @@ const CalendarScreen: React.FC = () => {
         {hasData && (
           <View style={styles.dayTotalsContainer}>
             {dayTotals.inSum > 0 && (
-              <Text style={styles.dayIncomeText}>
+              <Text style={[styles.dayIncomeText, { color: isSelected ? '#ffffff' : '#4caf50' }]}>
                 +{dayTotals.inSum.toFixed(0)}
               </Text>
             )}
             {dayTotals.outSum > 0 && (
-              <Text style={styles.dayExpenseText}>
+              <Text style={[styles.dayExpenseText, { color: isSelected ? '#ffffff' : '#f44336' }]}>
                 -{dayTotals.outSum.toFixed(0)}
               </Text>
             )}
@@ -479,21 +539,7 @@ const CalendarScreen: React.FC = () => {
               onDayPress={handleDayPress}
               onMonthChange={handleMonthChange}
               markingType="custom"
-              markedDates={{
-                ...calendarMarks,
-                [selectedDate]: {
-                  ...(calendarMarks[selectedDate] || {}),
-                  selected: true,
-                  customStyles: {
-                    container: {
-                      backgroundColor: '#1976d2',
-                    },
-                    text: {
-                      color: 'white',
-                    },
-                  },
-                },
-              }}
+              markedDates={calendarMarks}
               theme={{
                 todayTextColor: '#1976d2',
                 arrowColor: '#1976d2',
