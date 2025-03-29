@@ -9,7 +9,7 @@ import {
   ScrollView
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { Text, Card, Button, Icon, Divider, Overlay } from '@rneui/themed';
+import { Text, Card, Button, Icon, Overlay } from '@rneui/themed';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,8 +21,6 @@ import moment from 'moment';
 import {eventBus} from '../../navigation';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import api from '../../services/api';
-import {DayState} from 'react-native-calendars/src/types';
-
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 // 配置中文日历
@@ -168,7 +166,6 @@ const CalendarScreen: React.FC = () => {
 
   // 处理日期选择 - 只更新下方卡片，不刷新日历
   const handleDayPress = useCallback(async (day: any) => {
-    console.log(123)
     // 避免重复选择同一天
     if (selectedDate === day.dateString) {
       // 即使是同一天，也要获取流水详情，确保数据是最新的
@@ -235,11 +232,6 @@ const CalendarScreen: React.FC = () => {
   const handleMonthChange = useCallback((month: any) => {
     setCurrentMonth(moment(month.dateString).format('YYYY-MM'));
   }, []);
-
-  // 查看日详情
-  const handleViewDayDetail = useCallback(async () => {
-    await fetchDayDetail(selectedDate);
-  }, [fetchDayDetail, selectedDate]);
 
   // 添加流水
   const handleAddFlow = useCallback(() => {
@@ -456,7 +448,7 @@ const CalendarScreen: React.FC = () => {
   }, [fetchCalendarFlows]);
 
   // 自定义日期单元格渲染函数
-  const renderCustomDay = (day: any, state: DayState | undefined) => {
+  const renderCustomDay = useCallback((day: any, state: any) => {
     // 获取当天的收支数据
     const dayTotals = dailyData[day.dateString] || { inSum: 0, outSum: 0, zeroSum: 0 };
     const hasData = dayTotals.inSum > 0 || dayTotals.outSum > 0;
@@ -503,7 +495,7 @@ const CalendarScreen: React.FC = () => {
         )}
       </View>
     );
-  };
+  }, [selectedDate, dailyData]);
 
   if (!currentBook) {
     return (
@@ -536,7 +528,9 @@ const CalendarScreen: React.FC = () => {
           <Calendar
               current={currentMonth}
               key={currentMonth}
-              onDayPress={handleDayPress}
+              onDayPress={(day) => {
+                handleDayPress(day);
+              }}
               onMonthChange={handleMonthChange}
               markingType="custom"
               markedDates={calendarMarks}
@@ -548,7 +542,6 @@ const CalendarScreen: React.FC = () => {
                 selectedDayTextColor: 'white',
               }}
               monthFormat={'yyyy年 MM月'}
-              // 添加自定义标题组件
               renderHeader={(date) => (
                   <TouchableOpacity onPress={handleMonthHeaderPress} style={styles.calendarHeader}>
                     <Text style={styles.calendarHeaderText}>
@@ -557,7 +550,16 @@ const CalendarScreen: React.FC = () => {
                     <Icon name="arrow-drop-down" type="material" size={24} color="#1976d2" />
                   </TouchableOpacity>
               )}
-              dayComponent={({ date, state }) => renderCustomDay(date, state)}
+              dayComponent={({ date, state }) => (
+                <TouchableOpacity
+
+                  onPress={() => {
+                    handleDayPress(date);
+                  }}
+                >
+                  {renderCustomDay(date, state)}
+                </TouchableOpacity>
+              )}
           />
 
           {/* 将月度汇总直接放在日历卡片内部 */}
