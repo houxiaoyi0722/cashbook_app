@@ -541,6 +541,7 @@ const CalendarScreen: React.FC = () => {
         bookId: currentBook.bookId,
         criteria: duplicateCriteria
       });
+      
       if (response.c === 0 && response.d) {
         setDuplicateGroups(response.d.duplicateGroups || []);
       } else {
@@ -557,7 +558,7 @@ const CalendarScreen: React.FC = () => {
   // 添加删除流水的函数
   const handleDeleteDuplicateFlow = useCallback(async (flow: any) => {
     if (!currentBook) return;
-
+    
     Alert.alert(
       '确认删除',
       `确定要删除这条流水记录吗？\n${flow.name} - ${flow.money}元`,
@@ -569,13 +570,13 @@ const CalendarScreen: React.FC = () => {
           onPress: async () => {
             try {
               const response = await api.flow.delete(flow.id, currentBook.bookId);
-
+              
               if (response.c === 0) {
                 // 重新获取重复数据
                 fetchDuplicateFlows();
                 // 刷新日历数据
                 fetchCalendarFlows();
-
+                
                 Alert.alert('成功', '流水已删除');
               } else {
                 Alert.alert('错误', response.m || '删除流水失败');
@@ -613,7 +614,7 @@ const CalendarScreen: React.FC = () => {
               <Icon name="close" type="material" size={24} />
             </TouchableOpacity>
           </View>
-
+          
           <View style={styles.duplicateCriteria}>
             <Text style={styles.duplicateCriteriaTitle}>筛选条件:</Text>
             <View style={styles.duplicateCriteriaButtons}>
@@ -629,7 +630,7 @@ const CalendarScreen: React.FC = () => {
                   duplicateCriteria.name && styles.criteriaButtonTextActive
                 ]}>名称</Text>
               </TouchableOpacity>
-
+              
               <TouchableOpacity
                 style={[
                   styles.criteriaButton,
@@ -642,7 +643,7 @@ const CalendarScreen: React.FC = () => {
                   duplicateCriteria.description && styles.criteriaButtonTextActive
                 ]}>备注</Text>
               </TouchableOpacity>
-
+              
               <TouchableOpacity
                 style={[
                   styles.criteriaButton,
@@ -655,7 +656,7 @@ const CalendarScreen: React.FC = () => {
                   duplicateCriteria.flowType && styles.criteriaButtonTextActive
                 ]}>流水类型</Text>
               </TouchableOpacity>
-
+              
               <TouchableOpacity
                 style={[
                   styles.criteriaButton,
@@ -668,7 +669,7 @@ const CalendarScreen: React.FC = () => {
                   duplicateCriteria.industryType && styles.criteriaButtonTextActive
                 ]}>支出/收入类型</Text>
               </TouchableOpacity>
-
+              
               <TouchableOpacity
                 style={[
                   styles.criteriaButton,
@@ -682,7 +683,7 @@ const CalendarScreen: React.FC = () => {
                 ]}>支付/付款方式</Text>
               </TouchableOpacity>
             </View>
-
+            
             <Button
               title="查询"
               onPress={fetchDuplicateFlows}
@@ -690,7 +691,7 @@ const CalendarScreen: React.FC = () => {
               loading={duplicateLoading}
             />
           </View>
-
+          
           <ScrollView style={styles.duplicateContent}>
             {duplicateLoading ? (
               <ActivityIndicator size="large" color="#1976d2" style={{ marginTop: 20 }} />
@@ -700,7 +701,7 @@ const CalendarScreen: React.FC = () => {
               duplicateGroups.map((group, groupIndex) => (
                 <View key={`group-${groupIndex}`} style={styles.duplicateGroup}>
                   <Text style={styles.duplicateGroupTitle}>重复组 {groupIndex + 1}</Text>
-
+                  
                   {group.map((flow: any, flowIndex: number) => (
                     <View key={`flow-${flow.id}`} style={styles.duplicateItem}>
                       <View style={styles.duplicateItemContent}>
@@ -709,7 +710,7 @@ const CalendarScreen: React.FC = () => {
                           {flow.flowType === '支出' ? '-' : '+'}
                           {flow.money.toFixed(2)}
                         </Text>
-
+                        
                         <View style={styles.duplicateItemDetails}>
                           <Text style={styles.duplicateItemDetail}>
                             <Text style={styles.duplicateItemLabel}>日期: </Text>
@@ -733,16 +734,22 @@ const CalendarScreen: React.FC = () => {
                               {flow.description}
                             </Text>
                           )}
+                          {flow.attribution && (
+                            <Text style={styles.duplicateItemDetail}>
+                              <Text style={styles.duplicateItemLabel}>归属: </Text>
+                              {flow.attribution}
+                            </Text>
+                          )}
                         </View>
                       </View>
-
+                      
                       <TouchableOpacity
                         style={styles.duplicateItemDelete}
                         onPress={() => handleDeleteDuplicateFlow(flow)}
                       >
                         <Icon name="delete" type="material" color="#F44336" size={20} />
                       </TouchableOpacity>
-
+                      
                       {flowIndex < group.length - 1 && (
                         <View style={styles.duplicateItemDivider} />
                       )}
