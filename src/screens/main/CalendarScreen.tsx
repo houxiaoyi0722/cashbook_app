@@ -243,15 +243,6 @@ const CalendarScreen: React.FC = () => {
     }
   }, [currentMonth]);
 
-  // 添加对 currentMonth 变化的监听，确保数据更新
-  useEffect(() => {
-    if (currentBook && currentMonth) {
-      fetchCalendarFlows().catch(err => {
-        console.error('月份变化，获取流水失败', err instanceof Error ? err.message : String(err));
-      });
-    }
-  }, [currentMonth, currentBook, fetchCalendarFlows]);
-
   // 添加流水
   const handleAddFlow = useCallback(() => {
     navigation.navigate('FlowForm', { date: selectedDate });
