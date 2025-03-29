@@ -164,8 +164,15 @@ const CalendarScreen: React.FC = () => {
     return () => { isMounted = false; };
   }, [currentBook]);
 
-  // 处理日期选择 - 只更新下方卡片，不刷新日历
+  // 修改 handleDayPress 函数，添加月份切换逻辑
   const handleDayPress = useCallback(async (day: any) => {
+    // 检查是否点击了其他月份的日期
+    const clickedMonth = moment(day.dateString).format('YYYY-MM');
+    if (clickedMonth !== currentMonth) {
+      // 如果点击了其他月份的日期，先切换月份
+      setCurrentMonth(clickedMonth);
+    }
+
     // 避免重复选择同一天
     if (selectedDate === day.dateString) {
       // 即使是同一天，也要获取流水详情，确保数据是最新的
@@ -226,12 +233,27 @@ const CalendarScreen: React.FC = () => {
 
     // 获取选中日期的流水详情
     await fetchDayDetail(day.dateString);
-  }, [selectedDate, calendarMarks, fetchDayDetail]);
+  }, [selectedDate, calendarMarks, fetchDayDetail, currentMonth]);
 
-  // 处理月份变化
+  // 修改 handleMonthChange 函数，确保月份变化时更新数据
   const handleMonthChange = useCallback((month: any) => {
-    setCurrentMonth(moment(month.dateString).format('YYYY-MM'));
-  }, []);
+    const newMonth = moment(month.dateString).format('YYYY-MM');
+    if (newMonth !== currentMonth) {
+      setCurrentMonth(newMonth);
+
+      // 可以选择在月份变化时重新获取数据
+      // 但由于 useEffect 已经监听了 currentMonth 的变化，所以这里不需要额外调用
+    }
+  }, [currentMonth]);
+
+  // 添加对 currentMonth 变化的监听，确保数据更新
+  useEffect(() => {
+    if (currentBook && currentMonth) {
+      fetchCalendarFlows().catch(err => {
+        console.error('月份变化，获取流水失败', err instanceof Error ? err.message : String(err));
+      });
+    }
+  }, [currentMonth, currentBook, fetchCalendarFlows]);
 
   // 添加流水
   const handleAddFlow = useCallback(() => {
