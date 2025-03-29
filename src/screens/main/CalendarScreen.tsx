@@ -60,9 +60,9 @@ const CalendarScreen: React.FC = () => {
     dayFlows
   }), [selectedDate, dailyData, dayFlows]);
 
-  // 获取日流水数据
+  // 获取日历数据
   const fetchCalendarFlows = useCallback(async () => {
-    if (!currentBook) return;
+    if (!currentBook || !currentMonth) return;
 
     try {
       // 获取日历数据
@@ -502,6 +502,47 @@ const CalendarScreen: React.FC = () => {
     }
   }, [fetchCalendarFlows]);
 
+  // 自定义日期单元格渲染函数
+  const renderCustomDay = (day: any, item: any) => {
+    // 获取当天的收支数据
+    const dayTotals = dailyData[day.dateString] || { income: 0, expense: 0 };
+    const hasData = dayTotals.inSum > 0 || dayTotals.outSum > 0;
+
+    return (
+      <View style={{ alignItems: 'center' }}>
+        {/* 日期数字 */}
+        <Text
+          style={{
+            color: day.dateString === selectedDate
+              ? 'white'
+              : day.dateString === moment().format('YYYY-MM-DD')
+                ? '#1976d2'
+                : '#111111',
+            fontWeight: day.dateString === moment().format('YYYY-MM-DD') ? 'bold' : 'normal'
+          }}
+        >
+          {day.day}
+        </Text>
+
+        {/* 收支信息 */}
+        {hasData && (
+          <View style={styles.dayTotalsContainer}>
+            {dayTotals.inSum > 0 && (
+              <Text style={styles.dayIncomeText}>
+                +{dayTotals.inSum.toFixed(0)}
+              </Text>
+            )}
+            {dayTotals.outSum > 0 && (
+              <Text style={styles.dayExpenseText}>
+                -{dayTotals.outSum.toFixed(0)}
+              </Text>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  };
+
   if (!currentBook) {
     return (
         <View style={styles.container}>
@@ -567,6 +608,7 @@ const CalendarScreen: React.FC = () => {
                     <Icon name="arrow-drop-down" type="material" size={24} color="#1976d2" />
                   </TouchableOpacity>
               )}
+              dayComponent={({ date, state }) => renderCustomDay(date, state)}
           />
 
           {/* 将月度汇总直接放在日历卡片内部 */}
@@ -943,6 +985,21 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 12,
     marginTop: 4,
+  },
+  dayTotalsContainer: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  dayIncomeText: {
+    fontSize: 9,
+    color: '#4caf50',
+    fontWeight: '500',
+  },
+  dayExpenseText: {
+    fontSize: 9,
+    color: '#f44336',
+    fontWeight: '500',
   },
 });
 
