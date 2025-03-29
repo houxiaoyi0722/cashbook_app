@@ -245,109 +245,124 @@ const CalendarScreen: React.FC = () => {
     dayFlows: Flow[];
     onAddFlow: () => void;
   }) => {
+    // 获取当天的收支数据
+    const dayTotals = dailyData[selectedDate] || { inSum: 0, outSum: 0, zeroSum: 0 };
+
     return (
       <Card containerStyle={styles.dayCard}>
         <View style={styles.dayCardContent}>
           <View style={styles.flowListHeader}>
             <Text style={styles.flowListTitle}>流水明细</Text>
+            {/* 收支信息缩略展示 */}
+            <View style={styles.flowSummary}>
+              <Text style={styles.flowSummaryText}>
+                {moment(selectedDate).format('MM-DD')} {' '}
+                <Text style={{ color: '#4caf50' }}>收:{dayTotals.inSum.toFixed(0)}</Text>
+                {' | '}
+                <Text style={{ color: '#f44336' }}>支:{dayTotals.outSum.toFixed(0)}</Text>
+                {' | '}
+                <Text style={{ color: '#757575' }}>不计:{dayTotals.zeroSum.toFixed(0)}</Text>
+              </Text>
+            </View>
+
             <Button
-                title=""
-                type="clear"
-                icon={
-                  <Icon
-                      name="add"
-                      type="material"
-                      color="#1976d2"
-                      size={20}
-                  />
-                }
-                onPress={() => {
-                  handleAddFlow();
-                }}
+              title=""
+              type="clear"
+              icon={
+                <Icon
+                  name="add"
+                  type="material"
+                  color="#1976d2"
+                  size={20}
+                />
+              }
+              onPress={() => {
+                handleAddFlow();
+              }}
             />
           </View>
 
           {dayDetailLoading ? (
-              <ActivityIndicator size="large" color="#1976d2" style={{ marginTop: 20 }} />
+            <ActivityIndicator size="large" color="#1976d2" style={{ marginTop: 20 }} />
           ) : (
-              <SwipeListView
-                  data={dayFlows}
-                  keyExtractor={(item) => item.id.toString()}
-                  renderItem={({ item }) => (
-                      <View style={styles.flowItem}>
-                        <View style={styles.flowItemHeader}>
-                          <Text style={styles.flowItemName}>{item.name}</Text>
-                          <Text
-                              style={[
-                                styles.flowItemMoney,
-                                { color: item.flowType === '支出' ? '#f44336' : item.flowType === '收入' ? '#4caf50' : '#111111' },
-                              ]}
-                          >
-                            {item.flowType === '支出' ? '-' : item.flowType === '收入' ? '+' : ''}
-                            {item.money.toFixed(2)}
-                          </Text>
-                        </View>
-                        <Text style={styles.flowItemType}>
-                          {item.flowType} | {item.industryType} | {item.payType}
-                        </Text>
-                        <Text style={styles.flowItemDesc} numberOfLines={1}>
-                          {item.description ? item.description : ''}
-                        </Text>
-                      </View>
-                  )}
-                  renderHiddenItem={({ item }) => (
-                      <View style={styles.rowBack}>
-                        <TouchableOpacity
-                            style={[styles.backRightBtn, styles.backRightBtnLeft]}
-                            onPress={() => {
-                              navigation.navigate('FlowForm', { currentFlow: item });
-                            }}
-                        >
-                          <Icon name="edit" type="material" color="white" size={20} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.backRightBtn, styles.backRightBtnRight]}
-                            onPress={() => {
-                              Alert.alert(
-                                  '确认删除',
-                                  '确定要删除这条流水记录吗？此操作不可恢复。',
-                                  [
-                                    { text: '取消', style: 'cancel' },
-                                    {
-                                      text: '删除',
-                                      style: 'destructive',
-                                      onPress: async () => {
-                                        try {
-                                          if (!currentBook) return;
-                                          await api.flow.delete(item.id, currentBook.bookId);
-                                          Alert.alert('成功', '流水已删除');
-                                          // 重新获取日期流水
-                                          fetchDayDetail(selectedDate);
-                                          // 刷新日历数据
-                                          fetchCalendarFlows();
-                                        } catch (error) {
-                                          console.error('删除流水失败', error);
-                                          Alert.alert('错误', '删除流水失败');
-                                        }
-                                      }
-                                    }
-                                  ]
-                              );
-                            }}
-                        >
-                          <Icon name="delete" type="material" color="white" size={20} />
-                        </TouchableOpacity>
-                      </View>
-                  )}
-                  leftOpenValue={0}
-                  rightOpenValue={-140}
-                  previewRowKey={'0'}
-                  previewOpenValue={-40}
-                  previewOpenDelay={3000}
-                  disableRightSwipe
-                  style={styles.flowList}
-                  contentContainerStyle={styles.flowListContent}
-              />
+            <SwipeListView
+              data={dayFlows}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <View style={styles.flowItem}>
+                  <View style={styles.flowItemHeader}>
+                    <Text style={styles.flowItemName}>{item.name}</Text>
+                    <Text
+                      style={[
+                        styles.flowItemMoney,
+                        { color: item.flowType === '支出' ? '#f44336' : item.flowType === '收入' ? '#4caf50' : '#111111' },
+                      ]}
+                    >
+                      {item.flowType === '支出' ? '-' : item.flowType === '收入' ? '+' : ''}
+                      {item.money.toFixed(2)}
+                    </Text>
+                  </View>
+                  <Text style={styles.flowItemType}>
+                    {item.flowType} | {item.industryType} | {item.payType}
+                  </Text>
+                  <Text style={styles.flowItemDesc} numberOfLines={1}>
+                    {item.description ? item.description : ''}
+                  </Text>
+                </View>
+              )}
+              renderHiddenItem={({ item }) => (
+                <View style={styles.rowBack}>
+                  <TouchableOpacity
+                    style={[styles.backRightBtn, styles.backRightBtnLeft]}
+                    onPress={() => {
+                      navigation.navigate('FlowForm', { currentFlow: item });
+                    }}
+                  >
+                    <Icon name="edit" type="material" color="white" size={20} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.backRightBtn, styles.backRightBtnRight]}
+                    onPress={() => {
+                      Alert.alert(
+                        '确认删除',
+                        '确定要删除这条流水记录吗？此操作不可恢复。',
+                        [
+                          { text: '取消', style: 'cancel' },
+                          {
+                            text: '删除',
+                            style: 'destructive',
+                            onPress: async () => {
+                              try {
+                                if (!currentBook) return;
+                                await api.flow.delete(item.id, currentBook.bookId);
+                                Alert.alert('成功', '流水已删除');
+                                // 重新获取日期流水
+                                fetchDayDetail(selectedDate);
+                                // 刷新日历数据
+                                fetchCalendarFlows();
+                              } catch (error) {
+                                console.error('删除流水失败', error);
+                                Alert.alert('错误', '删除流水失败');
+                              }
+                            }
+                          }
+                        ]
+                      );
+                    }}
+                  >
+                    <Icon name="delete" type="material" color="white" size={20} />
+                  </TouchableOpacity>
+                </View>
+              )}
+              leftOpenValue={0}
+              rightOpenValue={-140}
+              previewRowKey={'0'}
+              previewOpenValue={-40}
+              previewOpenDelay={3000}
+              disableRightSwipe
+              style={styles.flowList}
+              contentContainerStyle={styles.flowListContent}
+            />
           )}
         </View>
       </Card>
@@ -478,16 +493,16 @@ const CalendarScreen: React.FC = () => {
           {day.day}
         </Text>
 
-        {/* 收支信息 */}
-        {hasData && (
+        {/* 收支信息 - 仅在非选中状态显示 */}
+        {hasData && !isSelected && (
           <View style={styles.dayTotalsContainer}>
             {dayTotals.inSum > 0 && (
-              <Text style={[styles.dayIncomeText, { color: isSelected ? '#ffffff' : '#4caf50' }]}>
+              <Text style={[styles.dayIncomeText, { color: '#4caf50' }]}>
                 +{dayTotals.inSum.toFixed(0)}
               </Text>
             )}
             {dayTotals.outSum > 0 && (
-              <Text style={[styles.dayExpenseText, { color: isSelected ? '#ffffff' : '#f44336' }]}>
+              <Text style={[styles.dayExpenseText, { color: '#f44336' }]}>
                 -{dayTotals.outSum.toFixed(0)}
               </Text>
             )}
@@ -552,7 +567,6 @@ const CalendarScreen: React.FC = () => {
               )}
               dayComponent={({ date, state }) => (
                 <TouchableOpacity
-
                   onPress={() => {
                     handleDayPress(date);
                   }}
@@ -706,6 +720,7 @@ const styles = StyleSheet.create({
   flowListTitle: {
     fontSize: 16,
     fontWeight: 'bold',
+    flex: 0.3,
   },
   flowList: {
     maxHeight: 300,
@@ -747,16 +762,6 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
   },
-  monthSummaryCard: {
-    margin: 10,
-    marginTop: 0,
-    borderRadius: 0,
-    padding: 0,
-    borderTopWidth: 0,
-    shadowOpacity: 0,
-    elevation: 0,
-    backgroundColor: 'transparent',
-  },
   monthSummaryContent: {
     marginTop: 5,
     backgroundColor: 'white',
@@ -781,9 +786,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  calendarContainer: {
-    position: 'relative',
-  },
   calendarHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -794,18 +796,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#1976d2',
-  },
-  refreshIndicator: {
-    position: 'absolute',
-    top: 10,
-    alignSelf: 'center',
-  },
-  refreshTouchArea: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 50,
   },
   yearMonthOverlay: {
     width: '90%',
@@ -848,33 +838,6 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginTop: 10,
   },
-  swipeableContainer: {
-    backgroundColor: 'transparent',
-  },
-  swipeableChildrenContainer: {
-    backgroundColor: 'white',
-  },
-  swipeableActions: {
-    flexDirection: 'row',
-    width: 140,
-    height: '100%',
-  },
-  swipeableAction: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  editAction: {
-    backgroundColor: '#2196F3',
-  },
-  deleteAction: {
-    backgroundColor: '#F44336',
-  },
-  swipeableActionText: {
-    color: 'white',
-    fontSize: 12,
-    marginTop: 4,
-  },
   rowBack: {
     alignItems: 'center',
     backgroundColor: 'white',
@@ -904,11 +867,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 5,
     borderBottomRightRadius: 5,
   },
-  backTextWhite: {
-    color: '#FFF',
-    fontSize: 12,
-    marginTop: 4,
-  },
   dayTotalsContainer: {
     flexDirection: 'column',
     alignItems: 'center',
@@ -923,6 +881,14 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#f44336',
     fontWeight: '500',
+  },
+  flowSummary: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  flowSummaryText: {
+    fontSize: 12,
+    color: '#757575',
   },
 });
 
