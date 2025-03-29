@@ -556,51 +556,24 @@ const CalendarScreen: React.FC = () => {
     }
   }, [currentBook, duplicateCriteria]);
 
-  // 添加删除流水的函数
-  const handleDeleteDuplicateFlow = useCallback(async (flow: any) => {
-    if (!currentBook) return;
-
-    Alert.alert(
-      '确认删除',
-      `确定要删除这条流水记录吗？\n${flow.name} - ${flow.money}元`,
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '删除',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const response = await api.flow.delete(flow.id, currentBook.bookId);
-
-              if (response.c === 200) {
-                // 重新获取重复数据
-                await fetchDuplicateFlows();
-                // 刷新日历数据
-                await fetchCalendarFlows();
-
-                Alert.alert('成功', '流水已删除');
-              } else {
-                Alert.alert('错误', response.m || '删除流水失败');
-              }
-            } catch (error) {
-              console.error('删除流水失败', error);
-              Alert.alert('错误', '删除流水失败');
-            }
-          }
-        }
-      ]
-    );
-  }, [currentBook, fetchDuplicateFlows, fetchCalendarFlows]);
-
-  // 添加切换筛选条件的函数
+  // 添加切换筛选条件的函数 - 修改为切换后自动查询
   const toggleCriteria = useCallback((key: string) => {
-    setDuplicateCriteria(prev => ({
-      ...prev,
-      [key]: !prev[key as keyof typeof prev]
-    }));
-  }, []);
+    setDuplicateCriteria(prev => {
+      const newCriteria = {
+        ...prev,
+        [key]: !prev[key as keyof typeof prev]
+      };
 
-  // 添加渲染重复数据弹窗的函数
+      // 使用 setTimeout 避免状态更新冲突
+      setTimeout(() => {
+        fetchDuplicateFlows();
+      }, 0);
+
+      return newCriteria;
+    });
+  }, [fetchDuplicateFlows]);
+
+  // 添加渲染重复数据弹窗的函数 - 优化为精简风格
   const renderDuplicateModal = () => {
     return (
       <Overlay
@@ -611,13 +584,13 @@ const CalendarScreen: React.FC = () => {
         <View style={styles.duplicateContainer}>
           <View style={styles.duplicateHeader}>
             <Text style={styles.duplicateTitle}>重复数据查询</Text>
+            <Text style={styles.duplicateTitleComment}>日期和金额为默认条件</Text>
             <TouchableOpacity onPress={() => setShowDuplicateModal(false)}>
               <Icon name="close" type="material" size={24} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.duplicateCriteria}>
-            <Text style={styles.duplicateCriteriaTitle}>筛选条件:</Text>
             <View style={styles.duplicateCriteriaButtons}>
               <TouchableOpacity
                 style={[
@@ -655,7 +628,7 @@ const CalendarScreen: React.FC = () => {
                 <Text style={[
                   styles.criteriaButtonText,
                   duplicateCriteria.flowType && styles.criteriaButtonTextActive
-                ]}>流水类型</Text>
+                ]}>类型</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -668,7 +641,7 @@ const CalendarScreen: React.FC = () => {
                 <Text style={[
                   styles.criteriaButtonText,
                   duplicateCriteria.industryType && styles.criteriaButtonTextActive
-                ]}>支出/收入类型</Text>
+                ]}>分类</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -681,18 +654,12 @@ const CalendarScreen: React.FC = () => {
                 <Text style={[
                   styles.criteriaButtonText,
                   duplicateCriteria.payType && styles.criteriaButtonTextActive
-                ]}>支付/付款方式</Text>
+                ]}>支付方式</Text>
               </TouchableOpacity>
             </View>
-
-            <Button
-              title="查询"
-              onPress={fetchDuplicateFlows}
-              buttonStyle={styles.duplicateSearchButton}
-              loading={duplicateLoading}
-            />
           </View>
 
+          {/* 精简的内容区域 */}
           <ScrollView style={styles.duplicateContent}>
             {duplicateLoading ? (
               <ActivityIndicator size="large" color="#1976d2" style={{ marginTop: 20 }} />
@@ -705,51 +672,52 @@ const CalendarScreen: React.FC = () => {
 
                   {group.map((flow: any, flowIndex: number) => (
                     <View key={`flow-${flow.id}`} style={styles.duplicateItem}>
-                      <View style={styles.duplicateItemContent}>
-                        <Text style={styles.duplicateItemTitle}>{flow.name || '无名称'}</Text>
-                        <Text style={styles.duplicateItemMoney}>
+                      {/* 精简的流水信息展示 */}
+                      <View style={styles.duplicateItemHeader}>
+                        <Text style={styles.duplicateItemTitle} numberOfLines={1}>
+                          {flow.name || '无名称'}
+                        </Text>
+                        <Text style={[
+                          styles.duplicateItemMoney,
+                          { color: flow.flowType === '支出' ? '#f44336' : '#4caf50' }
+                        ]}>
                           {flow.flowType === '支出' ? '-' : '+'}
                           {flow.money.toFixed(2)}
                         </Text>
 
-                        <View style={styles.duplicateItemDetails}>
-                          <Text style={styles.duplicateItemDetail}>
-                            <Text style={styles.duplicateItemLabel}>日期: </Text>
-                            {flow.day}
-                          </Text>
-                          <Text style={styles.duplicateItemDetail}>
-                            <Text style={styles.duplicateItemLabel}>类型: </Text>
-                            {flow.flowType}
-                          </Text>
-                          <Text style={styles.duplicateItemDetail}>
-                            <Text style={styles.duplicateItemLabel}>分类: </Text>
-                            {flow.industryType}
-                          </Text>
-                          <Text style={styles.duplicateItemDetail}>
-                            <Text style={styles.duplicateItemLabel}>支付方式: </Text>
-                            {flow.payType}
-                          </Text>
-                          {flow.description && (
-                            <Text style={styles.duplicateItemDetail}>
-                              <Text style={styles.duplicateItemLabel}>备注: </Text>
-                              {flow.description}
-                            </Text>
-                          )}
-                          {flow.attribution && (
-                            <Text style={styles.duplicateItemDetail}>
-                              <Text style={styles.duplicateItemLabel}>归属: </Text>
-                              {flow.attribution}
-                            </Text>
-                          )}
-                        </View>
+                        <TouchableOpacity
+                          style={styles.duplicateItemDelete}
+                          onPress={() => handleDeleteDuplicateFlow(flow)}
+                        >
+                          <Icon name="delete" type="material" color="#F44336" size={18} />
+                        </TouchableOpacity>
                       </View>
 
-                      <TouchableOpacity
-                        style={styles.duplicateItemDelete}
-                        onPress={() => handleDeleteDuplicateFlow(flow)}
-                      >
-                        <Icon name="delete" type="material" color="#F44336" size={20} />
-                      </TouchableOpacity>
+                      {/* 精简的详细信息 */}
+                      <View style={styles.duplicateItemCompactDetails}>
+                        <Text style={styles.duplicateItemCompactDetail}>
+                          <Text style={styles.duplicateItemCompactLabel}>日期:</Text> {flow.day}
+                        </Text>
+                        <Text style={styles.duplicateItemCompactDetail}>
+                          <Text style={styles.duplicateItemCompactLabel}>类型:</Text> {flow.flowType}
+                        </Text>
+                        <Text style={styles.duplicateItemCompactDetail}>
+                          <Text style={styles.duplicateItemCompactLabel}>分类:</Text> {flow.industryType}
+                        </Text>
+                        <Text style={styles.duplicateItemCompactDetail}>
+                          <Text style={styles.duplicateItemCompactLabel}>支付:</Text> {flow.payType}
+                        </Text>
+                        {flow.description && (
+                          <Text style={styles.duplicateItemCompactDetail} numberOfLines={1}>
+                            <Text style={styles.duplicateItemCompactLabel}>备注:</Text> {flow.description}
+                          </Text>
+                        )}
+                        {flow.attribution && (
+                          <Text style={styles.duplicateItemCompactDetail}>
+                            <Text style={styles.duplicateItemCompactLabel}>归属:</Text> {flow.attribution}
+                          </Text>
+                        )}
+                      </View>
 
                       {flowIndex < group.length - 1 && (
                         <View style={styles.duplicateItemDivider} />
@@ -764,6 +732,42 @@ const CalendarScreen: React.FC = () => {
       </Overlay>
     );
   };
+
+  // 添加删除流水的函数
+  const handleDeleteDuplicateFlow = useCallback(async (flow: any) => {
+    if (!currentBook) return;
+
+    Alert.alert(
+      '确认删除',
+      `确定要删除这条流水记录吗？\n${flow.name} - ${flow.money}元`,
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '删除',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await api.flow.delete(flow.id, currentBook.bookId);
+
+              if (response.c === 200) {
+                // 重新获取重复数据
+                await fetchDuplicateFlows();
+                // 刷新日历数据
+                await fetchCalendarFlows();
+
+                Alert.alert('成功', '流水已删除');
+              } else {
+                Alert.alert('错误', response.m || '删除流水失败');
+              }
+            } catch (error) {
+              console.error('删除流水失败', error);
+              Alert.alert('错误', '删除流水失败');
+            }
+          }
+        }
+      ]
+    );
+  }, [currentBook, fetchDuplicateFlows, fetchCalendarFlows]);
 
   if (!currentBook) {
     return (
@@ -784,6 +788,7 @@ const CalendarScreen: React.FC = () => {
       <BookSelector />
 
       <View style={styles.headerActions}>
+        <View style={{ flex: 1 }} />
         <TouchableOpacity
           style={styles.deduplicateButton}
           onPress={() => {
@@ -797,7 +802,6 @@ const CalendarScreen: React.FC = () => {
       </View>
 
       <ScrollView
-        style={styles.scrollView}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1183,12 +1187,13 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   duplicateOverlay: {
-    maxWidth: '90%',
-    maxHeight: '80%',
+    maxWidth: '85%',
+    maxHeight: '75%',
     borderRadius: 10,
     padding: 0,
     overflow: 'hidden',
   },
+
   duplicateContainer: {
     flex: 1,
     width: '100%',
@@ -1197,16 +1202,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 15,
+    padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   duplicateTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   duplicateCriteria: {
-    padding: 15,
+    padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
@@ -1218,16 +1223,15 @@ const styles = StyleSheet.create({
   duplicateCriteriaButtons: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 15,
+    marginBottom: 0,
   },
   criteriaButton: {
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e0e0e0',
     marginRight: 8,
-    marginBottom: 8,
     backgroundColor: '#f5f5f5',
   },
   criteriaButtonActive: {
@@ -1241,13 +1245,9 @@ const styles = StyleSheet.create({
   criteriaButtonTextActive: {
     color: '#ffffff',
   },
-  duplicateSearchButton: {
-    backgroundColor: '#1976d2',
-    borderRadius: 5,
-  },
   duplicateContent: {
     flex: 1,
-    padding: 15,
+    padding: 10,
   },
   duplicateEmptyText: {
     textAlign: 'center',
@@ -1255,58 +1255,67 @@ const styles = StyleSheet.create({
     color: '#757575',
   },
   duplicateGroup: {
-    marginBottom: 20,
+    marginBottom: 15,
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
-    padding: 10,
+    padding: 8,
   },
   duplicateGroupTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 8,
     color: '#1976d2',
   },
   duplicateItem: {
     backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 8,
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 6,
   },
-  duplicateItemContent: {
-    flex: 1,
+  duplicateItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   duplicateItemTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
+    flex: 1,
   },
   duplicateItemMoney: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#f44336',
-    marginTop: 4,
-  },
-  duplicateItemDetails: {
-    marginTop: 8,
-  },
-  duplicateItemDetail: {
     fontSize: 14,
-    color: '#757575',
-    marginBottom: 2,
-  },
-  duplicateItemLabel: {
     fontWeight: 'bold',
-    color: '#424242',
+    marginLeft: 8,
   },
   duplicateItemDelete: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    padding: 5,
+    marginLeft: 8,
+    padding: 4,
+  },
+  duplicateItemCompactDetails: {
+    marginTop: 5,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  duplicateItemCompactDetail: {
+    fontSize: 12,
+    color: '#757575',
+    marginRight: 8,
+    marginBottom: 2,
+  },
+  duplicateTitleComment: {
+    fontSize: 12,
+    color: '#757575',
+    marginRight: 20,
+    marginTop: 5,
+  },
+  duplicateItemCompactLabel: {
+    fontWeight: 'bold',
+    color: '#424242',
   },
   duplicateItemDivider: {
     height: 1,
     backgroundColor: '#e0e0e0',
-    marginVertical: 8,
+    marginVertical: 6,
   },
 });
 
