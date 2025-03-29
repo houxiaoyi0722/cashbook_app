@@ -202,47 +202,18 @@ const CalendarScreen: React.FC = () => {
   // 日卡片组件 - 使用 React.memo 避免不必要的重新渲染
   const DayCard = React.memo(({
     selectedDate,
-    dailyData,
   }: {
     selectedDate: string;
-    dailyData: DailyData;
     dayFlows: Flow[];
     onAddFlow: () => void;
   }) => {
     return (
       <Card containerStyle={styles.dayCard}>
-        <Card.Title>{selectedDate}</Card.Title>
-
         <View style={styles.dayCardContent}>
-          <View style={styles.dayCardSummary}>
-            <View style={styles.dayCardItem}>
-              <Text style={styles.dayCardLabel}>收入</Text>
-              <Text style={[styles.dayCardValue, { color: '#4caf50' }]}>
-                {dailyData[selectedDate]?.inSum.toFixed(2) || '0.00'}
-              </Text>
-            </View>
-
-            <View style={styles.dayCardItem}>
-              <Text style={styles.dayCardLabel}>支出</Text>
-              <Text style={[styles.dayCardValue, { color: '#f44336' }]}>
-                {dailyData[selectedDate]?.outSum.toFixed(2) || '0.00'}
-              </Text>
-            </View>
-
-            <View style={styles.dayCardItem}>
-              <Text style={styles.dayCardLabel}>不计收支</Text>
-              <Text style={styles.dayCardValue}>
-                {dailyData[selectedDate]?.zeroSum.toFixed(2) || '0.00'}
-              </Text>
-            </View>
-          </View>
-
-          <Divider style={styles.divider} />
-
           <View style={styles.flowListHeader}>
             <Text style={styles.flowListTitle}>流水明细</Text>
             <Button
-                title="添加"
+                title=""
                 type="clear"
                 icon={
                   <Icon
@@ -347,8 +318,6 @@ const CalendarScreen: React.FC = () => {
     // 只有当这些属性变化时才重新渲染
     return (
       prevProps.selectedDate === nextProps.selectedDate &&
-      JSON.stringify(prevProps.dailyData[prevProps.selectedDate]) ===
-      JSON.stringify(nextProps.dailyData[nextProps.selectedDate]) &&
       prevProps.dayFlows.length === nextProps.dayFlows.length
     );
   });
@@ -450,11 +419,7 @@ const CalendarScreen: React.FC = () => {
         {/* 日期数字 */}
         <Text
           style={{
-            color: day.dateString === selectedDate
-              ? 'white'
-              : day.dateString === moment().format('YYYY-MM-DD')
-                ? '#1976d2'
-                : '#111111',
+            color: state === 'today' ? '#1976d2' : day.dateString === selectedDate ? 'white' : state === 'disabled' ? '#949494' : '#111111',
             fontWeight: day.dateString === moment().format('YYYY-MM-DD') ? 'bold' : 'normal'
           }}
         >
@@ -497,7 +462,8 @@ const CalendarScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <BookSelector />
-      <ScrollView style={styles.container}
+      <ScrollView
+                  style={styles.scrollView}
                   refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -586,16 +552,13 @@ const CalendarScreen: React.FC = () => {
             </View>
           </View>
         </Card>
-
-        {/* 使用 React.memo 包装的卡片组件 */}
-        <DayCard
-            selectedDate={dayCardData.selectedDate}
-            dailyData={dayCardData.dailyData}
-            dayFlows={dayCardData.dayFlows}
-            onAddFlow={handleAddFlow}
-        />
-        {renderYearMonthSelector()}
       </ScrollView>
+      <DayCard
+          selectedDate={dayCardData.selectedDate}
+          dayFlows={dayCardData.dayFlows}
+          onAddFlow={handleAddFlow}
+      />
+      {renderYearMonthSelector()}
     </View>
   );
 };
@@ -604,6 +567,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  scrollView: {
+    padding: 0,
+    margin: 0,
+    flexGrow: 0,
   },
   bookSelector: {
     flexDirection: 'row',
@@ -627,16 +595,17 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   dayCard: {
+    marginTop: 5,
     margin: 10,
     borderRadius: 10,
   },
   dayCardContent: {
-    marginTop: 10,
+    marginTop: 0,
   },
   dayCardSummary: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 15,
+    marginBottom: 0,
   },
   dayCardItem: {
     alignItems: 'center',
@@ -644,7 +613,7 @@ const styles = StyleSheet.create({
   dayCardLabel: {
     fontSize: 12,
     color: '#757575',
-    marginBottom: 5,
+    marginBottom: 0,
   },
   dayCardValue: {
     fontSize: 16,
@@ -659,7 +628,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   emptyCard: {
-    margin: 20,
+    marginTop: 5,
+    margin: 10,
     borderRadius: 10,
     padding: 20,
     alignItems: 'center',
@@ -675,35 +645,6 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginTop: 50,
-  },
-  overlay: {
-    width: '90%',
-    maxHeight: '80%',
-    borderRadius: 10,
-    padding: 15,
-  },
-  overlayHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  daySummary: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-  },
-  daySummaryItem: {
-    alignItems: 'center',
-  },
-  daySummaryLabel: {
-    fontSize: 12,
-    color: '#757575',
-    marginBottom: 5,
-  },
-  daySummaryValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   divider: {
     marginVertical: 10,
