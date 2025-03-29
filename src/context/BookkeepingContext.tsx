@@ -86,6 +86,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
           };
 
           calendarMarks[date] = {
+            selected: false,
             marked: true,
             dotColor: item.outSum > 1000 ? '#f44336' : item.outSum > 100 ? '#ec8808' : '#4caf50',
           };

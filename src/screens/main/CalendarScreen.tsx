@@ -71,7 +71,7 @@ const CalendarScreen: React.FC = () => {
   // 获取日历数据
   const fetchCalendarFlows = useCallback(async () => {
     if (!currentBook || !currentMonth) return;
-
+    console.log('fetchCalendarFlows',selectedDate)
     try {
       // 获取日历数据
       const { dailyData, calendarMarks } = await fetchCalendarData();
@@ -105,6 +105,7 @@ const CalendarScreen: React.FC = () => {
 
       // 获取选中日期的流水详情
       if (selectedDate) {
+        console.log('fetchDayDetail',selectedDate)
         await fetchDayDetail(selectedDate);
       }
     } catch (error) {
@@ -473,6 +474,7 @@ const CalendarScreen: React.FC = () => {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
+      console.log('onRefresh',selectedDate)
       await fetchCalendarFlows();
       // 不需要重新设置 selectedDate，因为 fetchCalendarFlows 已经处理了选中状态
     } catch (error) {
@@ -796,14 +798,23 @@ const CalendarScreen: React.FC = () => {
       <View style={styles.headerActions}>
         <View style={{ flex: 1 }} />
         <TouchableOpacity
-          style={styles.deduplicateButton}
+          style={styles.actionButton}
+          onPress={() => {
+          }}
+        >
+          <Icon name="account-balance" type="material" color="#1976d2" size={16} />
+          <Text style={styles.actionButtonText}>平账</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionButton}
           onPress={() => {
             setShowDuplicateModal(true);
             fetchDuplicateFlows();
           }}
         >
-          <Icon name="filter-alt" type="material" color="#1976d2" size={20} />
-          <Text style={styles.deduplicateButtonText}>去重</Text>
+          <Icon name="filter-alt" type="material" color="#1976d2" size={16} />
+          <Text style={styles.actionButtonText}>去重</Text>
         </TouchableOpacity>
       </View>
 
@@ -928,6 +939,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   calendarCard: {
+    marginTop: 0,
     margin: 10,
     padding: 0,
     borderRadius: 10,
@@ -1175,20 +1187,23 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 2,
     backgroundColor: '#f5f5f5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
-  deduplicateButton: {
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e0e0e0',
+    marginLeft: 8,
   },
-  deduplicateButtonText: {
+  actionButtonText: {
     fontSize: 12,
     color: '#1976d2',
     marginLeft: 4,
