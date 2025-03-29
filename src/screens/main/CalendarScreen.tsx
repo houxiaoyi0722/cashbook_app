@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
-  ScrollView
+  ScrollView,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Text, Card, Button, Icon, Overlay } from '@rneui/themed';
@@ -46,6 +46,16 @@ const CalendarScreen: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(moment().year());
   const [selectedMonth, setSelectedMonth] = useState(moment().month() + 1);
   const [refreshing, setRefreshing] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateGroups, setDuplicateGroups] = useState<any[]>([]);
+  const [duplicateLoading, setDuplicateLoading] = useState(false);
+  const [duplicateCriteria, setDuplicateCriteria] = useState({
+    name: true,
+    description: true,
+    industryType: true,
+    flowType: true,
+    payType: true
+  });
 
   // 使用 useRef 存储状态
   const dailyDataRef = useRef<DailyData>({});
@@ -522,6 +532,231 @@ const CalendarScreen: React.FC = () => {
     );
   }, [selectedDate, dailyData]);
 
+  // 添加查询重复数据的函数
+  const fetchDuplicateFlows = useCallback(async () => {
+    if (!currentBook) return;
+    try {
+      setDuplicateLoading(true);
+      const response = await api.flow.getDuplicateFlows({
+        bookId: currentBook.bookId,
+        criteria: duplicateCriteria
+      });
+      if (response.c === 0 && response.d) {
+        setDuplicateGroups(response.d.duplicateGroups || []);
+      } else {
+        Alert.alert('错误', response.m || '获取重复数据失败');
+      }
+    } catch (error) {
+      console.error('获取重复数据失败', error);
+      Alert.alert('错误', '获取重复数据失败');
+    } finally {
+      setDuplicateLoading(false);
+    }
+  }, [currentBook, duplicateCriteria]);
+
+  // 添加删除流水的函数
+  const handleDeleteDuplicateFlow = useCallback(async (flow: any) => {
+    if (!currentBook) return;
+
+    Alert.alert(
+      '确认删除',
+      `确定要删除这条流水记录吗？\n${flow.name} - ${flow.money}元`,
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '删除',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await api.flow.delete(flow.id, currentBook.bookId);
+
+              if (response.c === 0) {
+                // 重新获取重复数据
+                fetchDuplicateFlows();
+                // 刷新日历数据
+                fetchCalendarFlows();
+
+                Alert.alert('成功', '流水已删除');
+              } else {
+                Alert.alert('错误', response.m || '删除流水失败');
+              }
+            } catch (error) {
+              console.error('删除流水失败', error);
+              Alert.alert('错误', '删除流水失败');
+            }
+          }
+        }
+      ]
+    );
+  }, [currentBook, fetchDuplicateFlows, fetchCalendarFlows]);
+
+  // 添加切换筛选条件的函数
+  const toggleCriteria = useCallback((key: string) => {
+    setDuplicateCriteria(prev => ({
+      ...prev,
+      [key]: !prev[key as keyof typeof prev]
+    }));
+  }, []);
+
+  // 添加渲染重复数据弹窗的函数
+  const renderDuplicateModal = () => {
+    return (
+      <Overlay
+        isVisible={showDuplicateModal}
+        onBackdropPress={() => setShowDuplicateModal(false)}
+        overlayStyle={styles.duplicateOverlay}
+      >
+        <View style={styles.duplicateContainer}>
+          <View style={styles.duplicateHeader}>
+            <Text style={styles.duplicateTitle}>重复数据查询</Text>
+            <TouchableOpacity onPress={() => setShowDuplicateModal(false)}>
+              <Icon name="close" type="material" size={24} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.duplicateCriteria}>
+            <Text style={styles.duplicateCriteriaTitle}>筛选条件:</Text>
+            <View style={styles.duplicateCriteriaButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.criteriaButton,
+                  duplicateCriteria.name && styles.criteriaButtonActive
+                ]}
+                onPress={() => toggleCriteria('name')}
+              >
+                <Text style={[
+                  styles.criteriaButtonText,
+                  duplicateCriteria.name && styles.criteriaButtonTextActive
+                ]}>名称</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.criteriaButton,
+                  duplicateCriteria.description && styles.criteriaButtonActive
+                ]}
+                onPress={() => toggleCriteria('description')}
+              >
+                <Text style={[
+                  styles.criteriaButtonText,
+                  duplicateCriteria.description && styles.criteriaButtonTextActive
+                ]}>备注</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.criteriaButton,
+                  duplicateCriteria.flowType && styles.criteriaButtonActive
+                ]}
+                onPress={() => toggleCriteria('flowType')}
+              >
+                <Text style={[
+                  styles.criteriaButtonText,
+                  duplicateCriteria.flowType && styles.criteriaButtonTextActive
+                ]}>流水类型</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.criteriaButton,
+                  duplicateCriteria.industryType && styles.criteriaButtonActive
+                ]}
+                onPress={() => toggleCriteria('industryType')}
+              >
+                <Text style={[
+                  styles.criteriaButtonText,
+                  duplicateCriteria.industryType && styles.criteriaButtonTextActive
+                ]}>支出/收入类型</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.criteriaButton,
+                  duplicateCriteria.payType && styles.criteriaButtonActive
+                ]}
+                onPress={() => toggleCriteria('payType')}
+              >
+                <Text style={[
+                  styles.criteriaButtonText,
+                  duplicateCriteria.payType && styles.criteriaButtonTextActive
+                ]}>支付/付款方式</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Button
+              title="查询"
+              onPress={fetchDuplicateFlows}
+              buttonStyle={styles.duplicateSearchButton}
+              loading={duplicateLoading}
+            />
+          </View>
+
+          <ScrollView style={styles.duplicateContent}>
+            {duplicateLoading ? (
+              <ActivityIndicator size="large" color="#1976d2" style={{ marginTop: 20 }} />
+            ) : duplicateGroups.length === 0 ? (
+              <Text style={styles.duplicateEmptyText}>没有找到重复数据</Text>
+            ) : (
+              duplicateGroups.map((group, groupIndex) => (
+                <View key={`group-${groupIndex}`} style={styles.duplicateGroup}>
+                  <Text style={styles.duplicateGroupTitle}>重复组 {groupIndex + 1}</Text>
+
+                  {group.map((flow: any, flowIndex: number) => (
+                    <View key={`flow-${flow.id}`} style={styles.duplicateItem}>
+                      <View style={styles.duplicateItemContent}>
+                        <Text style={styles.duplicateItemTitle}>{flow.name || '无名称'}</Text>
+                        <Text style={styles.duplicateItemMoney}>
+                          {flow.flowType === '支出' ? '-' : '+'}
+                          {flow.money.toFixed(2)}
+                        </Text>
+
+                        <View style={styles.duplicateItemDetails}>
+                          <Text style={styles.duplicateItemDetail}>
+                            <Text style={styles.duplicateItemLabel}>日期: </Text>
+                            {flow.day}
+                          </Text>
+                          <Text style={styles.duplicateItemDetail}>
+                            <Text style={styles.duplicateItemLabel}>类型: </Text>
+                            {flow.flowType}
+                          </Text>
+                          <Text style={styles.duplicateItemDetail}>
+                            <Text style={styles.duplicateItemLabel}>分类: </Text>
+                            {flow.industryType}
+                          </Text>
+                          <Text style={styles.duplicateItemDetail}>
+                            <Text style={styles.duplicateItemLabel}>支付方式: </Text>
+                            {flow.payType}
+                          </Text>
+                          {flow.description && (
+                            <Text style={styles.duplicateItemDetail}>
+                              <Text style={styles.duplicateItemLabel}>备注: </Text>
+                              {flow.description}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.duplicateItemDelete}
+                        onPress={() => handleDeleteDuplicateFlow(flow)}
+                      >
+                        <Icon name="delete" type="material" color="#F44336" size={20} />
+                      </TouchableOpacity>
+
+                      {flowIndex < group.length - 1 && (
+                        <View style={styles.duplicateItemDivider} />
+                      )}
+                    </View>
+                  ))}
+                </View>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      </Overlay>
+    );
+  };
+
   if (!currentBook) {
     return (
         <View style={styles.container}>
@@ -631,6 +866,7 @@ const CalendarScreen: React.FC = () => {
           onAddFlow={handleAddFlow}
       />
       {renderYearMonthSelector()}
+      {renderDuplicateModal()}
     </View>
   );
 };
@@ -899,6 +1135,155 @@ const styles = StyleSheet.create({
   flowSummaryText: {
     fontSize: 12,
     color: '#757575',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#f5f5f5',
+  },
+  deduplicateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  deduplicateButtonText: {
+    fontSize: 12,
+    color: '#1976d2',
+    marginLeft: 4,
+  },
+  duplicateOverlay: {
+    width: '90%',
+    maxHeight: '80%',
+    borderRadius: 10,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  duplicateContainer: {
+    flex: 1,
+    width: '100%',
+  },
+  duplicateHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  duplicateTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  duplicateCriteria: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  duplicateCriteriaTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  duplicateCriteriaButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 15,
+  },
+  criteriaButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    marginRight: 8,
+    marginBottom: 8,
+    backgroundColor: '#f5f5f5',
+  },
+  criteriaButtonActive: {
+    backgroundColor: '#1976d2',
+    borderColor: '#1976d2',
+  },
+  criteriaButtonText: {
+    fontSize: 12,
+    color: '#757575',
+  },
+  criteriaButtonTextActive: {
+    color: '#ffffff',
+  },
+  duplicateSearchButton: {
+    backgroundColor: '#1976d2',
+    borderRadius: 5,
+  },
+  duplicateContent: {
+    flex: 1,
+    padding: 15,
+  },
+  duplicateEmptyText: {
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#757575',
+  },
+  duplicateGroup: {
+    marginBottom: 20,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 10,
+  },
+  duplicateGroupTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#1976d2',
+  },
+  duplicateItem: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+  },
+  duplicateItemContent: {
+    flex: 1,
+  },
+  duplicateItemTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  duplicateItemMoney: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#f44336',
+    marginTop: 4,
+  },
+  duplicateItemDetails: {
+    marginTop: 8,
+  },
+  duplicateItemDetail: {
+    fontSize: 14,
+    color: '#757575',
+    marginBottom: 2,
+  },
+  duplicateItemLabel: {
+    fontWeight: 'bold',
+    color: '#424242',
+  },
+  duplicateItemDelete: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    padding: 5,
+  },
+  duplicateItemDivider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 8,
   },
 });
 

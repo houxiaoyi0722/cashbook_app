@@ -261,6 +261,27 @@ class Api {
       return response.data;
     },
 
+    // 获取重复流水
+    getDuplicateFlows: async (params: {
+      bookId: string;
+      criteria: {
+        name: boolean;
+        description: boolean;
+        industryType: boolean;
+        flowType: boolean;
+        payType: boolean;
+      }
+    }): Promise<ApiResponse<{
+      duplicateGroups: Flow[][];
+      totalGroups: number;
+      totalDuplicates: number;
+    }>> => {
+      if (!this.instance) {throw new Error('API实例未初始化');}
+      console.log(`🔍 Fetching duplicate flows with criteria:`, params);
+      const response = await this.instance.post(`/api/entry/flow/deduplication/autos`, params);
+      return response.data;
+    },
+
   };
 
   // 分析相关API
