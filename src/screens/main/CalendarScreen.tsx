@@ -101,12 +101,11 @@ const CalendarScreen: React.FC = () => {
       console.error('获取流水失败', error instanceof Error ? error.message : String(error));
       Alert.alert('错误', '获取流水失败');
     }
-  }, [currentBook, currentMonth, selectedDate, fetchCalendarData]);
+  }, [currentBook, currentMonth, fetchCalendarData]);
 
   // 获取某天的流水详情
   const fetchDayDetail = useCallback(async (date: string) => {
     if (!currentBook) return;
-
     try {
       setDayDetailLoading(true);
       const flows = await fetchDayFlows(date);
@@ -172,14 +171,12 @@ const CalendarScreen: React.FC = () => {
       // 如果点击了其他月份的日期，先切换月份
       setCurrentMonth(clickedMonth);
     }
-
     // 避免重复选择同一天
     if (selectedDate === day.dateString) {
       // 即使是同一天，也要获取流水详情，确保数据是最新的
       await fetchDayDetail(day.dateString);
       return;
     }
-
     // 创建新的标记对象，而不是直接修改现有对象
     const newMarks = {...calendarMarks};
 
