@@ -532,15 +532,33 @@ const CalendarScreen: React.FC = () => {
     );
   }, [selectedDate, dailyData]);
 
-  // 添加查询重复数据的函数
-  const fetchDuplicateFlows = useCallback(async () => {
+  // 修改切换筛选条件的函数，解决状态更新延迟问题
+  const toggleCriteria = useCallback((key: string) => {
+    // 创建新的筛选条件对象
+    const newCriteria = {
+      ...duplicateCriteria,
+      [key]: !duplicateCriteria[key as keyof typeof duplicateCriteria]
+    };
+
+    // 先更新状态
+    setDuplicateCriteria(newCriteria);
+
+    // 使用新的筛选条件直接调用查询函数，而不是依赖状态更新
+    setTimeout(() => {
+      // 使用新的筛选条件对象，而不是依赖更新后的状态
+      fetchDuplicateFlowsWithCriteria(newCriteria);
+    }, 0);
+  }, [duplicateCriteria]);
+
+  // 添加一个新函数，接受筛选条件作为参数
+  const fetchDuplicateFlowsWithCriteria = useCallback(async (criteria: typeof duplicateCriteria) => {
     if (!currentBook) return;
     try {
       setDuplicateLoading(true);
 
       const response = await api.flow.getDuplicateFlows({
         bookId: currentBook.bookId,
-        criteria: duplicateCriteria
+        criteria: criteria
       });
 
       if (response.c === 200 && response.d) {
@@ -554,24 +572,12 @@ const CalendarScreen: React.FC = () => {
     } finally {
       setDuplicateLoading(false);
     }
-  }, [currentBook, duplicateCriteria]);
+  }, [currentBook]);
 
-  // 添加切换筛选条件的函数 - 修改为切换后自动查询
-  const toggleCriteria = useCallback((key: string) => {
-    setDuplicateCriteria(prev => {
-      const newCriteria = {
-        ...prev,
-        [key]: !prev[key as keyof typeof prev]
-      };
-
-      // 使用 setTimeout 避免状态更新冲突
-      setTimeout(() => {
-        fetchDuplicateFlows();
-      }, 0);
-
-      return newCriteria;
-    });
-  }, [fetchDuplicateFlows]);
+  // 修改原来的 fetchDuplicateFlows 函数，使用新函数
+  const fetchDuplicateFlows = useCallback(async () => {
+    await fetchDuplicateFlowsWithCriteria(duplicateCriteria);
+  }, [fetchDuplicateFlowsWithCriteria, duplicateCriteria]);
 
   // 添加渲染重复数据弹窗的函数 - 优化为精简风格
   const renderDuplicateModal = () => {
@@ -802,6 +808,7 @@ const CalendarScreen: React.FC = () => {
       </View>
 
       <ScrollView
+        style={styles.scrollView}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
