@@ -784,7 +784,6 @@ const CalendarScreen: React.FC = () => {
       <BookSelector />
 
       <View style={styles.headerActions}>
-        <View style={{ flex: 1 }} />
         <TouchableOpacity
           style={styles.deduplicateButton}
           onPress={() => {
@@ -798,6 +797,7 @@ const CalendarScreen: React.FC = () => {
       </View>
 
       <ScrollView
+        style={styles.scrollView}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1183,7 +1183,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   duplicateOverlay: {
-    width: '90%',
+    maxWidth: '90%',
     maxHeight: '80%',
     borderRadius: 10,
     padding: 0,
