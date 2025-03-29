@@ -1117,7 +1117,7 @@ const StatisticsScreen: React.FC = () => {
     if (monthData.length === 0) {
       return (
         <Card containerStyle={styles.card}>
-          <Card.Title>{year + '月度趋势'}</Card.Title>
+          <Card.Title>{year + '收支趋势'}</Card.Title>
           <Text style={styles.emptyText}>暂无数据</Text>
         </Card>
       );
@@ -1205,7 +1205,7 @@ const StatisticsScreen: React.FC = () => {
 
     return (
       <Card containerStyle={styles.card}>
-        <Card.Title>{year + '月度趋势'}</Card.Title>
+        <Card.Title>{year + '收支趋势'}</Card.Title>
 
         <View style={styles.chartContainer}>
           {renderEchartsWithWebView(option, 300)}
