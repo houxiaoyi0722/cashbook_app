@@ -21,6 +21,7 @@ import moment from 'moment';
 import {eventBus} from '../../navigation';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import api from '../../services/api';
+import {DayState} from "react-native-calendars/src/types";
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -41,7 +42,6 @@ const CalendarScreen: React.FC = () => {
   const [dailyData, setDailyData] = useState<DailyData>({});
   const [calendarMarks, setCalendarMarks] = useState<CalendarMark>({});
   const [dayFlows, setDayFlows] = useState<Flow[]>([]);
-  const [showDayDetail, setShowDayDetail] = useState(false);
   const [dayDetailLoading, setDayDetailLoading] = useState(false);
   const [showYearMonthSelector, setShowYearMonthSelector] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -192,7 +192,6 @@ const CalendarScreen: React.FC = () => {
 
   // 查看日详情
   const handleViewDayDetail = useCallback(async () => {
-    setShowDayDetail(true);
     await fetchDayDetail(selectedDate);
   }, [fetchDayDetail, selectedDate]);
 
@@ -200,166 +199,14 @@ const CalendarScreen: React.FC = () => {
   const handleAddFlow = useCallback(() => {
     navigation.navigate('FlowForm', { date: selectedDate });
   }, [navigation, selectedDate]);
-
-  // 渲染日详情
-  const renderDayDetail = useCallback(() => (
-    <Overlay
-      isVisible={showDayDetail}
-      onBackdropPress={() => setShowDayDetail(false)}
-      overlayStyle={styles.overlay}
-    >
-      <View style={styles.overlayHeader}>
-        <Text h4>{selectedDate}</Text>
-        <TouchableOpacity onPress={() => setShowDayDetail(false)}>
-          <Icon
-            name="close"
-            type="material"
-            size={24}
-            color="#757575"
-          />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.daySummary}>
-        <View style={styles.daySummaryItem}>
-          <Text style={styles.daySummaryLabel}>收入</Text>
-          <Text style={[styles.daySummaryValue, { color: '#4caf50' }]}>
-            {dailyData[selectedDate]?.inSum.toFixed(2) || '0.00'}
-          </Text>
-        </View>
-        <View style={styles.daySummaryItem}>
-          <Text style={styles.daySummaryLabel}>支出</Text>
-          <Text style={[styles.daySummaryValue, { color: '#f44336' }]}>
-            {dailyData[selectedDate]?.outSum.toFixed(2) || '0.00'}
-          </Text>
-        </View>
-        <View style={styles.daySummaryItem}>
-          <Text style={styles.daySummaryLabel}>不计收支</Text>
-          <Text style={styles.daySummaryValue}>
-            {dailyData[selectedDate]?.zeroSum.toFixed(2) || '0.00'}
-          </Text>
-        </View>
-      </View>
-
-      <Divider style={styles.divider} />
-
-      <View style={styles.flowListHeader}>
-        <Text style={styles.flowListTitle}>流水明细</Text>
-        <Button
-          title="添加"
-          type="clear"
-          icon={
-            <Icon
-              name="add"
-              type="material"
-              color="#1976d2"
-              size={20}
-            />
-          }
-          onPress={() => {
-            setShowDayDetail(false);
-            handleAddFlow();
-          }}
-        />
-      </View>
-
-      {dayDetailLoading ? (
-        <ActivityIndicator size="large" color="#1976d2" style={{ marginTop: 20 }} />
-      ) : (
-        <SwipeListView
-          data={dayFlows}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.flowItem}>
-              <View style={styles.flowItemHeader}>
-                <Text style={styles.flowItemName}>{item.name}</Text>
-                <Text
-                  style={[
-                    styles.flowItemMoney,
-                    { color: item.flowType === '支出' ? '#f44336' : item.flowType === '收入' ? '#4caf50' : '#111111' },
-                  ]}
-                >
-                  {item.flowType === '支出' ? '-' : item.flowType === '收入' ? '+' : ''}
-                  {item.money.toFixed(2)}
-                </Text>
-              </View>
-              <Text style={styles.flowItemType}>
-                {item.flowType} | {item.industryType} | {item.payType}
-              </Text>
-              <Text style={styles.flowItemDesc} numberOfLines={1}>
-                {item.description ? item.description : ''}
-              </Text>
-            </View>
-          )}
-          renderHiddenItem={({ item }) => (
-            <View style={styles.rowBack}>
-              <TouchableOpacity
-                style={[styles.backRightBtn, styles.backRightBtnLeft]}
-                onPress={() => {
-                  setShowDayDetail(false);
-                  navigation.navigate('FlowForm', { currentFlow: item });
-                }}
-              >
-                <Icon name="edit" type="material" color="white" size={20} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.backRightBtn, styles.backRightBtnRight]}
-                onPress={() => {
-                  Alert.alert(
-                    '确认删除',
-                    '确定要删除这条流水记录吗？此操作不可恢复。',
-                    [
-                      { text: '取消', style: 'cancel' },
-                      {
-                        text: '删除',
-                        style: 'destructive',
-                        onPress: async () => {
-                          try {
-                            if (!currentBook) return;
-                            await api.flow.delete(item.id, currentBook.bookId);
-                            Alert.alert('成功', '流水已删除');
-                            // 重新获取日期流水
-                            fetchDayDetail(selectedDate);
-                            // 刷新日历数据
-                            fetchCalendarFlows();
-                          } catch (error) {
-                            console.error('删除流水失败', error);
-                            Alert.alert('错误', '删除流水失败');
-                          }
-                        }
-                      }
-                    ]
-                  );
-                }}
-              >
-                <Icon name="delete" type="material" color="white" size={20} />
-              </TouchableOpacity>
-            </View>
-          )}
-          leftOpenValue={0}
-          rightOpenValue={-140}
-          previewRowKey={'0'}
-          previewOpenValue={-40}
-          previewOpenDelay={3000}
-          disableRightSwipe
-          style={styles.flowList}
-          contentContainerStyle={styles.flowListContent}
-        />
-      )}
-    </Overlay>
-  ), [showDayDetail, selectedDate, dailyData, dayDetailLoading, dayFlows, handleAddFlow, navigation, currentBook, fetchDayDetail, fetchCalendarFlows]);
-
   // 日卡片组件 - 使用 React.memo 避免不必要的重新渲染
   const DayCard = React.memo(({
     selectedDate,
     dailyData,
-    onViewDetail,
-    onAddFlow
   }: {
     selectedDate: string;
     dailyData: DailyData;
     dayFlows: Flow[];
-    onViewDetail: () => void;
     onAddFlow: () => void;
   }) => {
     return (
@@ -390,19 +237,109 @@ const CalendarScreen: React.FC = () => {
             </View>
           </View>
 
-          <View style={styles.dayCardActions}>
+          <Divider style={styles.divider} />
+
+          <View style={styles.flowListHeader}>
+            <Text style={styles.flowListTitle}>流水明细</Text>
             <Button
-              title="查看详情"
-              type="outline"
-              onPress={onViewDetail}
-              containerStyle={styles.dayCardButton}
-            />
-            <Button
-              title="添加流水"
-              onPress={onAddFlow}
-              containerStyle={styles.dayCardButton}
+                title="添加"
+                type="clear"
+                icon={
+                  <Icon
+                      name="add"
+                      type="material"
+                      color="#1976d2"
+                      size={20}
+                  />
+                }
+                onPress={() => {
+                  handleAddFlow();
+                }}
             />
           </View>
+
+          {dayDetailLoading ? (
+              <ActivityIndicator size="large" color="#1976d2" style={{ marginTop: 20 }} />
+          ) : (
+              <SwipeListView
+                  data={dayFlows}
+                  keyExtractor={(item) => item.id.toString()}
+                  renderItem={({ item }) => (
+                      <View style={styles.flowItem}>
+                        <View style={styles.flowItemHeader}>
+                          <Text style={styles.flowItemName}>{item.name}</Text>
+                          <Text
+                              style={[
+                                styles.flowItemMoney,
+                                { color: item.flowType === '支出' ? '#f44336' : item.flowType === '收入' ? '#4caf50' : '#111111' },
+                              ]}
+                          >
+                            {item.flowType === '支出' ? '-' : item.flowType === '收入' ? '+' : ''}
+                            {item.money.toFixed(2)}
+                          </Text>
+                        </View>
+                        <Text style={styles.flowItemType}>
+                          {item.flowType} | {item.industryType} | {item.payType}
+                        </Text>
+                        <Text style={styles.flowItemDesc} numberOfLines={1}>
+                          {item.description ? item.description : ''}
+                        </Text>
+                      </View>
+                  )}
+                  renderHiddenItem={({ item }) => (
+                      <View style={styles.rowBack}>
+                        <TouchableOpacity
+                            style={[styles.backRightBtn, styles.backRightBtnLeft]}
+                            onPress={() => {
+                              navigation.navigate('FlowForm', { currentFlow: item });
+                            }}
+                        >
+                          <Icon name="edit" type="material" color="white" size={20} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.backRightBtn, styles.backRightBtnRight]}
+                            onPress={() => {
+                              Alert.alert(
+                                  '确认删除',
+                                  '确定要删除这条流水记录吗？此操作不可恢复。',
+                                  [
+                                    { text: '取消', style: 'cancel' },
+                                    {
+                                      text: '删除',
+                                      style: 'destructive',
+                                      onPress: async () => {
+                                        try {
+                                          if (!currentBook) return;
+                                          await api.flow.delete(item.id, currentBook.bookId);
+                                          Alert.alert('成功', '流水已删除');
+                                          // 重新获取日期流水
+                                          fetchDayDetail(selectedDate);
+                                          // 刷新日历数据
+                                          fetchCalendarFlows();
+                                        } catch (error) {
+                                          console.error('删除流水失败', error);
+                                          Alert.alert('错误', '删除流水失败');
+                                        }
+                                      }
+                                    }
+                                  ]
+                              );
+                            }}
+                        >
+                          <Icon name="delete" type="material" color="white" size={20} />
+                        </TouchableOpacity>
+                      </View>
+                  )}
+                  leftOpenValue={0}
+                  rightOpenValue={-140}
+                  previewRowKey={'0'}
+                  previewOpenValue={-40}
+                  previewOpenDelay={3000}
+                  disableRightSwipe
+                  style={styles.flowList}
+                  contentContainerStyle={styles.flowListContent}
+              />
+          )}
         </View>
       </Card>
     );
@@ -503,7 +440,7 @@ const CalendarScreen: React.FC = () => {
   }, [fetchCalendarFlows]);
 
   // 自定义日期单元格渲染函数
-  const renderCustomDay = (day: any, item: any) => {
+  const renderCustomDay = (day: any, state: DayState | undefined) => {
     // 获取当天的收支数据
     const dayTotals = dailyData[day.dateString] || { income: 0, expense: 0 };
     const hasData = dayTotals.inSum > 0 || dayTotals.outSum > 0;
@@ -655,11 +592,8 @@ const CalendarScreen: React.FC = () => {
             selectedDate={dayCardData.selectedDate}
             dailyData={dayCardData.dailyData}
             dayFlows={dayCardData.dayFlows}
-            onViewDetail={handleViewDayDetail}
             onAddFlow={handleAddFlow}
         />
-
-        {renderDayDetail()}
         {renderYearMonthSelector()}
       </ScrollView>
     </View>
