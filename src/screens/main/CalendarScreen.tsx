@@ -71,7 +71,7 @@ const CalendarScreen: React.FC = () => {
   // 获取日历数据
   const fetchCalendarFlows = useCallback(async () => {
     if (!currentBook || !currentMonth) return;
-    console.log('fetchCalendarFlows',selectedDate)
+
     try {
       // 获取日历数据
       const { dailyData, calendarMarks } = await fetchCalendarData();
@@ -82,10 +82,13 @@ const CalendarScreen: React.FC = () => {
       // 创建新的标记对象
       const updatedMarks = { ...calendarMarks };
 
+      // 获取当前最新的选中日期
+      const currentSelectedDate = selectedDate;
+
       // 确保当前选中日期的样式正确
-      if (selectedDate) {
-        updatedMarks[selectedDate] = {
-          ...(updatedMarks[selectedDate] || {}),
+      if (currentSelectedDate) {
+        updatedMarks[currentSelectedDate] = {
+          ...(updatedMarks[currentSelectedDate] || {}),
           selected: true,
           customStyles: {
             container: {
@@ -104,15 +107,14 @@ const CalendarScreen: React.FC = () => {
       setDailyData(dailyData);
 
       // 获取选中日期的流水详情
-      if (selectedDate) {
-        console.log('fetchDayDetail',selectedDate)
-        await fetchDayDetail(selectedDate);
+      if (currentSelectedDate) {
+        await fetchDayDetail(currentSelectedDate);
       }
     } catch (error) {
       console.error('获取流水失败', error instanceof Error ? error.message : String(error));
       Alert.alert('错误', '获取流水失败');
     }
-  }, [currentBook, currentMonth, fetchCalendarData]);
+  }, [currentBook, currentMonth, fetchCalendarData, selectedDate]);
 
   // 获取某天的流水详情
   const fetchDayDetail = useCallback(async (date: string) => {
@@ -474,9 +476,8 @@ const CalendarScreen: React.FC = () => {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      console.log('onRefresh',selectedDate)
+      // 使用当前最新的选中日期
       await fetchCalendarFlows();
-      // 不需要重新设置 selectedDate，因为 fetchCalendarFlows 已经处理了选中状态
     } catch (error) {
       console.error('刷新失败', error instanceof Error ? error.message : String(error));
     } finally {
