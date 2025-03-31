@@ -282,6 +282,52 @@ class Api {
       return response.data;
     },
 
+    // 获取平账候选数据
+    getBalanceCandidates: async (params: {
+      bookId: string;
+    }): Promise<ApiResponse<Array<{
+      out: Flow;
+      in: Flow[];
+    }>>> => {
+      if (!this.instance) {throw new Error('API实例未初始化');}
+      console.log(`🔍 Fetching balance candidates for book: ${params.bookId}`);
+      const response = await this.instance.post(`/api/entry/flow/condidate/autos`, params);
+      return response.data;
+    },
+    
+    // 确认平账
+    confirmBalance: async (params: {
+      outId: number;
+      inIds: number[];
+      bookId: string;
+    }): Promise<ApiResponse<any>> => {
+      if (!this.instance) {throw new Error('API实例未初始化');}
+      console.log(`✅ Confirming balance for outId: ${params.outId}, inIds: ${params.inIds.join(',')}`);
+      const response = await this.instance.post(`/api/entry/flow/condidate/confirm`, params);
+      return response.data;
+    },
+    
+    // 忽略平账项
+    ignoreBalanceItem: async (params: {
+      id: number;
+      bookId: string;
+    }): Promise<ApiResponse<Flow>> => {
+      if (!this.instance) {throw new Error('API实例未初始化');}
+      console.log(`🚫 Ignoring balance item: ${params.id}`);
+      const response = await this.instance.post(`/api/entry/flow/condidate/ignore`, params);
+      return response.data;
+    },
+    
+    // 忽略所有平账项
+    ignoreAllBalanceItems: async (params: {
+      bookId: string;
+      ids: number[];
+    }): Promise<ApiResponse<number>> => {
+      if (!this.instance) {throw new Error('API实例未初始化');}
+      console.log(`🚫 Ignoring all balance items: ${params.ids.join(',')}`);
+      const response = await this.instance.post(`/api/entry/flow/condidate/ignoreAll`, params);
+      return response.data;
+    },
   };
 
   // 分析相关API
