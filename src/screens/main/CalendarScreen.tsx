@@ -688,9 +688,9 @@ const CalendarScreen: React.FC = () => {
                         </Text>
                         <Text style={[
                           styles.duplicateItemMoney,
-                          { color: flow.flowType === '支出' ? '#f44336' : '#4caf50' }
+                          {color: flow.flowType === '支出' ? '#f44336' : flow.flowType === '收入' ? '#4caf50' : '#111111'}
                         ]}>
-                          {flow.flowType === '支出' ? '-' : '+'}
+                          {flow.flowType === '支出' ? '-' : flow.flowType === '收入' ? '+' : ''}
                           {flow.money.toFixed(2)}
                         </Text>
 
