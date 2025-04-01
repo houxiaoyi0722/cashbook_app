@@ -75,7 +75,7 @@ Cashbook App 是 [Cashbook](https://github.com/dingdangdog/cashbook) 的移动�
 
 ![日历视图](screenshots/calendar.png)
 ![统计分析](screenshots/statistics.png)
-![账本管理](screenshots/books.png)
+![统计分析](screenshots/statistics2.png)
 
 ---
 
