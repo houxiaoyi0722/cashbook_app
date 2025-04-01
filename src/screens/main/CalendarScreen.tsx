@@ -72,7 +72,6 @@ const CalendarScreen: React.FC = () => {
   const [showBalanceModal, setShowBalanceModal] = useState(false);
   const [balanceCandidates, setBalanceCandidates] = useState<any[]>([]);
   const [balanceLoading, setBalanceLoading] = useState(false);
-  const [selectedBalanceItems, setSelectedBalanceItems] = useState<{[key: number]: number[]}>({});
 
   // 获取日历数据
   const fetchCalendarFlows = useCallback(async () => {
@@ -796,15 +795,6 @@ const CalendarScreen: React.FC = () => {
 
       if (response.c === 200 && response.d) {
         setBalanceCandidates(response.d || []);
-
-        // 初始化选中状态，默认全选
-        const initialSelected: {[key: number]: number[]} = {};
-        response.d.forEach(item => {
-          if (item.out && item.in) {
-            initialSelected[item.out.id] = [item.in.id];
-          }
-        });
-        setSelectedBalanceItems(initialSelected);
       } else {
         Alert.alert('错误', response.m || '获取平账数据失败');
       }
@@ -830,14 +820,6 @@ const CalendarScreen: React.FC = () => {
       if (response.c === 200) {
         // 从候选列表中移除已确认的项
         setBalanceCandidates(prev => prev.filter(item => item.out.id !== outId));
-
-        // 从选中状态中移除
-        setSelectedBalanceItems(prev => {
-          const newState = {...prev};
-          delete newState[outId];
-          return newState;
-        });
-
         // 刷新日历数据
         fetchCalendarFlows();
 
@@ -882,26 +864,6 @@ const CalendarScreen: React.FC = () => {
                       return item.in.id !== id;
                     }
                   });
-                });
-
-                // 从选中状态中移除
-                setSelectedBalanceItems(prev => {
-                  const newState = {...prev};
-
-                  // 如果是支出项
-                  if (newState[id]) {
-                    delete newState[id];
-                  }
-
-                  // 如果是收入项
-                  Object.keys(newState).forEach(outId => {
-                    newState[Number(outId)] = newState[Number(outId)].filter(inId => inId !== id);
-                    if (newState[Number(outId)].length === 0) {
-                      delete newState[Number(outId)];
-                    }
-                  });
-
-                  return newState;
                 });
 
                 Alert.alert('成功', '已忽略平账项');
@@ -951,8 +913,6 @@ const CalendarScreen: React.FC = () => {
               if (response.c === 200) {
                 // 清空候选列表和选中状态
                 setBalanceCandidates([]);
-                setSelectedBalanceItems({});
-
                 Alert.alert('成功', `已忽略${response.d || 0}条平账记录`);
               } else {
                 Alert.alert('错误', response.m || '忽略所有平账项失败');
@@ -967,30 +927,7 @@ const CalendarScreen: React.FC = () => {
     );
   }, [currentBook, balanceCandidates]);
 
-  // 切换选中状态
-  const toggleBalanceItemSelection = useCallback((outId: number, inId: number) => {
-    setSelectedBalanceItems(prev => {
-      const newState = {...prev};
-
-      if (!newState[outId]) {
-        newState[outId] = [inId];
-      } else {
-        const index = newState[outId].indexOf(inId);
-        if (index === -1) {
-          newState[outId] = [...newState[outId], inId];
-        } else {
-          newState[outId] = newState[outId].filter(id => id !== inId);
-          if (newState[outId].length === 0) {
-            delete newState[outId];
-          }
-        }
-      }
-
-      return newState;
-    });
-  }, []);
-
-  // 渲染平账弹窗
+  // 渲染平账弹窗 - 优化版本
   const renderBalanceModal = () => {
     return (
       <Overlay
@@ -1001,6 +938,16 @@ const CalendarScreen: React.FC = () => {
         <View style={styles.balanceContainer}>
           <View style={styles.balanceHeader}>
             <Text style={styles.balanceTitle}>平账管理</Text>
+
+            {balanceCandidates.length > 0 && (
+              <TouchableOpacity
+                style={styles.balanceIgnoreAllButton}
+                onPress={handleIgnoreAllBalanceItems}
+              >
+                <Text style={styles.balanceIgnoreAllText}>忽略全部</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity onPress={() => setShowBalanceModal(false)}>
               <Icon name="close" type="material" size={24} />
             </TouchableOpacity>
@@ -1012,195 +959,107 @@ const CalendarScreen: React.FC = () => {
             ) : balanceCandidates.length === 0 ? (
               <Text style={styles.balanceEmptyText}>没有找到需要平账的记录</Text>
             ) : (
-              <>
-                {balanceCandidates.map((item, index) => (
-                  <View key={`balance-${index}`} style={styles.balanceGroup}>
-                    {/* 支出项 */}
-                    <View style={styles.balanceOutItem}>
-                      <View style={styles.balanceItemHeader}>
-                        <Text style={styles.balanceItemTitle} numberOfLines={1}>
-                          {item.out.name || '无名称'}
-                        </Text>
-                        <Text style={[
-                          styles.balanceItemMoney,
-                          {color: '#f44336'}
-                        ]}>
-                          -{item.out.money.toFixed(2)}
-                        </Text>
-
-                        <TouchableOpacity
-                          style={styles.balanceItemIgnore}
-                          onPress={() => handleIgnoreBalanceItem(item.out.id)}
-                        >
-                          <Icon name="block" type="material" color="#757575" size={18} />
-                        </TouchableOpacity>
-                      </View>
-
-                      <View style={styles.balanceItemDetails}>
-                        <Text style={styles.balanceItemDetail}>
-                          <Text style={styles.balanceItemLabel}>日期:</Text> {item.out.day}
-                        </Text>
-                        <Text style={styles.balanceItemDetail}>
-                          <Text style={styles.balanceItemLabel}>类型:</Text> {item.out.flowType}
-                        </Text>
-                        <Text style={styles.balanceItemDetail}>
-                          <Text style={styles.balanceItemLabel}>分类:</Text> {item.out.industryType}
-                        </Text>
-                        <Text style={styles.balanceItemDetail}>
-                          <Text style={styles.balanceItemLabel}>支付:</Text> {item.out.payType}
-                        </Text>
-                        {item.out.description && (
-                          <Text style={styles.balanceItemDetail} numberOfLines={1}>
-                            <Text style={styles.balanceItemLabel}>备注:</Text> {item.out.description}
-                          </Text>
-                        )}
-                      </View>
+              balanceCandidates.map((item, index) => (
+                <View key={`balance-${index}`} style={styles.balanceGroup}>
+                  {/* 支出项 */}
+                  <View style={styles.balanceOutItem}>
+                    <View style={styles.duplicateItemHeader}>
+                      <Text style={styles.duplicateItemTitle} numberOfLines={1}>
+                        {item.out.name || '无名称'}
+                      </Text>
+                      <Text style={[
+                        styles.duplicateItemMoney,
+                        {color: '#f44336'}
+                      ]}>
+                        -{item.out.money.toFixed(2)}
+                      </Text>
                     </View>
 
-                    <Icon
-                      name="arrow-downward"
-                      type="material"
-                      color="#1976d2"
-                      size={20}
-                      containerStyle={styles.balanceArrow}
-                    />
-
-                    {/* 收入项 */}
-                    {Array.isArray(item.in) ? (
-                      item.in.map((inItem: Flow) => (
-                        <View key={`in-${inItem.id}`} style={styles.balanceInItem}>
-                          <TouchableOpacity
-                            style={styles.balanceCheckbox}
-                            onPress={() => toggleBalanceItemSelection(item.out.id, inItem.id)}
-                          >
-                            <Icon
-                              name={selectedBalanceItems[item.out.id]?.includes(inItem.id) ? "check-box" : "check-box-outline-blank"}
-                              type="material"
-                              color="#1976d2"
-                              size={20}
-                            />
-                          </TouchableOpacity>
-
-                          <View style={styles.balanceItemContent}>
-                            <View style={styles.balanceItemHeader}>
-                              <Text style={styles.balanceItemTitle} numberOfLines={1}>
-                                {inItem.name || '无名称'}
-                              </Text>
-                              <Text style={[
-                                styles.balanceItemMoney,
-                                {color: inItem.flowType === '收入' ? '#4caf50' : '#757575'}
-                              ]}>
-                                {inItem.flowType === '收入' ? '+' : ''}
-                                {inItem.money.toFixed(2)}
-                              </Text>
-
-                              <TouchableOpacity
-                                style={styles.balanceItemIgnore}
-                                onPress={() => handleIgnoreBalanceItem(inItem.id)}
-                              >
-                                <Icon name="block" type="material" color="#757575" size={18} />
-                              </TouchableOpacity>
-                            </View>
-
-                            <View style={styles.balanceItemDetails}>
-                              <Text style={styles.balanceItemDetail}>
-                                <Text style={styles.balanceItemLabel}>日期:</Text> {inItem.day}
-                              </Text>
-                              <Text style={styles.balanceItemDetail}>
-                                <Text style={styles.balanceItemLabel}>类型:</Text> {inItem.flowType}
-                              </Text>
-                              <Text style={styles.balanceItemDetail}>
-                                <Text style={styles.balanceItemLabel}>分类:</Text> {inItem.industryType}
-                              </Text>
-                              <Text style={styles.balanceItemDetail}>
-                                <Text style={styles.balanceItemLabel}>支付:</Text> {inItem.payType}
-                              </Text>
-                              {inItem.description && (
-                                <Text style={styles.balanceItemDetail} numberOfLines={1}>
-                                  <Text style={styles.balanceItemLabel}>备注:</Text> {inItem.description}
-                                </Text>
-                              )}
-                            </View>
-                          </View>
-                        </View>
-                      ))
-                    ) : (
-                      <View style={styles.balanceInItem}>
-                        <TouchableOpacity
-                          style={styles.balanceCheckbox}
-                          onPress={() => toggleBalanceItemSelection(item.out.id, item.in.id)}
-                        >
-                          <Icon
-                            name={selectedBalanceItems[item.out.id]?.includes(item.in.id) ? "check-box" : "check-box-outline-blank"}
-                            type="material"
-                            color="#1976d2"
-                            size={20}
-                          />
-                        </TouchableOpacity>
-
-                        <View style={styles.balanceItemContent}>
-                          <View style={styles.balanceItemHeader}>
-                            <Text style={styles.balanceItemTitle} numberOfLines={1}>
-                              {item.in.name || '无名称'}
-                            </Text>
-                            <Text style={[
-                              styles.balanceItemMoney,
-                              {color: item.in.flowType === '收入' ? '#4caf50' : '#757575'}
-                            ]}>
-                              {item.in.flowType === '收入' ? '+' : ''}
-                              {item.in.money.toFixed(2)}
-                            </Text>
-
-                            <TouchableOpacity
-                              style={styles.balanceItemIgnore}
-                              onPress={() => handleIgnoreBalanceItem(item.in.id)}
-                            >
-                              <Icon name="block" type="material" color="#757575" size={18} />
-                            </TouchableOpacity>
-                          </View>
-
-                          <View style={styles.balanceItemDetails}>
-                            <Text style={styles.balanceItemDetail}>
-                              <Text style={styles.balanceItemLabel}>日期:</Text> {item.in.day}
-                            </Text>
-                            <Text style={styles.balanceItemDetail}>
-                              <Text style={styles.balanceItemLabel}>类型:</Text> {item.in.flowType}
-                            </Text>
-                            <Text style={styles.balanceItemDetail}>
-                              <Text style={styles.balanceItemLabel}>分类:</Text> {item.in.industryType}
-                            </Text>
-                            <Text style={styles.balanceItemDetail}>
-                              <Text style={styles.balanceItemLabel}>支付:</Text> {item.in.payType}
-                            </Text>
-                            {item.in.description && (
-                              <Text style={styles.balanceItemDetail} numberOfLines={1}>
-                                <Text style={styles.balanceItemLabel}>备注:</Text> {item.in.description}
-                              </Text>
-                            )}
-                          </View>
-                        </View>
-                      </View>
-                    )}
-
-                    <View style={styles.balanceActions}>
-                      <Button
-                        title="确认平账"
-                        buttonStyle={styles.balanceConfirmButton}
-                        disabled={!selectedBalanceItems[item.out.id] || selectedBalanceItems[item.out.id].length === 0}
-                        onPress={() => handleConfirmBalance(item.out.id, selectedBalanceItems[item.out.id] || [])}
-                      />
+                    <View style={styles.duplicateItemCompactDetails}>
+                      <Text style={styles.duplicateItemCompactDetail}>
+                        <Text style={styles.duplicateItemCompactLabel}>日期:</Text> {item.out.day}
+                      </Text>
+                      <Text style={styles.duplicateItemCompactDetail}>
+                        <Text style={styles.duplicateItemCompactLabel}>类型:</Text> {item.out.flowType}
+                      </Text>
+                      <Text style={styles.duplicateItemCompactDetail}>
+                        <Text style={styles.duplicateItemCompactLabel}>分类:</Text> {item.out.industryType}
+                      </Text>
+                      <Text style={styles.duplicateItemCompactDetail}>
+                        <Text style={styles.duplicateItemCompactLabel}>支付:</Text> {item.out.payType}
+                      </Text>
+                      {item.out.description && (
+                        <Text style={styles.duplicateItemCompactDetail} numberOfLines={1}>
+                          <Text style={styles.duplicateItemCompactLabel}>备注:</Text> {item.out.description}
+                        </Text>
+                      )}
+                      {item.out.attribution && (
+                          <Text style={styles.duplicateItemCompactDetail}>
+                            <Text style={styles.duplicateItemCompactLabel}>归属:</Text> {item.out.attribution}
+                          </Text>
+                      )}
                     </View>
                   </View>
-                ))}
 
-                {balanceCandidates.length > 0 && (
-                  <Button
-                    title="忽略全部"
-                    buttonStyle={styles.balanceIgnoreAllButton}
-                    onPress={handleIgnoreAllBalanceItems}
-                  />
-                )}
-              </>
+                  {/* 收入项 */}
+                  <View style={styles.balanceInItem}>
+                    <View style={styles.duplicateItemHeader}>
+                      <Text style={styles.duplicateItemTitle} numberOfLines={1}>
+                        {item.in.name || '无名称'}
+                      </Text>
+                      <Text style={[
+                        styles.duplicateItemMoney,
+                        {color: item.in.flowType === '收入' ? '#4caf50' : '#757575'}
+                      ]}>
+                        {item.in.flowType === '收入' ? '+' : ''}
+                        {item.in.money.toFixed(2)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.duplicateItemCompactDetails}>
+                      <Text style={styles.duplicateItemCompactDetail}>
+                        <Text style={styles.duplicateItemCompactLabel}>日期:</Text> {item.in.day}
+                      </Text>
+                      <Text style={styles.duplicateItemCompactDetail}>
+                        <Text style={styles.duplicateItemCompactLabel}>类型:</Text> {item.in.flowType}
+                      </Text>
+                      <Text style={styles.duplicateItemCompactDetail}>
+                        <Text style={styles.duplicateItemCompactLabel}>分类:</Text> {item.in.industryType}
+                      </Text>
+                      <Text style={styles.duplicateItemCompactDetail}>
+                        <Text style={styles.duplicateItemCompactLabel}>支付:</Text> {item.in.payType}
+                      </Text>
+                      {item.in.description && (
+                        <Text style={styles.duplicateItemCompactDetail} numberOfLines={1}>
+                          <Text style={styles.duplicateItemCompactLabel}>备注:</Text> {item.in.description}
+                        </Text>
+                      )}
+                      {item.in.attribution && (
+                          <Text style={styles.duplicateItemCompactDetail}>
+                            <Text style={styles.duplicateItemCompactLabel}>归属:</Text> {item.in.attribution}
+                          </Text>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* 按钮区域 */}
+                  <View style={styles.balanceActionContainer}>
+                    <TouchableOpacity
+                        style={styles.balanceIgnoreButton}
+                        onPress={() => handleIgnoreBalanceItem(item.out.id)}
+                    >
+                      <Text style={styles.balanceIgnoreText}>忽略</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.balanceConfirmButton}
+                        onPress={() => handleConfirmBalance(item.out.id, [item.in.id])}
+                    >
+                      <Text style={styles.balanceConfirmText}>平账</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
             )}
           </ScrollView>
         </View>
@@ -1797,8 +1656,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  balanceIgnoreAllButton: {
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginRight: 120,
+  },
+  balanceIgnoreAllText: {
+    fontSize: 12,
+    color: '#757575',
+  },
   balanceContent: {
     flex: 1,
+    minWidth:'100%',
     padding: 10,
   },
   balanceEmptyText: {
@@ -1821,7 +1692,6 @@ const styles = StyleSheet.create({
     borderLeftColor: '#f44336',
   },
   balanceInItem: {
-    flexDirection: 'row',
     backgroundColor: '#f8fff8',
     borderRadius: 6,
     padding: 8,
@@ -1829,65 +1699,33 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: '#4caf50',
   },
-  balanceArrow: {
-    alignSelf: 'center',
-    marginVertical: 5,
-  },
-  balanceCheckbox: {
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  balanceItemContent: {
-    flex: 1,
-  },
-  balanceItemHeader: {
+  balanceActionContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 20,
   },
-  balanceItemTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    flex: 1,
-  },
-  balanceItemMoney: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  balanceItemIgnore: {
-    marginLeft: 8,
-    padding: 4,
-  },
-  balanceItemDetails: {
-    marginTop: 5,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  balanceItemDetail: {
-    fontSize: 12,
-    color: '#757575',
-    marginRight: 8,
-    marginBottom: 2,
-  },
-  balanceItemLabel: {
-    fontWeight: 'bold',
-    color: '#424242',
-  },
-  balanceActions: {
-    marginTop: 8,
-    alignItems: 'center',
-  },
-  balanceConfirmButton: {
-    backgroundColor: '#1976d2',
-    paddingHorizontal: 15,
-    paddingVertical: 6,
+  balanceIgnoreButton: {
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 4,
   },
-  balanceIgnoreAllButton: {
-    backgroundColor: '#757575',
-    marginTop: 10,
-    marginBottom: 20,
+  balanceIgnoreText: {
+    fontSize: 12,
+    color: '#757575',
+  },
+  balanceConfirmButton: {
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  balanceConfirmText: {
+    fontSize: 12,
+    color: '#1976d2',
+    fontWeight: 'bold',
   },
 });
 
