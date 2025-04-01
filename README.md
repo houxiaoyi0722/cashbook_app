@@ -1,97 +1,82 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
-# Getting Started
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+# Cashbook App
+<p align="center">
+  <img alt="release" src="https://img.shields.io/github/v/release/houxiaoyi0722/cashbook_app" />
+  <img alt="stars" src="https://img.shields.io/github/stars/houxiaoyi0722/cashbook_app" />
+  <img alt="dorks" src="https://img.shields.io/github/forks/houxiaoyi0722/cashbook_app" />
+</p>
+<p align="center">
+  <img alt="issues-open" src="https://img.shields.io/github/issues/houxiaoyi0722/cashbook_app?color=important" />
+  <img alt="issues-close" src="https://img.shields.io/github/issues-closed/houxiaoyi0722/cashbook_app?color=green" />
+  <img alt="GitHub Releases Download" src="https://img.shields.io/github/downloads/houxiaoyi0722/cashbook_app/total.svg" />
+</p>
 
-## Step 1: Start Metro
+<p align="center">
+  <img alt="React Native" src="https://img.shields.io/badge/React%20Native-v0.73-blue.svg" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-v5.0-blue.svg" />
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg" />
+</p>
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+Cashbook App 是 [Cashbook](https://github.com/dingdangdog/cashbook) 的移动客户端，提供便捷的记账体验，随时随地管理您的财务。
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+## ✨ 功能特点
+已支持功能
+- 📱 跨平台支持 (~~iOS~~ & Android)
+  - IOS版本暂无,欢迎PR
+- 📊 流水日历视图，直观展示每日收支
+- 📈 统计分析，了解您的消费习惯
+- 🔄 自动去重功能，避免重复记账
+- ⚖️ 平账功能，轻松处理退款和转账
+- 📚 多账本管理，分类整理不同用途的账目
+- 🔐 安全连接到您的 Cashbook 服务器
 
-```sh
-# Using npm
-npm start
+## 📱 连接到 Cashbook 服务器
 
-# OR using Yarn
-yarn start
-```
+1. 启动应用后，进入服务器配置页面
+2. 输入您的 Cashbook 服务器地址
+3. 使用您的 Cashbook 账户登录
+4. 开始使用所有功能！
 
-## Step 2: Build and run your app
+## 🔧 配置
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+### 服务器配置
 
-### Android
+应用支持连接到任何运行 [Cashbook](https://github.com/dingdangdog/cashbook) 的服务器实例。您可以：
 
-```sh
-# Using npm
-npm run android
+- 添加多个服务器配置
+- 设置默认服务器
+- 在不同服务器之间切换
 
-# OR using Yarn
-yarn android
-```
+### 账本管理
 
-### iOS
+- 创建多个账本
+- 设置默认账本
+- 自定义账本属性
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+## 🤝 贡献
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+我们欢迎所有形式的贡献！请遵循以下流程：
+1. Fork 本仓库
+2. 创建 feature 分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交修改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送分支 (`git push origin feature/AmazingFeature`)
+5. 发起 Pull Request
+## 📄 许可证
 
-```sh
-bundle install
-```
+本项目采用 MIT 许可证 - 详情请参阅 [LICENSE](LICENSE) 文件。
 
-Then, and every time you update your native dependencies, run:
+## 🔗 相关链接
 
-```sh
-bundle exec pod install
-```
+- [Cashbook 服务端](https://github.com/dingdangdog/cashbook)
+- [问题反馈](https://github.com/houxiaoyi0722/cashbook_app/issues)
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+## 📸 截图
 
-```sh
-# Using npm
-npm run ios
+![日历视图](screenshots/calendar.png)
+![统计分析](screenshots/statistics.png)
+![账本管理](screenshots/books.png)
 
-# OR using Yarn
-yarn ios
-```
+---
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+*Cashbook App - 让记账更简单，财务管理更轻松！*
