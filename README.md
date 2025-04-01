@@ -1,6 +1,6 @@
-
-
-# Cashbook App
+<div align="center" style="display:flex;align-items:center;justify-content:center;">
+<h1>Cashbook App</h1>
+</div>
 <p align="center">
   <img alt="release" src="https://img.shields.io/github/v/release/houxiaoyi0722/cashbook_app" />
   <img alt="stars" src="https://img.shields.io/github/stars/houxiaoyi0722/cashbook_app" />
