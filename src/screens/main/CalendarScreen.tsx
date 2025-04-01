@@ -801,9 +801,7 @@ const CalendarScreen: React.FC = () => {
         const initialSelected: {[key: number]: number[]} = {};
         response.d.forEach(item => {
           if (item.out && item.in) {
-            initialSelected[item.out.id] = Array.isArray(item.in)
-              ? item.in.map(inItem => inItem.id)
-              : [item.in.id];
+            initialSelected[item.out.id] = [item.in.id];
           }
         });
         setSelectedBalanceItems(initialSelected);
@@ -878,7 +876,7 @@ const CalendarScreen: React.FC = () => {
                   return prev.filter(item => {
                     if (item.out.id === id) return false;
                     if (Array.isArray(item.in)) {
-                      item.in = item.in.filter(inItem => inItem.id !== id);
+                      item.in = item.in.filter((inItem: { id: number; }) => inItem.id !== id);
                       return item.in.length > 0;
                     } else {
                       return item.in.id !== id;
@@ -939,7 +937,7 @@ const CalendarScreen: React.FC = () => {
               balanceCandidates.forEach(item => {
                 if (item.out) allIds.push(item.out.id);
                 if (Array.isArray(item.in)) {
-                  item.in.forEach(inItem => allIds.push(inItem.id));
+                  item.in.forEach((inItem: { id: number; }) => allIds.push(inItem.id));
                 } else if (item.in) {
                   allIds.push(item.in.id);
                 }
@@ -1069,7 +1067,7 @@ const CalendarScreen: React.FC = () => {
 
                     {/* 收入项 */}
                     {Array.isArray(item.in) ? (
-                      item.in.map((inItem, inIndex) => (
+                      item.in.map((inItem: Flow) => (
                         <View key={`in-${inItem.id}`} style={styles.balanceInItem}>
                           <TouchableOpacity
                             style={styles.balanceCheckbox}

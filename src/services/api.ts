@@ -287,14 +287,14 @@ class Api {
       bookId: string;
     }): Promise<ApiResponse<Array<{
       out: Flow;
-      in: Flow[];
+      in: Flow;
     }>>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
       console.log(`🔍 Fetching balance candidates for book: ${params.bookId}`);
       const response = await this.instance.post(`/api/entry/flow/condidate/autos`, params);
       return response.data;
     },
-    
+
     // 确认平账
     confirmBalance: async (params: {
       outId: number;
@@ -306,7 +306,7 @@ class Api {
       const response = await this.instance.post(`/api/entry/flow/condidate/confirm`, params);
       return response.data;
     },
-    
+
     // 忽略平账项
     ignoreBalanceItem: async (params: {
       id: number;
@@ -317,7 +317,7 @@ class Api {
       const response = await this.instance.post(`/api/entry/flow/condidate/ignore`, params);
       return response.data;
     },
-    
+
     // 忽略所有平账项
     ignoreAllBalanceItems: async (params: {
       bookId: string;
