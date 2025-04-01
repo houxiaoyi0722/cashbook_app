@@ -2,20 +2,20 @@
 <h1>Cashbook App</h1>
 </div>
 <p align="center">
-  <img alt="release" src="https://img.shields.io/github/v/release/houxiaoyi0722/cashbook_app" />
+  <img alt="release" src="https://img.shields.io/github/v/release/houxiaoyi0722/cashbook_app?include_prereleases" />
   <img alt="stars" src="https://img.shields.io/github/stars/houxiaoyi0722/cashbook_app" />
-  <img alt="dorks" src="https://img.shields.io/github/forks/houxiaoyi0722/cashbook_app" />
+  <img alt="forks" src="https://img.shields.io/github/forks/houxiaoyi0722/cashbook_app" />
 </p>
 <p align="center">
   <img alt="issues-open" src="https://img.shields.io/github/issues/houxiaoyi0722/cashbook_app?color=important" />
-  <img alt="issues-close" src="https://img.shields.io/github/issues-closed/houxiaoyi0722/cashbook_app?color=green" />
+  <img alt="issues-closed" src="https://img.shields.io/github/issues-closed/houxiaoyi0722/cashbook_app?color=green" />
   <img alt="GitHub Releases Download" src="https://img.shields.io/github/downloads/houxiaoyi0722/cashbook_app/total.svg" />
 </p>
 
 <p align="center">
   <img alt="React Native" src="https://img.shields.io/badge/React%20Native-v0.73-blue.svg" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-v5.0-blue.svg" />
-  <img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg" />
+  <img alt="license" src="https://img.shields.io/github/license/houxiaoyi0722/cashbook_app" />
 </p>
 
 Cashbook App 是 [Cashbook](https://github.com/dingdangdog/cashbook) 的移动客户端，提供便捷的记账体验，随时随地管理您的财务。
