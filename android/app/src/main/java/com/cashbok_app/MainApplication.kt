@@ -1,4 +1,4 @@
-package com.cashbok_app
+package com.cashbook_app
 
 import android.app.Application
 import com.facebook.react.PackageList

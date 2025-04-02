@@ -80,9 +80,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.cashbok_app"
+    namespace "com.cashbook_app"
     defaultConfig {
-        applicationId "com.cashbok_app"
+        applicationId "com.cashbook_app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

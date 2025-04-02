@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-               BuildableName = "cashbok_app.app"
-               BlueprintName = "cashbok_app"
-               ReferencedContainer = "container:cashbok_app.xcodeproj">
+               BuildableName = "cashbook_app.app"
+               BlueprintName = "cashbook_app"
+               ReferencedContainer = "container:cashbook_app.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "00E356ED1AD99517003FC87E"
-               BuildableName = "cashbok_appTests.xctest"
-               BlueprintName = "cashbok_appTests"
-               ReferencedContainer = "container:cashbok_app.xcodeproj">
+               BuildableName = "cashbook_appTests.xctest"
+               BlueprintName = "cashbook_appTests"
+               ReferencedContainer = "container:cashbook_app.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -55,9 +55,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "cashbok_app.app"
-            BlueprintName = "cashbok_app"
-            ReferencedContainer = "container:cashbok_app.xcodeproj">
+            BuildableName = "cashbook_app.app"
+            BlueprintName = "cashbook_app"
+            ReferencedContainer = "container:cashbook_app.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,9 +72,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "cashbok_app.app"
-            BlueprintName = "cashbok_app"
-            ReferencedContainer = "container:cashbok_app.xcodeproj">
+            BuildableName = "cashbook_app.app"
+            BlueprintName = "cashbook_app"
+            ReferencedContainer = "container:cashbook_app.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
