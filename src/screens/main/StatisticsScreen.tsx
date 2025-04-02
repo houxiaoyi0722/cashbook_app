@@ -38,7 +38,10 @@ const getChartColor = (index: number) => {
   const colors = [
     '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
     '#FF9F40', '#8AC249', '#EA5545', '#F46A9B', '#EF9B20',
-    '#EDBF33', '#87BC45', '#27AEEF', '#B33DC6',
+    '#EDBF33', '#024b51', '#27AEEF', '#B33DC6', '#0e2c82',
+    '#b6b51f', '#da1f18', '#701866', '#f47a75', '#009db2',
+    '#0780cf', '#765005', '#63b2ee', '#76da91', '#f8cb7f',
+    '#45a776', '#f05326', '#eed777', '#b3974e', '#93c555',
   ];
 
   return colors[index % colors.length];
