@@ -220,7 +220,7 @@ const FlowFormScreen: React.FC = () => {
             onChangeText={setMoney}
             keyboardType="numeric"
             disabled={isLoading}
-            leftIcon={{ type: 'material', name: 'attach-money', color: '#1976d2' }}
+            leftIcon={{ type: 'material', name: 'account-balance-wallet', color: '#1976d2' }}
             errorMessage={money && !isNaN(Number(money)) && Number(money) > 0 ? '' : '请输入有效的金额'}
           />
 
