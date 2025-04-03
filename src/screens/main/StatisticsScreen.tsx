@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, FlatList, Modal} from 'react-native';
-import WebView from 'react-native-webview';
 import {Text, Card, Divider, Tab, TabView, Overlay, Icon, Button, ListItem, Avatar} from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,8 +11,8 @@ import {MonthAnalysis, AnalyticsItem, Flow} from '../../types';
 import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
 
 import * as echarts from 'echarts/core';
-import { PieChart as EchartsPie, BarChart as EchartsBar } from 'echarts/charts';
-import { SVGRenderer } from '@wuba/react-native-echarts';
+import { PieChart, BarChart } from 'echarts/charts';
+import { SvgChart, SVGRenderer } from '@wuba/react-native-echarts';
 import {
   TitleComponent,
   TooltipComponent,
@@ -24,8 +23,8 @@ import {
 // 注册必要的组件
 echarts.use([
   SVGRenderer,
-  EchartsPie,
-  EchartsBar,
+  PieChart,
+  BarChart,
   TitleComponent,
   TooltipComponent,
   LegendComponent,
@@ -45,6 +44,46 @@ const getChartColor = (index: number) => {
   ];
 
   return colors[index % colors.length];
+};
+
+// Add this new component for rendering charts
+const EchartsComponent = ({ option, onItemClick }) => {
+  const chartRef = useRef(null);
+
+  useEffect(() => {
+    let chart: echarts.ECharts;
+    if (chartRef.current) {
+      chart = echarts.init(chartRef.current, 'light', {
+        renderer: 'svg',
+        width: 350,
+        height: 300,
+      });
+      chart.setOption(option);
+
+      if (onItemClick) {
+        chart.on('click', (params) => {
+          if (params.componentType === 'series') {
+            onItemClick({
+              type: 'itemClick',
+              data: params.data
+            });
+          }
+        });
+
+        chart.on('legendselectchanged', (params) => {
+          onItemClick({
+            type: 'legendClick',
+            name: params.name,
+            selected: params.selected
+          });
+        });
+      }
+    }
+
+    return () => chart?.dispose();
+  }, [option]);
+
+  return <SvgChart ref={chartRef} />;
 };
 
 const StatisticsScreen: React.FC = () => {
@@ -382,195 +421,16 @@ const StatisticsScreen: React.FC = () => {
     );
   };
 
-  // 修改 renderEchartsWithWebView 函数，实现点击图例显示/隐藏功能
-  const renderEchartsWithWebView = (option: any, height: number, onItemClick?: (item: any) => void) => {
-    // 检查是否为饼图类型
-    const isPieChart = option.series && option.series[0] && option.series[0].type === 'pie';
-
-    // 如果是饼图，应用我们之前的逻辑
-    if (isPieChart) {
-      // 获取数据
-      const data = option.series[0].data;
-
-      // 计算每行显示的图例数量，根据数据总量动态调整
-      const totalItems = data.length;
-      const itemsPerRow = Math.min(Math.ceil(totalItems / 2), 4); // 最多每行4个
-
-      // 计算需要的行数
-      const rowCount = Math.ceil(totalItems / itemsPerRow);
-
-      // 创建多行图例 - 数据已经在传入前排序好了，所以这里保持顺序
-      const legends = [];
-      for (let i = 0; i < rowCount; i++) {
-        const startIdx = i * itemsPerRow;
-        const endIdx = Math.min(startIdx + itemsPerRow, totalItems);
-        const rowData = data.slice(startIdx, endIdx).map((item: { name: any; }) => item.name);
-
-        legends.push({
-          data: rowData,
-          bottom: 10 + (rowCount - 1 - i) * 25, // 从底部向上排列，每行25px高度
-          left: 'center',
-          itemWidth: 20,
-          itemHeight: 10,
-          selectedMode: true, // 启用选择模式，允许显示/隐藏
-          textStyle: { fontSize: 10 },
-          formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name
-        });
-      }
-
-      // 调整饼图位置，为图例留出足够空间
-      const pieCenter = ['50%', Math.max(30, 50 - rowCount * 5) + '%'];
-
-      // 创建新的选项，修改强调样式，删除线条图例名称
-      const newOption = {
-        ...option,
-        legend: legends,
-        series: [
-          {
-            ...option.series[0],
-            center: pieCenter,
-            radius: ['35%', '65%'], // 稍微缩小饼图
-            // 修改强调样式，删除线条图例名称
-            emphasis: {
-              label: {
-                show: false // 不显示标签
-              },
-              itemStyle: {
-                shadowBlur: 10,
-                shadowOffsetX: 0,
-                shadowColor: 'rgba(0, 0, 0, 0.5)'
-              }
-            },
-            // 确保普通状态下也不显示标签
-            label: {
-              show: false
-            }
-          }
-        ]
-      };
-
-      // 计算适当的容器高度，确保有足够空间显示图例
-      const containerHeight = height + (rowCount > 2 ? (rowCount - 2) * 25 : 0);
-
-      // 创建HTML内容
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-            <style>
-              body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
-              #chart { width: 100%; height: 100%; }
-            </style>
-          </head>
-          <body>
-            <div id="chart"></div>
-            <script>
-              document.addEventListener('DOMContentLoaded', function() {
-                var chart = echarts.init(document.getElementById('chart'));
-                var option = ${JSON.stringify(newOption)};
-                chart.setOption(option);
-                
-                // 存储所有数据项的名称
-                var allDataNames = ${JSON.stringify(data.map((item: { name: any; }) => item.name))};
-                
-                // 点击图表项
-                chart.on('click', function(params) {
-                  if (params.componentType === 'series') {
-                    window.ReactNativeWebView.postMessage(JSON.stringify({
-                      type: 'itemClick',
-                      data: params.data
-                    }));
-                  }
-                });
-                
-                // 点击图例项 - 允许显示/隐藏
-                chart.on('legendselectchanged', function(params) {
-                  // 发送消息到 React Native
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'legendClick',
-                    name: params.name,
-                    selected: params.selected
-                  }));
-                });
-                
-                // 窗口大小变化时调整图表大小
-                window.addEventListener('resize', function() {
-                  chart.resize();
-                });
-              });
-            </script>
-          </body>
-        </html>
-      `;
-
-      return (
-        <View style={{ height: containerHeight, width: '100%', backgroundColor: '#fff' }}>
-          <WebView
-            source={{ html: htmlContent }}
-            style={{ flex: 1 }}
-            originWhitelist={['*']}
-            javaScriptEnabled={true}
-            onMessage={(event) => {
-              if (onItemClick) {
-                try {
-                  const message = JSON.parse(event.nativeEvent.data);
-                  if (message.type === 'itemClick' || message.type === 'legendClick') {
-                    onItemClick(message);
-                  }
-                } catch (e) {
-                  console.error('Failed to parse WebView message:', e);
-                }
-              }
-            }}
-          />
-        </View>
-      );
-    } else {
-      // 对于非饼图类型，使用原始选项直接渲染
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-            <style>
-              body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
-              #chart { width: 100%; height: 100%; }
-            </style>
-          </head>
-          <body>
-            <div id="chart"></div>
-            <script>
-              document.addEventListener('DOMContentLoaded', function() {
-                var chart = echarts.init(document.getElementById('chart'));
-                var option = ${JSON.stringify(option)};
-                chart.setOption(option);
-                
-                // 窗口大小变化时调整图表大小
-                window.addEventListener('resize', function() {
-                  chart.resize();
-                });
-              });
-            </script>
-          </body>
-        </html>
-      `;
-
-      return (
-        <View style={{ height, width: '100%', backgroundColor: '#fff' }}>
-          <WebView
-            source={{ html: htmlContent }}
-            style={{ flex: 1 }}
-            originWhitelist={['*']}
-            javaScriptEnabled={true}
-          />
-        </View>
-      );
-    }
+  // Replace the renderEchartsWithWebView function with this new implementation
+  const renderEcharts = (option: any, onItemClick: any) => {
+    return (
+      <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}>
+        <EchartsComponent
+          option={option}
+          onItemClick={onItemClick}
+        />
+      </View>
+    );
   };
 
   // 修改处理图表项目点击的函数
@@ -945,7 +805,7 @@ const StatisticsScreen: React.FC = () => {
     );
   };
 
-  // 修改行业类型分析渲染函数
+  // Update the renderIndustryTypeAnalysis function
   const renderIndustryTypeAnalysis = () => {
     if (!industryTypeData || industryTypeData.length === 0) {
       return (
@@ -956,20 +816,31 @@ const StatisticsScreen: React.FC = () => {
       );
     }
 
-    // 按数值从大到小排序数据
+    // Sort data by value from largest to smallest
     const sortedData = [...industryTypeData].sort((a, b) => b.value - a.value);
 
-    // 准备图表数据
+    // Prepare chart data
     const option = {
       tooltip: {
         trigger: 'item',
         formatter: '{b}: {c} ({d}%)'
+      },
+      legend: {
+        type: 'scroll',
+        orient: 'horizontal',
+        bottom: 10,
+        left: 'center',
+        data: sortedData.map(item => item.name),
+        textStyle: { fontSize: 10 },
+        formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name,
+        selected: {}
       },
       series: [
         {
           name: '支出类型',
           type: 'pie',
           radius: ['40%', '70%'],
+          center: ['50%', '45%'],
           avoidLabelOverlap: false,
           itemStyle: {
             borderRadius: 5,
@@ -977,11 +848,11 @@ const StatisticsScreen: React.FC = () => {
             borderWidth: 2
           },
           label: {
-            show: false // 确保不显示标签
+            show: false
           },
           emphasis: {
             label: {
-              show: false // 确保强调状态下也不显示标签
+              show: false
             },
             itemStyle: {
               shadowBlur: 10,
@@ -1005,7 +876,7 @@ const StatisticsScreen: React.FC = () => {
         <Card.Title>{`类型分析 (${selectedFlowType})`}</Card.Title>
 
         <View style={styles.chartContainer}>
-          {renderEchartsWithWebView(option, 300, handleIndustryItemClick)}
+          {renderEcharts(option, handleIndustryItemClick)}
         </View>
 
         {selectedIndustryItem && (
@@ -1029,7 +900,7 @@ const StatisticsScreen: React.FC = () => {
     );
   };
 
-  // 修改支付方式分析渲染函数
+  // Update the renderPayTypeAnalysis function
   const renderPayTypeAnalysis = () => {
     if (!payTypeData || payTypeData.length === 0) {
       return (
@@ -1040,20 +911,31 @@ const StatisticsScreen: React.FC = () => {
       );
     }
 
-    // 按数值从大到小排序数据
+    // Sort data by value from largest to smallest
     const sortedData = [...payTypeData].sort((a, b) => b.value - a.value);
 
-    // 准备图表数据
+    // Prepare chart data
     const option = {
       tooltip: {
         trigger: 'item',
         formatter: '{b}: {c} ({d}%)'
+      },
+      legend: {
+        type: 'scroll',
+        orient: 'horizontal',
+        bottom: 10,
+        left: 'center',
+        data: sortedData.map(item => item.name),
+        textStyle: { fontSize: 10 },
+        formatter: (name) => name.length > 6 ? name.slice(0, 6) + '...' : name,
+        selected: {}
       },
       series: [
         {
           name: '支付方式',
           type: 'pie',
           radius: ['40%', '70%'],
+          center: ['50%', '45%'],
           avoidLabelOverlap: false,
           itemStyle: {
             borderRadius: 5,
@@ -1061,11 +943,11 @@ const StatisticsScreen: React.FC = () => {
             borderWidth: 2
           },
           label: {
-            show: false // 确保不显示标签
+            show: false
           },
           emphasis: {
             label: {
-              show: false // 确保强调状态下也不显示标签
+              show: false
             },
             itemStyle: {
               shadowBlur: 10,
@@ -1089,7 +971,7 @@ const StatisticsScreen: React.FC = () => {
         <Card.Title>{`支付方式分析 (${selectedFlowType})`}</Card.Title>
 
         <View style={styles.chartContainer}>
-          {renderEchartsWithWebView(option, 300, handlePayTypeItemClick)}
+          {renderEcharts(option, 300, handlePayTypeItemClick)}
         </View>
 
         {selectedPayTypeItem && (
@@ -1113,7 +995,7 @@ const StatisticsScreen: React.FC = () => {
     );
   };
 
-  // 修改月度趋势图表渲染函数
+  // Update the renderMonthTrend function
   const renderMonthTrend = () => {
     const year = currentMonth.substring(0,4);
 
@@ -1125,11 +1007,12 @@ const StatisticsScreen: React.FC = () => {
         </Card>
       );
     }
-    // 准备图表数据
+
+    // Prepare chart data
     const labels = monthData
       .filter(item => item.type.match(`.*${year}.*`))
       .sort((a, b) => a.type.localeCompare(b.type))
-      .map(item => item.type.substring(5)); // 只显示月份
+      .map(item => item.type.substring(5)); // Only show month
 
     const inData = monthData
       .filter(item => item.type.match(`.*${year}.*`))
@@ -1141,7 +1024,7 @@ const StatisticsScreen: React.FC = () => {
       .sort((a, b) => a.type.localeCompare(b.type))
       .map(item => item.outSum.toFixed(2));
 
-    // 准备 Echarts 选项
+    // Prepare Echarts options
     const option = {
       tooltip: {
         trigger: 'axis',
@@ -1155,7 +1038,7 @@ const StatisticsScreen: React.FC = () => {
         data: ['收入', '支出'],
         bottom: 0,
         left: 'center',
-        selectedMode: true, // 允许选择，因为这是柱状图
+        selectedMode: true,
         textStyle: {
           color: '#333',
           fontSize: 12,
@@ -1211,13 +1094,13 @@ const StatisticsScreen: React.FC = () => {
         <Card.Title>{year + '收支趋势'}</Card.Title>
 
         <View style={styles.chartContainer}>
-          {renderEchartsWithWebView(option, 300)}
+          {renderEcharts(option, 300)}
         </View>
       </Card>
     );
   };
 
-  // 添加渲染归属分析的函数
+  // Update the renderAttributionAnalysis function
   const renderAttributionAnalysis = () => {
     if (!attributionData || attributionData.length === 0) {
       return (
@@ -1228,44 +1111,48 @@ const StatisticsScreen: React.FC = () => {
       );
     }
 
-    // 准备饼图数据
+    // Prepare pie chart data
     const pieData = attributionData.map(item => ({
       name: item.name,
       value: parseFloat(item.value),
       itemStyle: { color: item.color }
     }));
 
-    // 配置饼图选项
+    // Configure pie chart options
     const option = {
       tooltip: {
         trigger: 'item',
         formatter: '{b}: {c} ({d}%)'
       },
       legend: {
-        orient: 'vertical',
-        right: 10,
-        top: 'center',
-        data: attributionData.map(item => item.name)
+        type: 'scroll',
+        orient: 'horizontal',
+        bottom: 10,
+        left: 'center',
+        data: attributionData.map(item => item.name),
+        textStyle: { fontSize: 10 },
+        formatter: (name) => name.length > 6 ? name.slice(0, 6) + '...' : name,
+        selected: {}
       },
       series: [
         {
           name: '流水归属',
           type: 'pie',
           radius: ['40%', '70%'],
+          center: ['50%', '45%'],
           avoidLabelOverlap: false,
           label: {
-            show: false,
-            position: 'center'
+            show: false
           },
           emphasis: {
             label: {
-              show: true,
-              fontSize: '18',
-              fontWeight: 'bold'
+              show: false
+            },
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
             }
-          },
-          labelLine: {
-            show: false
           },
           data: pieData
         }
@@ -1277,7 +1164,7 @@ const StatisticsScreen: React.FC = () => {
         <Card.Title>{`流水归属分析 (${selectedFlowType})`}</Card.Title>
 
         <View style={styles.chartContainer}>
-          {renderEchartsWithWebView(option, 300, handleAttributionItemClick)}
+          {renderEcharts(option, 300, handleAttributionItemClick)}
         </View>
 
         {selectedAttributionItem && (
