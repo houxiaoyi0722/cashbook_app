@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, FlatList, Modal} from 'react-native';
+import {View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, FlatList, Modal, Dimensions} from 'react-native';
 import {Text, Card, Divider, Tab, TabView, Overlay, Icon, Button, ListItem, Avatar} from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,7 +17,7 @@ import {
   TitleComponent,
   TooltipComponent,
   LegendComponent,
-  GridComponent
+  GridComponent,
 } from 'echarts/components';
 
 // 注册必要的组件
@@ -28,7 +28,7 @@ echarts.use([
   TitleComponent,
   TooltipComponent,
   LegendComponent,
-  GridComponent
+  GridComponent,
 ]);
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
@@ -47,16 +47,26 @@ const getChartColor = (index: number) => {
 };
 
 // Add this new component for rendering charts
-const EchartsComponent = ({ option, onItemClick }) => {
-  const chartRef = useRef(null);
+const EchartsComponent = ({
+  option,
+  onItemClick,
+  width,
+  height,
+}: {
+  option: echarts.EChartsCoreOption;
+  onItemClick?: (params: any) => void;
+  width?: number;
+  height?: number;
+}) => {
+  const chartRef = useRef<any>(null);
 
   useEffect(() => {
-    let chart: echarts.ECharts;
+    let chart: echarts.ECharts | undefined;
     if (chartRef.current) {
       chart = echarts.init(chartRef.current, 'light', {
         renderer: 'svg',
-        width: 350,
-        height: 300,
+        width: width,
+        height: height,
       });
       chart.setOption(option);
 
@@ -65,23 +75,23 @@ const EchartsComponent = ({ option, onItemClick }) => {
           if (params.componentType === 'series') {
             onItemClick({
               type: 'itemClick',
-              data: params.data
+              data: params.data,
             });
           }
         });
 
-        chart.on('legendselectchanged', (params) => {
+        chart.on('legendselectchanged', (params: any) => {
           onItemClick({
             type: 'legendClick',
             name: params.name,
-            selected: params.selected
+            selected: params.selected,
           });
         });
       }
     }
 
     return () => chart?.dispose();
-  }, []);
+  }, [width, height]);
 
   return <SvgChart ref={chartRef} />;
 };
@@ -130,7 +140,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 获取月度数据
   const fetchMonthData = useCallback(async () => {
-    if (!currentBook) return;
+    if (!currentBook) {return;}
 
     try {
       setIsLoading(true);
@@ -170,7 +180,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 获取月度分析
   const fetchMonthAnalysis = useCallback(async () => {
-    if (!currentBook || !currentMonth) return;
+    if (!currentBook || !currentMonth) {return;}
 
     try {
       setIsLoading(true);
@@ -189,7 +199,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 获取行业类型数据
   const fetchIndustryTypeData = useCallback(async () => {
-    if (!currentBook || !currentMonth) return;
+    if (!currentBook || !currentMonth) {return;}
 
     try {
       setIsLoading(true);
@@ -200,7 +210,7 @@ const StatisticsScreen: React.FC = () => {
         bookId: currentBook.bookId,
         flowType: selectedFlowType,
         startDay: startDate,
-        endDay: endDate
+        endDay: endDate,
       });
 
       if (response.c === 200 && response.d) {
@@ -227,7 +237,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 获取支付方式数据
   const fetchPayTypeData = useCallback(async () => {
-    if (!currentBook || !currentMonth) return;
+    if (!currentBook || !currentMonth) {return;}
 
     try {
       setIsLoading(true);
@@ -266,7 +276,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 获取流水归属数据
   const fetchAttributionData = useCallback(async () => {
-    if (!currentBook || !currentMonth) return;
+    if (!currentBook || !currentMonth) {return;}
 
     try {
       setIsLoading(true);
@@ -278,7 +288,7 @@ const StatisticsScreen: React.FC = () => {
         bookId: currentBook.bookId,
         startDay: startDate,
         endDay: endDate,
-        flowType: selectedFlowType
+        flowType: selectedFlowType,
       });
 
       if (response.c === 200 && response.d) {
@@ -288,7 +298,7 @@ const StatisticsScreen: React.FC = () => {
           value: parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)),
           color: getChartColor(index + 10),
           percentage: ((parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)) /
-                       response.d.reduce((sum: number) => sum + parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)), 0)) * 100).toFixed(2)
+                       response.d.reduce((sum: number) => sum + parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)), 0)) * 100).toFixed(2),
         }));
 
         setAttributionData(formattedData);
@@ -321,9 +331,9 @@ const StatisticsScreen: React.FC = () => {
       const fetchData = async () => {
         try {
           await fetchMonthAnalysis();
-          if (isMounted) await fetchIndustryTypeData();
-          if (isMounted) await fetchPayTypeData();
-          if (isMounted) await fetchAttributionData();
+          if (isMounted) {await fetchIndustryTypeData();}
+          if (isMounted) {await fetchPayTypeData();}
+          if (isMounted) {await fetchAttributionData();}
         } catch (err) {
           if (isMounted) {
             console.error('获取分析数据失败', err instanceof Error ? err.message : String(err));
@@ -344,7 +354,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 处理查看流水详情
   const handleViewFlowDetail = (flowId: Flow) => {
-    navigation.navigate('FlowForm', { currentFlow: flowId })
+    navigation.navigate('FlowForm', { currentFlow: flowId });
   };
 
   // 下拉刷新处理函数
@@ -355,7 +365,7 @@ const StatisticsScreen: React.FC = () => {
         fetchMonthAnalysis(),
         fetchIndustryTypeData(),
         fetchPayTypeData(),
-        fetchAttributionData()
+        fetchAttributionData(),
       ]);
     } catch (error) {
       console.error('刷新数据失败', error instanceof Error ? error.message : String(error));
@@ -422,12 +432,17 @@ const StatisticsScreen: React.FC = () => {
   };
 
   // Replace the renderEchartsWithWebView function with this new implementation
-  const renderEcharts = (option: any, onItemClick: any) => {
+  const renderEcharts = (option: echarts.EChartsCoreOption, onItemClick?: (params: any) => void, height = 300) => {
+    // 计算图表宽度，基于屏幕宽度
+    const chartWidth = Math.min(350, Dimensions.get('window').width - 40);
+
     return (
       <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}>
         <EchartsComponent
           option={option}
           onItemClick={onItemClick}
+          width={chartWidth}
+          height={height}
         />
       </View>
     );
@@ -472,7 +487,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 修改获取流水详情数据的函数，支持分页
   const fetchFlowDetails = useCallback(async (type: string, category: 'industry' | 'payment' | 'attribution', page = 1, append = false) => {
-    if (!currentBook || !currentMonth || !type) return;
+    if (!currentBook || !currentMonth || !type) {return;}
 
     try {
       if (page === 1) {
@@ -503,15 +518,15 @@ const StatisticsScreen: React.FC = () => {
         bookId: currentBook.bookId,
         startDay: startDate,
         endDay: endDate,
-        flowType: selectedFlowType
+        flowType: selectedFlowType,
       };
 
       if (category === 'industry') {
-        params.industryType = type
+        params.industryType = type;
       } else if (category === 'payment') {
-        params.payType = type
+        params.payType = type;
       } else if (category === 'attribution') {
-        params.attribution = type
+        params.attribution = type;
       }
 
       const response = await api.flow.page(params);
@@ -541,7 +556,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 处理加载更多数据
   const handleLoadMoreDetails = () => {
-    if (detailsLoadingMore || !detailsHasMore) return;
+    if (detailsLoadingMore || !detailsHasMore) {return;}
 
     const nextPage = detailsPage + 1;
 
@@ -556,7 +571,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 处理查看行业类型详情
   const handleViewIndustryDetails = useCallback(() => {
-    if (!selectedIndustryItem) return;
+    if (!selectedIndustryItem) {return;}
 
     setDetailsTitle(`${selectedIndustryItem} 交易明细`);
     setDetailsVisible(true);
@@ -575,7 +590,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 处理查看支付方式详情
   const handleViewPayTypeDetails = useCallback(() => {
-    if (!selectedPayTypeItem) return;
+    if (!selectedPayTypeItem) {return;}
 
     setDetailsTitle(`${selectedPayTypeItem} 交易明细`);
     setDetailsVisible(true);
@@ -594,7 +609,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 处理查看归属详情
   const handleViewAttributionDetails = useCallback(() => {
-    if (!selectedAttributionItem) return;
+    if (!selectedAttributionItem) {return;}
 
     setDetailsTitle(`${selectedAttributionItem} 交易明细`);
     setDetailsVisible(true);
@@ -630,7 +645,7 @@ const StatisticsScreen: React.FC = () => {
       />
       <ListItem.Content>
         <ListItem.Title style={styles.detailItemTitle}>
-          {item.name || `${item.industryType}`}{item.attribution? ' - ' + item.attribution : ''}
+          {item.name || `${item.industryType}`}{item.attribution ? ' - ' + item.attribution : ''}
         </ListItem.Title>
         <ListItem.Subtitle style={styles.detailItemSubtitle}>
           {moment(item.day).format('YYYY-MM-DD')} · {item.payType} · {item.industryType}
@@ -647,7 +662,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 渲染底部加载更多指示器
   const renderFooter = () => {
-    if (!detailsLoadingMore) return null;
+    if (!detailsLoadingMore) {return null;}
 
     return (
       <View style={styles.loadMoreFooter}>
@@ -819,21 +834,38 @@ const StatisticsScreen: React.FC = () => {
     // Sort data by value from largest to smallest
     const sortedData = [...industryTypeData].sort((a, b) => b.value - a.value);
 
+    // 计算图例所需的高度
+    // 每行显示3个图例，计算需要多少行
+    const legendRows = Math.ceil(sortedData.length / 3);
+    // 每个图例项高度约25px，加上图表本身的高度和其他元素
+    const chartHeight = 300 + (legendRows > 2 ? (legendRows - 2) * 25 : 0);
+
     // Prepare chart data
-    const option = {
+    const option: echarts.EChartsCoreOption = {
       tooltip: {
         trigger: 'item',
-        formatter: '{b}: {c} ({d}%)'
+        formatter: '{b}: {c} ({d}%)',
       },
       legend: {
-        type: 'scroll',
+        type: 'plain', // 改为plain而不是scroll
         orient: 'horizontal',
         bottom: 10,
         left: 'center',
         data: sortedData.map(item => item.name),
         textStyle: { fontSize: 10 },
         formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name,
-        selected: {}
+        selected: {},
+        itemWidth: 15,
+        itemHeight: 10,
+        itemGap: 5,
+        padding: 5,
+        // 设置图例为多行显示
+        grid: {
+          left: 10,
+          right: 10,
+          top: 10,
+          bottom: 10,
+        },
       },
       series: [
         {
@@ -845,30 +877,30 @@ const StatisticsScreen: React.FC = () => {
           itemStyle: {
             borderRadius: 5,
             borderColor: '#fff',
-            borderWidth: 2
+            borderWidth: 2,
           },
           label: {
-            show: false
+            show: false,
           },
           emphasis: {
             label: {
-              show: false
+              show: false,
             },
             itemStyle: {
               shadowBlur: 10,
               shadowOffsetX: 0,
-              shadowColor: 'rgba(0, 0, 0, 0.5)'
-            }
+              shadowColor: 'rgba(0, 0, 0, 0.5)',
+            },
           },
           data: sortedData.map(item => ({
             value: parseFloat(item.value).toFixed(2),
             name: item.name,
             itemStyle: {
-              color: item.color
-            }
-          }))
-        }
-      ]
+              color: item.color,
+            },
+          })),
+        },
+      ],
     };
 
     return (
@@ -876,7 +908,7 @@ const StatisticsScreen: React.FC = () => {
         <Card.Title>{`类型分析 (${selectedFlowType})`}</Card.Title>
 
         <View style={styles.chartContainer}>
-          {renderEcharts(option, handleIndustryItemClick)}
+          {renderEcharts(option, handleIndustryItemClick, chartHeight)}
         </View>
 
         {selectedIndustryItem && (
@@ -914,21 +946,29 @@ const StatisticsScreen: React.FC = () => {
     // Sort data by value from largest to smallest
     const sortedData = [...payTypeData].sort((a, b) => b.value - a.value);
 
+    // 计算图例所需的高度
+    const legendRows = Math.ceil(sortedData.length / 3);
+    const chartHeight = 300 + (legendRows > 2 ? (legendRows - 2) * 25 : 0);
+
     // Prepare chart data
-    const option = {
+    const option: echarts.EChartsCoreOption = {
       tooltip: {
         trigger: 'item',
-        formatter: '{b}: {c} ({d}%)'
+        formatter: '{b}: {c} ({d}%)',
       },
       legend: {
-        type: 'scroll',
+        type: 'plain',
         orient: 'horizontal',
         bottom: 10,
         left: 'center',
         data: sortedData.map(item => item.name),
         textStyle: { fontSize: 10 },
         formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name,
-        selected: {}
+        selected: {},
+        itemWidth: 15,
+        itemHeight: 10,
+        itemGap: 5,
+        padding: 5,
       },
       series: [
         {
@@ -940,30 +980,30 @@ const StatisticsScreen: React.FC = () => {
           itemStyle: {
             borderRadius: 5,
             borderColor: '#fff',
-            borderWidth: 2
+            borderWidth: 2,
           },
           label: {
-            show: false
+            show: false,
           },
           emphasis: {
             label: {
-              show: false
+              show: false,
             },
             itemStyle: {
               shadowBlur: 10,
               shadowOffsetX: 0,
-              shadowColor: 'rgba(0, 0, 0, 0.5)'
-            }
+              shadowColor: 'rgba(0, 0, 0, 0.5)',
+            },
           },
           data: sortedData.map(item => ({
             value: parseFloat(item.value.toFixed(2)),
             name: item.name,
             itemStyle: {
-              color: item.color
-            }
-          }))
-        }
-      ]
+              color: item.color,
+            },
+          })),
+        },
+      ],
     };
 
     return (
@@ -971,7 +1011,7 @@ const StatisticsScreen: React.FC = () => {
         <Card.Title>{`支付方式分析 (${selectedFlowType})`}</Card.Title>
 
         <View style={styles.chartContainer}>
-          {renderEcharts(option, handlePayTypeItemClick)}
+          {renderEcharts(option, handlePayTypeItemClick, chartHeight)}
         </View>
 
         {selectedPayTypeItem && (
@@ -1025,7 +1065,7 @@ const StatisticsScreen: React.FC = () => {
       .map(item => item.outSum.toFixed(2));
 
     // Prepare Echarts options
-    const option = {
+    const option: echarts.EChartsCoreOption = {
       tooltip: {
         trigger: 'axis',
         position: 'top',
@@ -1052,7 +1092,7 @@ const StatisticsScreen: React.FC = () => {
         right: '4%',
         bottom: '15%',
         top: '10%',
-        containLabel: true
+        containLabel: true,
       },
       xAxis: {
         type: 'category',
@@ -1111,28 +1151,36 @@ const StatisticsScreen: React.FC = () => {
       );
     }
 
+    // 计算图例所需的高度
+    const legendRows = Math.ceil(attributionData.length / 3);
+    const chartHeight = 300 + (legendRows > 2 ? (legendRows - 2) * 25 : 0);
+
     // Prepare pie chart data
     const pieData = attributionData.map(item => ({
       name: item.name,
       value: parseFloat(item.value),
-      itemStyle: { color: item.color }
+      itemStyle: { color: item.color },
     }));
 
     // Configure pie chart options
-    const option = {
+    const option: echarts.EChartsCoreOption = {
       tooltip: {
         trigger: 'item',
-        formatter: '{b}: {c} ({d}%)'
+        formatter: '{b}: {c} ({d}%)',
       },
       legend: {
-        type: 'scroll',
+        type: 'plain',
         orient: 'horizontal',
         bottom: 10,
         left: 'center',
         data: attributionData.map(item => item.name),
         textStyle: { fontSize: 10 },
         formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name,
-        selected: {}
+        selected: {},
+        itemWidth: 15,
+        itemHeight: 10,
+        itemGap: 5,
+        padding: 5,
       },
       series: [
         {
@@ -1142,21 +1190,21 @@ const StatisticsScreen: React.FC = () => {
           center: ['50%', '45%'],
           avoidLabelOverlap: false,
           label: {
-            show: false
+            show: false,
           },
           emphasis: {
             label: {
-              show: false
+              show: false,
             },
             itemStyle: {
               shadowBlur: 10,
               shadowOffsetX: 0,
-              shadowColor: 'rgba(0, 0, 0, 0.5)'
-            }
+              shadowColor: 'rgba(0, 0, 0, 0.5)',
+            },
           },
-          data: pieData
-        }
-      ]
+          data: pieData,
+        },
+      ],
     };
 
     return (
@@ -1164,7 +1212,7 @@ const StatisticsScreen: React.FC = () => {
         <Card.Title>{`流水归属分析 (${selectedFlowType})`}</Card.Title>
 
         <View style={styles.chartContainer}>
-          {renderEcharts(option, handleAttributionItemClick)}
+          {renderEcharts(option, handleAttributionItemClick, chartHeight)}
         </View>
 
         {selectedAttributionItem && (
@@ -1207,7 +1255,7 @@ const StatisticsScreen: React.FC = () => {
           style={[
             styles.flowTypeButton,
             selectedFlowType === '支出' && styles.selectedFlowTypeButton,
-            { borderTopLeftRadius: 20, borderBottomLeftRadius: 20 }
+            { borderTopLeftRadius: 20, borderBottomLeftRadius: 20 },
           ]}
           onPress={() => handleFlowTypeChange('支出')}
         >
@@ -1220,14 +1268,14 @@ const StatisticsScreen: React.FC = () => {
           />
           <Text style={[
             styles.flowTypeText,
-            selectedFlowType === '支出' && styles.selectedFlowTypeText
+            selectedFlowType === '支出' && styles.selectedFlowTypeText,
           ]}>支出</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.flowTypeButton,
-            selectedFlowType === '收入' && styles.selectedFlowTypeButton
+            selectedFlowType === '收入' && styles.selectedFlowTypeButton,
           ]}
           onPress={() => handleFlowTypeChange('收入')}
         >
@@ -1240,7 +1288,7 @@ const StatisticsScreen: React.FC = () => {
           />
           <Text style={[
             styles.flowTypeText,
-            selectedFlowType === '收入' && styles.selectedFlowTypeText
+            selectedFlowType === '收入' && styles.selectedFlowTypeText,
           ]}>收入</Text>
         </TouchableOpacity>
 
@@ -1248,7 +1296,7 @@ const StatisticsScreen: React.FC = () => {
           style={[
             styles.flowTypeButton,
             selectedFlowType === '不计收支' && styles.selectedFlowTypeButton,
-            { borderTopRightRadius: 20, borderBottomRightRadius: 20 }
+            { borderTopRightRadius: 20, borderBottomRightRadius: 20 },
           ]}
           onPress={() => handleFlowTypeChange('不计收支')}
         >
@@ -1261,7 +1309,7 @@ const StatisticsScreen: React.FC = () => {
           />
           <Text style={[
             styles.flowTypeText,
-            selectedFlowType === '不计收支' && styles.selectedFlowTypeText
+            selectedFlowType === '不计收支' && styles.selectedFlowTypeText,
           ]}>不计收支</Text>
         </TouchableOpacity>
       </View>
