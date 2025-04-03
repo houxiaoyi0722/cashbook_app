@@ -23,6 +23,7 @@ const ServerFormScreen: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // 加载服务器配置
   useEffect(() => {
@@ -163,8 +164,14 @@ const ServerFormScreen: React.FC = () => {
             onChangeText={setPassword}
             disabled={isLoading}
             leftIcon={{ type: 'material', name: 'lock', color: '#1976d2' }}
+            rightIcon={{ 
+              type: 'material', 
+              name: showPassword ? 'visibility-off' : 'visibility', 
+              color: '#1976d2',
+              onPress: () => setShowPassword(!showPassword)
+            }}
             errorMessage={password.trim() ? '' : '密码不能为空'}
-            secureTextEntry
+            secureTextEntry={!showPassword}
           />
 
       <Button

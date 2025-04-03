@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { MainStackParamList } from '../../navigation/types';
 import { version } from '../../../package.json';
 import updateService from '../../services/updateService';
-import api from "../../services/api.ts";
+import api from '../../services/api.ts';
 import { eventBus } from '../../navigation';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
@@ -21,10 +21,15 @@ const SettingsScreen: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // 添加全局加载状态
   const [isGlobalLoading, setIsGlobalLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
+
+  // 添加密码可见性状态
+  const [oldPasswordVisible, setOldPasswordVisible] = useState(false);
+  const [newPasswordVisible, setNewPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
 
   // 监听全局加载事件
   useEffect(() => {
@@ -75,7 +80,7 @@ const SettingsScreen: React.FC = () => {
 
   // 处理修改密码
   const handleChangePassword = async () => {
-    if (!validatePasswordForm()) return;
+    if (!validatePasswordForm()) {return;}
 
     try {
       setIsLoading(true);
@@ -217,8 +222,14 @@ const SettingsScreen: React.FC = () => {
 
       <Input
         placeholder="原密码"
-        secureTextEntry
+        secureTextEntry={!oldPasswordVisible}
         leftIcon={{ type: 'material', name: 'lock' }}
+        rightIcon={{
+          type: 'material',
+          name: oldPasswordVisible ? 'visibility' : 'visibility-off',
+          onPress: () => setOldPasswordVisible(!oldPasswordVisible),
+          color: '#86939e',
+        }}
         value={oldPassword}
         onChangeText={setOldPassword}
         disabled={isLoading}
@@ -226,8 +237,14 @@ const SettingsScreen: React.FC = () => {
 
       <Input
         placeholder="新密码"
-        secureTextEntry
+        secureTextEntry={!newPasswordVisible}
         leftIcon={{ type: 'material', name: 'lock-outline' }}
+        rightIcon={{
+          type: 'material',
+          name: newPasswordVisible ? 'visibility' : 'visibility-off',
+          onPress: () => setNewPasswordVisible(!newPasswordVisible),
+          color: '#86939e',
+        }}
         value={newPassword}
         onChangeText={setNewPassword}
         disabled={isLoading}
@@ -235,8 +252,14 @@ const SettingsScreen: React.FC = () => {
 
       <Input
         placeholder="确认新密码"
-        secureTextEntry
+        secureTextEntry={!confirmPasswordVisible}
         leftIcon={{ type: 'material', name: 'lock-outline' }}
+        rightIcon={{
+          type: 'material',
+          name: confirmPasswordVisible ? 'visibility' : 'visibility-off',
+          onPress: () => setConfirmPasswordVisible(!confirmPasswordVisible),
+          color: '#86939e',
+        }}
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         disabled={isLoading}
