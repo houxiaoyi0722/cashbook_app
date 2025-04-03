@@ -81,7 +81,7 @@ const EchartsComponent = ({ option, onItemClick }) => {
     }
 
     return () => chart?.dispose();
-  }, [option]);
+  }, []);
 
   return <SvgChart ref={chartRef} />;
 };
@@ -927,7 +927,7 @@ const StatisticsScreen: React.FC = () => {
         left: 'center',
         data: sortedData.map(item => item.name),
         textStyle: { fontSize: 10 },
-        formatter: (name) => name.length > 6 ? name.slice(0, 6) + '...' : name,
+        formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name,
         selected: {}
       },
       series: [
@@ -971,7 +971,7 @@ const StatisticsScreen: React.FC = () => {
         <Card.Title>{`支付方式分析 (${selectedFlowType})`}</Card.Title>
 
         <View style={styles.chartContainer}>
-          {renderEcharts(option, 300, handlePayTypeItemClick)}
+          {renderEcharts(option, handlePayTypeItemClick)}
         </View>
 
         {selectedPayTypeItem && (
@@ -1094,7 +1094,7 @@ const StatisticsScreen: React.FC = () => {
         <Card.Title>{year + '收支趋势'}</Card.Title>
 
         <View style={styles.chartContainer}>
-          {renderEcharts(option, 300)}
+          {renderEcharts(option, undefined)}
         </View>
       </Card>
     );
@@ -1131,7 +1131,7 @@ const StatisticsScreen: React.FC = () => {
         left: 'center',
         data: attributionData.map(item => item.name),
         textStyle: { fontSize: 10 },
-        formatter: (name) => name.length > 6 ? name.slice(0, 6) + '...' : name,
+        formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name,
         selected: {}
       },
       series: [
@@ -1164,7 +1164,7 @@ const StatisticsScreen: React.FC = () => {
         <Card.Title>{`流水归属分析 (${selectedFlowType})`}</Card.Title>
 
         <View style={styles.chartContainer}>
-          {renderEcharts(option, 300, handleAttributionItemClick)}
+          {renderEcharts(option, handleAttributionItemClick)}
         </View>
 
         {selectedAttributionItem && (
