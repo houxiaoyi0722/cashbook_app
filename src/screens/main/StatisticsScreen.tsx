@@ -35,12 +35,14 @@ type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 const getChartColor = (index: number) => {
   const colors = [
-    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-    '#FF9F40', '#8AC249', '#EA5545', '#F46A9B', '#EF9B20',
-    '#EDBF33', '#024b51', '#27AEEF', '#B33DC6', '#0e2c82',
-    '#b6b51f', '#da1f18', '#701866', '#f47a75', '#009db2',
-    '#0780cf', '#765005', '#63b2ee', '#76da91', '#f8cb7f',
-    '#45a776', '#f05326', '#eed777', '#b3974e', '#93c555',
+    '#FF6384', '#36A2EB', '#4BC0C0',
+    '#9966FF', '#F46A9B', '#f05326',
+    '#FF9F40', '#8AC249', '#EA5545',
+    '#EDBF33', '#27AEEF', '#da1f18',
+    '#B33DC6', '#b6b51f', '#f8cb7f',
+    '#701866', '#f47a75', '#009db2',
+    '#63b2ee', '#76da91', '#93c555',
+    '#45a776',
   ];
 
   return colors[index % colors.length];
@@ -838,7 +840,7 @@ const StatisticsScreen: React.FC = () => {
     // 每行显示3个图例，计算需要多少行
     const legendRows = Math.ceil(sortedData.length / 3);
     // 每个图例项高度约25px，加上图表本身的高度和其他元素
-    const chartHeight = 300 + (legendRows > 2 ? (legendRows - 2) * 25 : 0);
+    const chartHeight = 250 + (legendRows > 2 ? (legendRows - 2) * 25 : 0);
 
     // Prepare chart data
     const option: echarts.EChartsCoreOption = {
@@ -872,7 +874,7 @@ const StatisticsScreen: React.FC = () => {
           name: '支出类型',
           type: 'pie',
           radius: ['40%', '70%'],
-          center: ['50%', '45%'],
+          center: ['50%', '35%'],
           avoidLabelOverlap: false,
           itemStyle: {
             borderRadius: 5,
