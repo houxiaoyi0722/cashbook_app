@@ -6,7 +6,7 @@ import { ApiResponse, ServerConfig, Book, Flow, AnalyticsItem, MonthAnalysis } f
 const createApiInstance = (baseURL: string): AxiosInstance => {
   const instance = axios.create({
     baseURL,
-    timeout: 60000,
+    timeout: 20000,
     headers: {
       'Content-Type': 'application/json',
     },

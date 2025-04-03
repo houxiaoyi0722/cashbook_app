@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, TouchableOpacity, Switch } from 'react-native';
-import { Text, Card, Button, Icon, ListItem, Divider, Dialog, Input } from '@rneui/themed';
+import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { Text, Card, Icon, ListItem, Dialog, Input } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import { MainStackParamList } from '../../navigation/types';
 import { version } from '../../../package.json';
+import updateService from '../../services/updateService';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -19,7 +19,6 @@ const SettingsScreen: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // 处理退出登录
   const handleLogout = async () => {
@@ -114,16 +113,6 @@ const SettingsScreen: React.FC = () => {
     setConfirmPassword('');
   };
 
-  // 处理切换深色模式
-  const toggleDarkMode = async (value: boolean) => {
-    setIsDarkMode(value);
-    try {
-      await AsyncStorage.setItem('dark_mode', value ? 'true' : 'false');
-    } catch (error) {
-      console.error('保存深色模式设置失败', error);
-    }
-  };
-
   // 渲染用户信息
   const renderUserInfo = () => (
     <Card containerStyle={styles.card}>
@@ -190,6 +179,12 @@ const SettingsScreen: React.FC = () => {
         <ListItem.Content>
           <ListItem.Title>开发者</ListItem.Title>
           <ListItem.Subtitle>sang</ListItem.Subtitle>
+        </ListItem.Content>
+      </ListItem>
+      <ListItem key="developer" onPress={() => updateService.checkForUpdates()}>
+        <Icon name="code" type="material" color="#1976d2" />
+        <ListItem.Content>
+          <ListItem.Title>检查更新</ListItem.Title>
         </ListItem.Content>
       </ListItem>
     </Card>
@@ -300,6 +295,15 @@ const styles = StyleSheet.create({
   dialog: {
     borderRadius: 10,
     padding: 20,
+  },
+  settingItem: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  settingText: {
+    fontSize: 16,
   },
 });
 

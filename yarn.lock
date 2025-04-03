@@ -5898,6 +5898,11 @@ react-native-chart-kit@^6.12.0:
     paths-js "^0.4.10"
     point-in-polygon "^1.0.1"
 
+react-native-device-info@^14.0.4:
+  version "14.0.4"
+  resolved "https://registry.npmmirror.com/react-native-device-info/-/react-native-device-info-14.0.4.tgz#56b24ace9ff29a66bdfc667209086421ed6cfdce"
+  integrity sha512-NX0wMAknSDBeFnEnSFQ8kkAcQrFHrG4Cl0mVjoD+0++iaKrOupiGpBXqs8xR0SeJyPC5zpdPl4h/SaBGly6UxA==
+
 react-native-gesture-handler@^2.24.0:
   version "2.24.0"
   resolved "https://registry.npmmirror.com/react-native-gesture-handler/-/react-native-gesture-handler-2.24.0.tgz#b6e1f13ec9bf8dfa5f4911854b6e0d73d882a81a"
