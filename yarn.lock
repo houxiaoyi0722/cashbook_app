@@ -1853,11 +1853,11 @@
   integrity sha512-8L/XOrL9OK/r+/iBLvx63TbIdZOXF8SIjN9eArMYm6kRbMr8m4BitXllDN8nBhBsSPNYvL6EAgjk+i2MfY4sBA==
 
 "@shopify/react-native-skia@^1.11.18":
-  version "1.11.18"
-  resolved "https://registry.npmmirror.com/@shopify/react-native-skia/-/react-native-skia-1.11.18.tgz#f14e6c86d972cd6ac683e6828a835bce6bb8d74c"
-  integrity sha512-l5pbgn86+GcR6qg7Cj4J5fO4Qk7ofv+2vaPajOkRmnaJA0BxbqNtw301mzTqmwtZoIzZmXJW5KSy3B00+QYc9g==
+  version "1.12.3"
+  resolved "https://registry.npmmirror.com/@shopify/react-native-skia/-/react-native-skia-1.12.3.tgz#b153df5e46c92676e490f1c4e286e029a72b0bdf"
+  integrity sha512-QTJ/pliXWzFgrafM0r8QJ8+W8WgRkvBfcVmdKX5BfAIEujm0uGKamu1h8w2/fY6nIfnl7wLaMINhTWUPPBd+cw==
   dependencies:
-    canvaskit-wasm "0.39.1"
+    canvaskit-wasm "0.40.0"
     react-reconciler "0.27.0"
 
 "@sideway/address@^4.1.5":
@@ -2185,9 +2185,9 @@
   integrity sha512-pUrWq3V5PiSGFLeLxoGqReTZmiiXwY3jRkIG5sLLKjyqNxrwm/04b4nw7LSmGWJcKk59XOM/YRTUwOzo4MMlow==
 
 "@wuba/react-native-echarts@^2.0.2":
-  version "2.0.2"
-  resolved "https://registry.npmmirror.com/@wuba/react-native-echarts/-/react-native-echarts-2.0.2.tgz#b7ce1b0781f2ff4c337f74d8e0c9f5f7deb8a1a5"
-  integrity sha512-F005qqzWNqNSaOGARg8kWQ4IQZXlmYteCZlRDHmHWonuinAEYlS5z1NFjkpGEp4dkL3vo3H44Q9SphWX7HTWVw==
+  version "2.0.3"
+  resolved "https://registry.npmmirror.com/@wuba/react-native-echarts/-/react-native-echarts-2.0.3.tgz#51c7069e3b4ca942e0df050ebfc8d66ea0535818"
+  integrity sha512-/DazK2Er8zUKYgV6BorWO2hQsBFZ7rhi+G4Y1V6O4SLcDYXIJZkV2sqL2lN4dQbzDmNtuVohEyS4AeLWrjwVfg==
   dependencies:
     "@xmldom/xmldom" "^0.8.6"
     entities "^4.4.0"
@@ -2683,10 +2683,10 @@ caniuse-lite@^1.0.30001688:
   resolved "https://registry.npmmirror.com/caniuse-lite/-/caniuse-lite-1.0.30001703.tgz#977cb4920598c158f491ecf4f4f2cfed9e354718"
   integrity sha512-kRlAGTRWgPsOj7oARC9m1okJEXdL/8fekFVcxA8Hl7GH4r/sN4OJn/i6Flde373T50KS7Y37oFbMwlE8+F42kQ==
 
-canvaskit-wasm@0.39.1:
-  version "0.39.1"
-  resolved "https://registry.npmmirror.com/canvaskit-wasm/-/canvaskit-wasm-0.39.1.tgz#c3c8f3962cbabbedf246f7bcf90e859013c7eae9"
-  integrity sha512-Gy3lCmhUdKq+8bvDrs9t8+qf7RvcjuQn+we7vTVVyqgOVO1UVfHpsnBxkTZw+R4ApEJ3D5fKySl9TU11hmjl/A==
+canvaskit-wasm@0.40.0:
+  version "0.40.0"
+  resolved "https://registry.npmmirror.com/canvaskit-wasm/-/canvaskit-wasm-0.40.0.tgz#61a77657259fddfc0025ad1c3f57ac8d4d5850ff"
+  integrity sha512-Od2o+ZmoEw9PBdN/yCGvzfu0WVqlufBPEWNG452wY7E9aT8RBE+ChpZF526doOlg7zumO4iCS+RAeht4P0Gbpw==
   dependencies:
     "@webgpu/types" "0.1.21"
 
@@ -3187,7 +3187,7 @@ dunder-proto@^1.0.0, dunder-proto@^1.0.1:
     es-errors "^1.3.0"
     gopd "^1.2.0"
 
-echarts@^5.6.0:
+echarts@^5.4.3:
   version "5.6.0"
   resolved "https://registry.npmmirror.com/echarts/-/echarts-5.6.0.tgz#2377874dca9fb50f104051c3553544752da3c9d6"
   integrity sha512-oTbVTsXfKuEhxftHqL5xprgLoc0k7uScAwtryCgWF6hPYFLRwOUHiFmHGCBKP5NPFNkDVopOieyUqYGH8Fa3kA==
@@ -5015,7 +5015,7 @@ lodash.throttle@^4.1.1:
   resolved "https://registry.npmmirror.com/lodash.throttle/-/lodash.throttle-4.1.1.tgz#c23e91b710242ac70c37f1e1cda9274cc39bf2f4"
   integrity sha512-wIkUCfVKpVsWo3JSZlc+8MB5it+2AN5W8J7YVMST30UrvcQNZ1Okbj+rbVniijTWE6FGYy4XJq/rHkas8qJMLQ==
 
-lodash@^4.17.13, lodash@^4.17.15, lodash@^4.17.21:
+lodash@^4.17.15, lodash@^4.17.21:
   version "4.17.21"
   resolved "https://registry.npmmirror.com/lodash/-/lodash-4.17.21.tgz#679591c564c3bffaae8454cf0b3df370c3d6911c"
   integrity sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==
@@ -5697,11 +5697,6 @@ path-type@^4.0.0:
   resolved "https://registry.npmmirror.com/path-type/-/path-type-4.0.0.tgz#84ed01c0a7ba380afe09d90a8c180dcd9d03043b"
   integrity sha512-gDKb8aZMDeD/tZWs9P6+q0J9Mwkdl6xMV8TjnGP3qJVJ06bdMgkbBlLU8IdfOsIsFz2BW1rNVT3XuNEl8zPAvw==
 
-paths-js@^0.4.10:
-  version "0.4.11"
-  resolved "https://registry.npmmirror.com/paths-js/-/paths-js-0.4.11.tgz#b2a9d5f94ee9949aa8fee945f78a12abff44599e"
-  integrity sha512-3mqcLomDBXOo7Fo+UlaenG6f71bk1ZezPQy2JCmYHy2W2k5VKpP+Jbin9H0bjXynelTbglCqdFhSEkeIkKTYUA==
-
 picocolors@^1.0.0, picocolors@^1.0.1, picocolors@^1.1.1:
   version "1.1.1"
   resolved "https://registry.npmmirror.com/picocolors/-/picocolors-1.1.1.tgz#3d321af3eab939b083c8f929a1d12cda81c26b6b"
@@ -5735,11 +5730,6 @@ pkg-dir@^4.2.0:
   integrity sha512-HRDzbaKjC+AOWVXxAU/x54COGeIv9eb+6CkDSQoNTt4XyWoIJvuPsXizxu/Fr23EiekbtZwmh1IcIG/l/a10GQ==
   dependencies:
     find-up "^4.0.0"
-
-point-in-polygon@^1.0.1:
-  version "1.1.0"
-  resolved "https://registry.npmmirror.com/point-in-polygon/-/point-in-polygon-1.1.0.tgz#b0af2616c01bdee341cbf2894df643387ca03357"
-  integrity sha512-3ojrFwjnnw8Q9242TzgXuTD+eKiutbzyslcq1ydfu82Db2y+Ogbmyrkpv0Hgj31qwT3lbS9+QAAO/pIQM35XRw==
 
 possible-typed-array-names@^1.0.0:
   version "1.1.0"
@@ -5888,15 +5878,6 @@ react-native-calendars@^1.1310.0:
     xdate "^0.8.0"
   optionalDependencies:
     moment "^2.29.4"
-
-react-native-chart-kit@^6.12.0:
-  version "6.12.0"
-  resolved "https://registry.npmmirror.com/react-native-chart-kit/-/react-native-chart-kit-6.12.0.tgz#187a4987a668a85b7e93588c248ed2c33b3a06f6"
-  integrity sha512-nZLGyCFzZ7zmX0KjYeeSV1HKuPhl1wOMlTAqa0JhlyW62qV/1ZPXHgT8o9s8mkFaGxdqbspOeuaa6I9jUQDgnA==
-  dependencies:
-    lodash "^4.17.13"
-    paths-js "^0.4.10"
-    point-in-polygon "^1.0.1"
 
 react-native-device-info@^14.0.4:
   version "14.0.4"

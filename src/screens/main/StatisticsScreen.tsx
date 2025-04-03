@@ -249,7 +249,7 @@ const StatisticsScreen: React.FC = () => {
           value: parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)),
           color: getChartColor(index + 10),
           percentage: ((parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)) /
-                       response.d.reduce((sum: number, i: any) => sum + parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)), 0)) * 100).toFixed(2)
+                       response.d.reduce((sum: number) => sum + parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)), 0)) * 100).toFixed(2)
         }));
 
         setAttributionData(formattedData);
