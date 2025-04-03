@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
-import { Text, Card, Icon, ListItem, Dialog, Input } from '@rneui/themed';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Text, Card, Icon, ListItem, Dialog, Input, Overlay } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { MainStackParamList } from '../../navigation/types';
 import { version } from '../../../package.json';
 import updateService from '../../services/updateService';
+import api from "../../services/api.ts";
+import { eventBus } from '../../navigation';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -19,6 +21,27 @@ const SettingsScreen: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // 添加全局加载状态
+  const [isGlobalLoading, setIsGlobalLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
+
+  // 监听全局加载事件
+  useEffect(() => {
+    const showLoadingListener = eventBus.addListener('showLoading', (message: string = '加载中...') => {
+      setLoadingMessage(message);
+      setIsGlobalLoading(true);
+    });
+
+    const hideLoadingListener = eventBus.addListener('hideLoading', () => {
+      setIsGlobalLoading(false);
+    });
+
+    return () => {
+      showLoadingListener.remove();
+      hideLoadingListener.remove();
+    };
+  }, []);
 
   // 处理退出登录
   const handleLogout = async () => {
@@ -57,26 +80,19 @@ const SettingsScreen: React.FC = () => {
     try {
       setIsLoading(true);
       // 调用修改密码API
-      // const response = await api.auth.changePassword(oldPassword, newPassword);
+      const response = await api.changePassword(oldPassword, newPassword);
 
-      // if (response.c === 200) {
-      //   Alert.alert('成功', '密码修改成功');
-      //   setIsChangePasswordVisible(false);
-      //   resetPasswordForm();
-      // } else {
-      //   Alert.alert('错误', response.m || '密码修改失败');
-      // }
-
-      // 模拟API调用
-      setTimeout(() => {
+      if (response.c === 200) {
         Alert.alert('成功', '密码修改成功');
         setIsChangePasswordVisible(false);
         resetPasswordForm();
-        setIsLoading(false);
-      }, 1000);
+      } else {
+        Alert.alert('错误', response.m || '密码修改失败');
+      }
     } catch (error) {
       console.error('修改密码失败', error);
       Alert.alert('错误', '修改密码失败');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -181,8 +197,8 @@ const SettingsScreen: React.FC = () => {
           <ListItem.Subtitle>sang</ListItem.Subtitle>
         </ListItem.Content>
       </ListItem>
-      <ListItem key="developer" onPress={() => updateService.checkForUpdates()}>
-        <Icon name="code" type="material" color="#1976d2" />
+      <ListItem key="check-update" onPress={() => updateService.checkForUpdates()}>
+        <Icon name="system-update" type="material" color="#1976d2" />
         <ListItem.Content>
           <ListItem.Title>检查更新</ListItem.Title>
         </ListItem.Content>
@@ -241,6 +257,17 @@ const SettingsScreen: React.FC = () => {
     </Dialog>
   );
 
+  // 渲染全局加载遮罩
+  const renderLoadingOverlay = () => (
+    <Overlay
+      isVisible={isGlobalLoading}
+      overlayStyle={styles.loadingOverlay}
+    >
+      <ActivityIndicator size="large" color="#1976d2" />
+      <Text style={styles.loadingText}>{loadingMessage}</Text>
+    </Overlay>
+  );
+
   return (
     <View style={styles.container}>
       <ScrollView>
@@ -250,6 +277,7 @@ const SettingsScreen: React.FC = () => {
       </ScrollView>
 
       {renderChangePasswordDialog()}
+      {renderLoadingOverlay()}
     </View>
   );
 };
@@ -296,14 +324,18 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 20,
   },
-  settingItem: {
-    padding: 16,
+  loadingOverlay: {
+    width: 200,
+    height: 100,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: 'white',
-    borderRadius: 8,
-    marginBottom: 8,
   },
-  settingText: {
+  loadingText: {
+    marginTop: 10,
     fontSize: 16,
+    color: '#1976d2',
   },
 });
 

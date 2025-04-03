@@ -1,6 +1,7 @@
 import { Alert, Linking } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import axios from 'axios';
+import { eventBus } from '../navigation';
 
 // 获取当前应用版本
 const getCurrentVersion = async (): Promise<string> => {
@@ -47,9 +48,15 @@ const compareVersions = (currentVersion: string, latestVersion: string): boolean
 // 检查更新
 export const checkForUpdates = async (): Promise<void> => {
   try {
+    // 显示加载提示
+    eventBus.emit('showLoading', '检查更新中...');
+
     const currentVersion = await getCurrentVersion();
     const { version: latestVersion, url } = await getLatestVersion();
-    console.log(currentVersion, latestVersion)
+
+    // 隐藏加载提示
+    eventBus.emit('hideLoading');
+
     if (compareVersions(currentVersion, latestVersion)) {
       Alert.alert(
         '发现新版本',
@@ -58,21 +65,28 @@ export const checkForUpdates = async (): Promise<void> => {
           { text: '取消', style: 'cancel' },
           {
             text: '更新',
-            onPress: () => Linking.openURL(url)
-          }
+            onPress: () => Linking.openURL(url),
+          },
         ]
       );
     } else {
       Alert.alert(
-          '版本更新',
-          `当前已是最新版本`,
-          [
-            { text: '确定', style: 'cancel' },
-          ]
+        '版本更新',
+        '当前已是最新版本',
+        [
+          { text: '确定', style: 'cancel' },
+        ]
       );
     }
   } catch (error) {
+    // 出错时也要隐藏加载提示
+    eventBus.emit('hideLoading');
     console.error('检查更新失败:', error);
+    Alert.alert(
+      '检查更新失败',
+      '无法获取最新版本信息，请检查网络连接后重试。',
+      [{ text: '确定', style: 'cancel' }]
+    );
   }
 };
 
