@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img alt="React Native" src="https://img.shields.io/badge/React%20Native-v0.73-blue.svg" />
+  <img alt="React Native" src="https://img.shields.io/badge/React%20Native-v0.78-blue.svg" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-v5.0-blue.svg" />
   <img alt="license" src="https://img.shields.io/github/license/houxiaoyi0722/cashbook_app" />
 </p>
