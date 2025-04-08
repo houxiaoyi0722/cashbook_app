@@ -245,8 +245,10 @@ const BudgetScreen = () => {
 
     // 计算预算使用百分比，包括固定支出
     const totalUsed = budget ? budget.used + totalFixedExpense : totalFixedExpense;
-    const usedPercentage = budget ? Math.round((totalUsed / budget.budget) * 100) : 0;
-    const usedPercentageColor = usedPercentage < 70 ? '#4caf50' : usedPercentage < 90 ? '#ff9800' : '#f44336';
+    const usedPercentage = budget ? ((totalUsed / budget.budget) * 100).toFixed(2) : '0.00';
+    const usedPercentageNumber = parseFloat(usedPercentage);
+    const usedPercentageColor = usedPercentageNumber < 70 ? '#4caf50' : usedPercentageNumber < 90 ? '#ff9800' : '#f44336';
+
 
     return (
         <View style={styles.container}>
@@ -277,8 +279,11 @@ const BudgetScreen = () => {
                             <Icon name="account-balance-wallet" type="material" color="#1976d2" size={20}/>
                             <Text style={styles.titleText}> 预算管理</Text>
                         </Card.Title>
-                        <TouchableOpacity onPress={openBudgetModal}>
+                        <TouchableOpacity onPress={openBudgetModal} style={styles.budgetEdit}>
                             <Icon name="edit" type="material" color="#1976d2" size={24}/>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={refreshUsedAmount} style={styles.budgetRefresh}>
+                            <Icon name="refresh" type="material" color="#1976d2" size={24}/>
                         </TouchableOpacity>
                     </View>
 
@@ -307,6 +312,7 @@ const BudgetScreen = () => {
                             <View
                                 style={[
                                     styles.progressFill,
+                                    // @ts-ignore
                                     {width: `${usedPercentage}%`, backgroundColor: usedPercentageColor},
                                 ]}
                             />
@@ -609,7 +615,7 @@ const styles = StyleSheet.create({
         borderRadius: 6,
     },
     progressText: {
-        width: 48,
+        width: 60,
         fontSize: 14,
         fontWeight: 'bold',
         textAlign: 'right',
