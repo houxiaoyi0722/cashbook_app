@@ -1,11 +1,11 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {View, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity} from 'react-native';
 import {Card, Button, Text, Input, Icon, Divider, ListItem, Overlay} from '@rneui/themed';
 import api from '../../services/api';
 import {Budget, FixedFlow} from '../../types';
 import dayjs from 'dayjs';
 import {useBookkeeping} from '../../context/BookkeepingContext';
-import BookSelector from '../../components/BookSelector.tsx';
+import BookSelector from '../../components/BookSelector';
 
 const BudgetScreen = () => {
     // 基础状态
@@ -31,7 +31,7 @@ const BudgetScreen = () => {
     const [ffEndMonth, setFfEndMonth] = useState(dayjs().add(5, 'month').format('YYYY-MM'));
 
     // 加载数据
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         if (!currentBook) {return;}
         setLoading(true);
         try {
@@ -54,7 +54,7 @@ const BudgetScreen = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentBook, currentMonth]);
 
     // 刷新已用额度
     const refreshUsedAmount = async () => {
@@ -238,14 +238,15 @@ const BudgetScreen = () => {
         if (currentBook) {
             loadData();
         }
-    }, [currentBook, currentMonth]);
-
-    // 计算预算使用百分比
-    const usedPercentage = budget ? Math.min(100, Math.round((budget.used / budget.budget) * 100)) : 0;
-    const usedPercentageColor = usedPercentage < 70 ? '#4caf50' : usedPercentage < 90 ? '#ff9800' : '#f44336';
+    }, [currentBook, currentMonth, loadData]);
 
     // 计算固定支出总额
     const totalFixedExpense = fixedFlows.reduce((sum, item) => sum + item.money, 0);
+
+    // 计算预算使用百分比，包括固定支出
+    const totalUsed = budget ? budget.used + totalFixedExpense : totalFixedExpense;
+    const usedPercentage = budget ? Math.round((totalUsed / budget.budget) * 100) : 0;
+    const usedPercentageColor = usedPercentage < 70 ? '#4caf50' : usedPercentage < 90 ? '#ff9800' : '#f44336';
 
     return (
         <View style={styles.container}>
@@ -276,11 +277,8 @@ const BudgetScreen = () => {
                             <Icon name="account-balance-wallet" type="material" color="#1976d2" size={20}/>
                             <Text style={styles.titleText}> 预算管理</Text>
                         </Card.Title>
-                        <TouchableOpacity onPress={openBudgetModal} style={styles.budgetEdit}>
+                        <TouchableOpacity onPress={openBudgetModal}>
                             <Icon name="edit" type="material" color="#1976d2" size={24}/>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={refreshUsedAmount} style={styles.budgetRefresh}>
-                            <Icon name="refresh" type="material" color="#1976d2" size={24}/>
                         </TouchableOpacity>
                     </View>
 
@@ -291,15 +289,14 @@ const BudgetScreen = () => {
                         </View>
 
                         <View style={styles.budgetInfo}>
-                            <Text style={styles.budgetLabel}>已使用</Text>
-                            <Text
-                                style={[styles.budgetValue, {color: '#f44336'}]}>{budget?.used?.toFixed(2) || '0.00'}</Text>
+                            <Text style={styles.budgetLabel}>非固定支出</Text>
+                            <Text style={[styles.budgetValue, {color: '#f44336'}]}>{budget?.used?.toFixed(2) || '0.00'}</Text>
                         </View>
 
                         <View style={styles.budgetInfo}>
                             <Text style={styles.budgetLabel}>剩余预算</Text>
                             <Text style={[styles.budgetValue, {color: '#4caf50'}]}>
-                                {budget ? (budget.budget - budget.used).toFixed(2) : '0.00'}
+                                {budget ? (budget.budget - totalUsed).toFixed(2) : '0.00'}
                             </Text>
                         </View>
                     </View>
