@@ -98,6 +98,19 @@ export interface CalendarMark {
   };
 }
 
+// 预算类型
+export interface Budget {
+  id: string;
+  bookId: string;
+  month: string;
+  totalAmount: number;
+  categoryBudgets: {
+    [category: string]: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
 // 日历数据类型
 export interface DailyData {
   [date: string]: {

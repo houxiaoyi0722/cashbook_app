@@ -10,6 +10,7 @@ import {eventBus} from '../navigation';
 interface BookkeepingContextType {
   isLoading: boolean;
   currentBook: Book | null;
+  currentBudget: Budget | null;
   remoteAttributions: string[],
   remotePayType: string[],
   updateCurrentBook: (currentBook: Book | null) => Promise<void>;

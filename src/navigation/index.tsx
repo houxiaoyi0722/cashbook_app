@@ -64,6 +64,16 @@ const MainTabs = () => {
         }}
       />
       <Tab.Screen
+        name="Budget"
+        component={BudgetScreen}
+        options={{
+          tabBarLabel: '预算',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="account-balance-wallet" type="material" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Settings"
         component={SettingsScreen}
         options={{

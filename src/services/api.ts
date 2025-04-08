@@ -410,6 +410,30 @@ class Api {
       return response.data;
     },
   };
+
+  // 预算相关API
+  budget = {
+    // 获取当前预算
+    get: async (bookId: string, month: string): Promise<ApiResponse<Budget>> => {
+      if (!this.instance) throw new Error('API实例未初始化');
+      const response = await this.instance.post('/api/entry/budget/get', { bookId, month });
+      return response.data;
+    },
+
+    // 保存预算
+    save: async (data: Omit<Budget, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Budget>> => {
+      if (!this.instance) throw new Error('API实例未初始化');
+      const response = await this.instance.post('/api/entry/budget/save', data);
+      return response.data;
+    },
+
+    // 获取预算执行情况
+    analysis: async (bookId: string, month: string): Promise<ApiResponse<any>> => {
+      if (!this.instance) throw new Error('API实例未初始化');
+      const response = await this.instance.post('/api/entry/budget/analysis', { bookId, month });
+      return response.data;
+    },
+  };
 }
 
 // 导出单例

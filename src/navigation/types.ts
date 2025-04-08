@@ -24,5 +24,6 @@ export type MainStackParamList = {
 export type MainTabParamList = {
   Calendar: undefined;
   Statistics: undefined;
+  Budget: undefined;
   Settings: undefined;
 };
