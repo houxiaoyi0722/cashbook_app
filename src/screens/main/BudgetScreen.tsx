@@ -250,8 +250,6 @@ const BudgetScreen = () => {
     return (
         <View style={styles.container}>
             <BookSelector/>
-            <ScrollView style={styles.container}>
-
                 {/* 月份选择器 */}
                 <View style={styles.monthSelector}>
                     <TouchableOpacity
@@ -278,27 +276,30 @@ const BudgetScreen = () => {
                             <Icon name="account-balance-wallet" type="material" color="#1976d2" size={20}/>
                             <Text style={styles.titleText}> 预算管理</Text>
                         </Card.Title>
-                        <TouchableOpacity onPress={openBudgetModal}>
+                        <TouchableOpacity onPress={openBudgetModal} style={styles.budgetEdit}>
                             <Icon name="edit" type="material" color="#1976d2" size={24}/>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={refreshUsedAmount} style={styles.budgetRefresh}>
+                            <Icon name="refresh" type="material" color="#1976d2" size={24}/>
                         </TouchableOpacity>
                     </View>
 
                     <View style={styles.budgetInfoContainer}>
                         <View style={styles.budgetInfo}>
                             <Text style={styles.budgetLabel}>预算金额</Text>
-                            <Text style={styles.budgetValue}>¥ {budget?.budget?.toFixed(2) || '0.00'}</Text>
+                            <Text style={styles.budgetValue}>{budget?.budget?.toFixed(2) || '0.00'}</Text>
                         </View>
 
                         <View style={styles.budgetInfo}>
                             <Text style={styles.budgetLabel}>已使用</Text>
                             <Text
-                                style={[styles.budgetValue, {color: '#f44336'}]}>¥ {budget?.used?.toFixed(2) || '0.00'}</Text>
+                                style={[styles.budgetValue, {color: '#f44336'}]}>{budget?.used?.toFixed(2) || '0.00'}</Text>
                         </View>
 
                         <View style={styles.budgetInfo}>
                             <Text style={styles.budgetLabel}>剩余预算</Text>
                             <Text style={[styles.budgetValue, {color: '#4caf50'}]}>
-                                ¥ {budget ? (budget.budget - budget.used).toFixed(2) : '0.00'}
+                                {budget ? (budget.budget - budget.used).toFixed(2) : '0.00'}
                             </Text>
                         </View>
                     </View>
@@ -315,25 +316,6 @@ const BudgetScreen = () => {
                         </View>
                         <Text style={styles.progressText}>{usedPercentage}%</Text>
                     </View>
-
-                    <Divider style={styles.divider}/>
-
-                    <Button
-                        title="刷新额度"
-                        onPress={refreshUsedAmount}
-                        loading={loading}
-                        buttonStyle={[styles.button, styles.refreshButton]}
-                        containerStyle={styles.buttonWrapper}
-                        icon={
-                            <Icon
-                                name="refresh"
-                                type="material"
-                                color="white"
-                                size={16}
-                                style={{marginRight: 8}}
-                            />
-                        }
-                    />
                 </Card>
 
                 {/* 固定支出卡片 */}
@@ -350,21 +332,21 @@ const BudgetScreen = () => {
 
                     <View style={styles.fixedExpenseSummary}>
                         <Text style={styles.fixedExpenseTitle}>固定支出总额</Text>
-                        <Text style={styles.fixedExpenseAmount}>¥ {totalFixedExpense.toFixed(2)}</Text>
+                        <Text style={styles.fixedExpenseAmount}>{totalFixedExpense.toFixed(2)}</Text>
                     </View>
 
                     <Divider style={styles.divider}/>
 
                     {/* 固定支出列表 */}
                     {fixedFlows.length > 0 ? (
-                        <View style={styles.fixedFlowList}>
+                        <ScrollView style={styles.fixedFlowList}>
                             {fixedFlows.map((item, index) => (
                                 <ListItem key={item.id || index} bottomDivider>
                                     <ListItem.Content>
                                         <ListItem.Title style={styles.fixedFlowTitle}>{item.name}</ListItem.Title>
                                         <ListItem.Subtitle>归属人: {item.attribution}</ListItem.Subtitle>
                                     </ListItem.Content>
-                                    <Text style={styles.fixedFlowAmount}>¥ {item.money.toFixed(2)}</Text>
+                                    <Text style={styles.fixedFlowAmount}>{item.money.toFixed(2)}</Text>
                                     <View style={styles.fixedFlowActions}>
                                         <TouchableOpacity onPress={() => openEditFixedFlowModal(item)}
                                                           style={styles.actionButton}>
@@ -377,7 +359,7 @@ const BudgetScreen = () => {
                                     </View>
                                 </ListItem>
                             ))}
-                        </View>
+                        </ScrollView>
                     ) : (
                         <View style={styles.emptyContainer}>
                             <Text style={styles.emptyText}>暂无固定支出</Text>
@@ -544,7 +526,6 @@ const BudgetScreen = () => {
                         <ActivityIndicator size="large" color="#1976d2"/>
                     </View>
                 )}
-            </ScrollView>
         </View>
     );
 };
@@ -579,10 +560,10 @@ const styles = StyleSheet.create({
         marginHorizontal: 16,
     },
     card: {
-        borderRadius: 8,
-        marginBottom: 16,
-        padding: 16,
-        elevation: 4,
+        marginTop: 5,
+        margin: 10,
+        borderRadius: 10,
+        maxHeight: '55%',
     },
     cardTitle: {
         flexDirection: 'row',
@@ -637,10 +618,7 @@ const styles = StyleSheet.create({
         textAlign: 'right',
     },
     divider: {
-        marginVertical: 16,
-    },
-    budgetForm: {
-        marginBottom: 8,
+        marginVertical: 2,
     },
     input: {
         marginBottom: 8,
@@ -649,23 +627,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
     },
-    buttonWrapper: {
-        flex: 1,
-        marginHorizontal: 4,
-    },
     button: {
         borderRadius: 8,
     },
     saveButton: {
         backgroundColor: '#1976d2',
-    },
-    refreshButton: {
-        backgroundColor: '#4caf50',
-    },
-    addButton: {
-        backgroundColor: '#1976d2',
-        borderRadius: 8,
-        marginTop: 8,
     },
     fixedExpenseSummary: {
         flexDirection: 'row',
@@ -684,6 +650,7 @@ const styles = StyleSheet.create({
     },
     fixedFlowList: {
         marginBottom: 16,
+        maxHeight: '70%',
     },
     fixedFlowTitle: {
         fontSize: 16,
@@ -758,6 +725,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 1000,
+    },
+    budgetEdit: {
+        marginLeft: 150,
+        marginBottom: 10,
+    },
+    budgetRefresh: {
+        marginBottom: 10,
     },
 });
 
