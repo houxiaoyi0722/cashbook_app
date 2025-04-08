@@ -1,0 +1,213 @@
+### 预算管理相关接口
+### 获取某月份预算详情
+# 返回值
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": [
+#        {
+#            "id": 6,
+#            "bookId": "3-DD4nQeLb",
+#            "userId": 3,
+#            "month": "2025-04",
+#            "budget": 50, 当月预算总额
+#            "used": 20 当月已用额度
+#        }
+#    ]
+#}
+POST https://cashbook.sang0722.com:8881/api/entry/budget/list
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"3-DD4nQeLb","month":"2025-04"}
+
+### 更新当月预算
+# # 返回值 {
+#    "c": 200,
+#    "m": "",
+#    "d": {
+#        "id": 6,
+#        "bookId": "3-DD4nQeLb",
+#        "userId": 3,
+#        "month": "2025-04",
+#        "budget": 500,
+#        "used": 20
+#    }
+#}
+POST https://cashbook.sang0722.com:8881/api/entry/budget/update
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"3-DD4nQeLb","month":"2025-04","budget":500,"id":6}
+
+### 刷新已用额度
+# 返回值
+#{"c":200,"m":"","d":{"count":1}}
+POST https://cashbook.sang0722.com:8881/api/entry/budget/reloadUsedAmount
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"3-DD4nQeLb","month":"2025-04"}
+
+### 固定支出列表
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": [
+#        {
+#            "id": 23,
+#            "bookId": "3-DD4nQeLb",
+#            "userId": 3,
+#            "month": "2025-04",
+#            "money": 4,
+#            "name": "预算管理",
+#            "description": null,
+#            "flowType": null,
+#            "industryType": null,
+#            "payType": null,
+#            "attribution": "houxiaoyi"
+#        }
+#    ]
+#}
+POST https://cashbook.sang0722.com:8881/api/entry/fixedFlow/list
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{"bookId":"3-DD4nQeLb","month":"2025-04"}
+
+
+### 添加固定支出
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": [
+#        {
+#            "id": 54,
+#            "bookId": "3-DD4nQeLb",
+#            "userId": 3,
+#            "month": "2024-01",
+#            "money": 12,
+#            "name": "测试",
+#            "description": null,
+#            "flowType": null,
+#            "industryType": null,
+#            "payType": null,
+#            "attribution": "houxiaoyi"
+#        },
+#        {
+#            "id": 55,
+#            "bookId": "3-DD4nQeLb",
+#            "userId": 3,
+#            "month": "2024-02",
+#            "money": 12,
+#            "name": "测试",
+#            "description": null,
+#            "flowType": null,
+#            "industryType": null,
+#            "payType": null,
+#            "attribution": "houxiaoyi"
+#        },
+#        {
+#            "id": 56,
+#            "bookId": "3-DD4nQeLb",
+#            "userId": 3,
+#            "month": "2024-03",
+#            "money": 12,
+#            "name": "测试",
+#            "description": null,
+#            "flowType": null,
+#            "industryType": null,
+#            "payType": null,
+#            "attribution": "houxiaoyi"
+#        },
+#        {
+#            "id": 57,
+#            "bookId": "3-DD4nQeLb",
+#            "userId": 3,
+#            "month": "2024-04",
+#            "money": 12,
+#            "name": "测试",
+#            "description": null,
+#            "flowType": null,
+#            "industryType": null,
+#            "payType": null,
+#            "attribution": "houxiaoyi"
+#        },
+#        {
+#            "id": 58,
+#            "bookId": "3-DD4nQeLb",
+#            "userId": 3,
+#            "month": "2024-05",
+#            "money": 12,
+#            "name": "测试",
+#            "description": null,
+#            "flowType": null,
+#            "industryType": null,
+#            "payType": null,
+#            "attribution": "houxiaoyi"
+#        }
+#    ]
+#}
+POST https://cashbook.sang0722.com:8881/api/entry/fixedFlow/add
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{
+  "startMonth": "2024-01",
+  "endMonth": "2024-05",
+  "name": "测试",
+  "money": 12,
+  "attribution": "houxiaoyi",
+  "bookId": "3-DD4nQeLb",
+  "month": "2025-04"
+}
+
+### 更新固定支出
+# 返回值
+# {
+#    "c": 200,
+#    "m": "",
+#    "d": {
+#        "id": 20,
+#        "bookId": "3-DD4nQeLb",
+#        "userId": 3,
+#        "month": "2025-01",
+#        "money": 30,
+#        "name": "11",
+#        "description": null,
+#        "flowType": null,
+#        "industryType": null,
+#        "payType": null,
+#        "attribution": "houxiaoyi"
+#    }
+#}
+POST https://cashbook.sang0722.com:8881/api/entry/fixedFlow/update
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{
+  "id": 20,
+  "bookId": "3-DD4nQeLb",
+  "userId": 3,
+  "month": "2025-01",
+  "money": 30,
+  "name": "11",
+  "description": null,
+  "flowType": null,
+  "industryType": null,
+  "payType": null,
+  "attribution": "houxiaoyi",
+  "startMonth": "2024-01",
+  "endMonth": "2024-06"
+}
+
+
+### 删除固定支出
+POST https://cashbook.sang0722.com:8881/api/entry/fixedFlow/del
+Content-Type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MywibmFtZSI6InRlc3QiLCJlbWFpbCI6InhpYW95aWhvdUBvdXRsb29rLmNvbSIsImlhdCI6MTc0MzY3MjI4NSwiZXhwIjoxNzQ2MjY0Mjg1fQ.nyeeM0R-ob8hTcvm-HJP_GULok-5SRUaxHkCHjDDvc0
+
+{
+  "id": 20,
+  "bookId": "3-DD4nQeLb"
+}
