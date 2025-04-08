@@ -24,6 +24,7 @@ import {BookProvider} from '../context/BookContext';
 // 导航类型
 import {MainStackParamList, MainTabParamList} from './types';
 import {NativeEventEmitter} from 'react-native';
+import BudgetScreen from '../screens/main/BudgetScreen.tsx';
 
 export const eventBus = new NativeEventEmitter();
 // 创建导航器
