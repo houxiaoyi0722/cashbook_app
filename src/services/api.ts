@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ApiResponse, ServerConfig, Book, Flow, AnalyticsItem, MonthAnalysis } from '../types';
+import {ApiResponse, ServerConfig, Book, Flow, AnalyticsItem, MonthAnalysis, Budget} from '../types';
 
 // 创建API实例
 const createApiInstance = (baseURL: string): AxiosInstance => {
