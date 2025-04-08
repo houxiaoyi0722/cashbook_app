@@ -12,13 +12,13 @@ class AuthManager {
   async login(username: string, password: string): Promise<UserInfo> {
     try {
       const response = await api.login(username, password);
-      
+
       if (response.c === 200 && response.d) {
         const userInfo: UserInfo = response.d;
-        
+
         // 保存认证信息
         await this.saveAuthInfo(userInfo);
-        
+
         return userInfo;
       } else {
         throw new Error(response.m || '登录失败');
@@ -34,7 +34,7 @@ class AuthManager {
     try {
       // 保存token
       await AsyncStorage.setItem(AUTH_TOKEN_KEY, userInfo.token);
-      
+
       // 保存用户信息
       await AsyncStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userInfo));
     } catch (error) {
@@ -89,7 +89,7 @@ class AuthManager {
   async changePassword(oldPassword: string, newPassword: string): Promise<void> {
     try {
       const response = await api.changePassword(oldPassword, newPassword);
-      
+
       if (response.c !== 200) {
         throw new Error(response.m || '更新密码失败');
       }
@@ -102,4 +102,4 @@ class AuthManager {
 
 // 导出单例
 export const authManager = new AuthManager();
-export default authManager; 
+export default authManager;

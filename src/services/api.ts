@@ -413,26 +413,69 @@ class Api {
 
   // 预算相关API
   budget = {
-    // 获取当前预算
-    get: async (bookId: string, month: string): Promise<ApiResponse<Budget>> => {
+    // 获取当月预算
+    list: async (bookId: string, month: string): Promise<ApiResponse<any>> => {
       if (!this.instance) throw new Error('API实例未初始化');
-      const response = await this.instance.post('/api/entry/budget/get', { bookId, month });
+      const response = await this.instance.post('/api/entry/budget/list', { bookId, month });
       return response.data;
     },
 
-    // 保存预算
-    save: async (data: Omit<Budget, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Budget>> => {
+    // 更新预算
+    update: async (data: { bookId: string, month: string, budget: number, id?: number }): Promise<ApiResponse<any>> => {
       if (!this.instance) throw new Error('API实例未初始化');
-      const response = await this.instance.post('/api/entry/budget/save', data);
+      const response = await this.instance.post('/api/entry/budget/update', data);
       return response.data;
     },
 
-    // 获取预算执行情况
-    analysis: async (bookId: string, month: string): Promise<ApiResponse<any>> => {
+    // 刷新已用额度
+    reloadUsedAmount: async (bookId: string, month: string): Promise<ApiResponse<any>> => {
       if (!this.instance) throw new Error('API实例未初始化');
-      const response = await this.instance.post('/api/entry/budget/analysis', { bookId, month });
+      const response = await this.instance.post('/api/entry/budget/reloadUsedAmount', { bookId, month });
+      return response.data;
+    }
+  };
+
+  // 固定支出相关API
+  fixedFlow = {
+    // 获取固定支出列表
+    list: async (bookId: string, month: string): Promise<ApiResponse<any>> => {
+      if (!this.instance) throw new Error('API实例未初始化');
+      const response = await this.instance.post('/api/entry/fixedFlow/list', { bookId, month });
       return response.data;
     },
+
+    // 添加固定支出
+    add: async (data: { 
+      bookId: string, 
+      month: string, 
+      startMonth: string, 
+      endMonth: string, 
+      name: string, 
+      money: number, 
+      attribution: string,
+      description?: string,
+      flowType?: string,
+      industryType?: string,
+      payType?: string
+    }): Promise<ApiResponse<any>> => {
+      if (!this.instance) throw new Error('API实例未初始化');
+      const response = await this.instance.post('/api/entry/fixedFlow/add', data);
+      return response.data;
+    },
+
+    // 更新固定支出
+    update: async (data: any): Promise<ApiResponse<any>> => {
+      if (!this.instance) throw new Error('API实例未初始化');
+      const response = await this.instance.post('/api/entry/fixedFlow/update', data);
+      return response.data;
+    },
+
+    // 删除固定支出
+    delete: async (id: number, bookId: string): Promise<ApiResponse<any>> => {
+      if (!this.instance) throw new Error('API实例未初始化');
+      const response = await this.instance.post('/api/entry/fixedFlow/del', { id, bookId });
+      return response.data;
+    }
   };
 }
 

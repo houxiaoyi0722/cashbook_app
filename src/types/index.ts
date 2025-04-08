@@ -100,15 +100,27 @@ export interface CalendarMark {
 
 // 预算类型
 export interface Budget {
-  id: string;
+  id?: number;
   bookId: string;
+  userId?: number;
   month: string;
-  totalAmount: number;
-  categoryBudgets: {
-    [category: string]: number;
-  };
-  createdAt: string;
-  updatedAt: string;
+  budget: number;
+  used: number;
+}
+
+// 固定支出类型
+export interface FixedFlow {
+  id?: number;
+  bookId: string;
+  userId?: number;
+  month: string;
+  money: number;
+  name: string;
+  description?: string | null;
+  flowType?: string | null;
+  industryType?: string | null;
+  payType?: string | null;
+  attribution: string;
 }
 
 // 日历数据类型
