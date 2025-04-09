@@ -9,8 +9,9 @@ import { MainStackParamList } from '../../navigation/types';
 import api from '../../services/api';
 import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
 import {eventBus} from '../../navigation';
-import {useAuth} from "../../context/AuthContext.tsx";
+import {useAuth} from '../../context/AuthContext.tsx';
 import * as ImagePicker from 'react-native-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowForm'>;
@@ -58,11 +59,13 @@ const FlowFormScreen: React.FC = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showImageViewer, setShowImageViewer] = useState(false);
+  const [headers, setHeaders] = useState({});
+
 
   // 获取流水详情
   useEffect(() => {
     const fetchFlowDetail = async () => {
-      if (!currentFlow) return;
+      if (!currentFlow) {return;}
       setName(currentFlow.name);
       setMoney(currentFlow.money.toString());
       setDescription(currentFlow.description || '');
@@ -111,6 +114,16 @@ const FlowFormScreen: React.FC = () => {
     init();
   }, []);
 
+  useEffect(() => {
+    const fetchToken = async () => {
+      const token = await AsyncStorage.getItem('auth_token');
+      setHeaders({
+        Authorization: token,
+      });
+    };
+    fetchToken();
+  }, []);
+
   // 验证表单
   const validateForm = () => {
     if (!name.trim()) {
@@ -138,7 +151,7 @@ const FlowFormScreen: React.FC = () => {
 
   // 处理保存
   const handleSave = async () => {
-    if (!validateForm() || !currentBook) return;
+    if (!validateForm() || !currentBook) {return;}
 
     try {
       setIsLoading(true);
@@ -268,7 +281,7 @@ const FlowFormScreen: React.FC = () => {
 
   // 上传图片
   const uploadImage = async (image: ImagePicker.Asset) => {
-    if (!currentFlow || !currentBook) return;
+    if (!currentFlow || !currentBook) {return;}
 
     try {
       setUploadingImage(true);
@@ -312,7 +325,7 @@ const FlowFormScreen: React.FC = () => {
 
   // 删除小票图片
   const deleteInvoiceImage = async () => {
-    if (!selectedImage || !currentFlow || !currentBook) return;
+    if (!selectedImage || !currentFlow || !currentBook) {return;}
 
     Alert.alert(
       '确认删除',
@@ -373,7 +386,10 @@ const FlowFormScreen: React.FC = () => {
               onPress={() => viewInvoiceImage(item)}
             >
               <Image
-                source={{ uri: api.flow.getInvoiceUrl(item) }}
+                source={{
+                  uri: api.flow.getInvoiceUrl(item),
+                  headers: headers,
+                }}
                 style={styles.invoiceImage}
               />
             </TouchableOpacity>
@@ -402,7 +418,10 @@ const FlowFormScreen: React.FC = () => {
     >
       <View style={styles.imageViewerContainer}>
         <Image
-          source={{ uri: selectedImage ? api.flow.getInvoiceUrl(selectedImage) : undefined }}
+          source={{
+            uri: selectedImage ? api.flow.getInvoiceUrl(selectedImage) : undefined,
+            headers: headers,
+          }}
           style={styles.fullImage}
           resizeMode="contain"
         />

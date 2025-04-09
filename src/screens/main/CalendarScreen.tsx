@@ -24,6 +24,7 @@ import { SwipeListView } from 'react-native-swipe-list-view';
 import api from '../../services/api';
 import * as ImagePicker from 'react-native-image-picker';
 import { Swipeable } from 'react-native-gesture-handler';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 // 配置中文日历
@@ -77,7 +78,7 @@ const CalendarScreen: React.FC = () => {
   const [balanceLoading, setBalanceLoading] = useState(false);
 
   // 添加小票上传相关状态和函数
-  const [uploadingInvoice, setUploadingInvoice] = useState(false);
+  const [headers, setHeaders] = useState({});
   const [viewingInvoice, setViewingInvoice] = useState(false);
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
   const [selectedInvoiceIndex, setSelectedInvoiceIndex] = useState(0);
@@ -191,6 +192,16 @@ const CalendarScreen: React.FC = () => {
 
     return () => { isMounted = false; };
   }, [currentBook]);
+
+  useEffect(() => {
+    const fetchToken = async () => {
+      const token = await AsyncStorage.getItem('auth_token');
+      setHeaders({
+        Authorization: token,
+      });
+    };
+    fetchToken();
+  }, []);
 
   // 修改 handleDayPress 函数，添加月份切换逻辑
   const handleDayPress = useCallback(async (day: any) => {
@@ -348,12 +359,14 @@ const CalendarScreen: React.FC = () => {
                     <Text style={styles.flowItemDesc} numberOfLines={1}>
                       {item.description ? item.description : ''}
                     </Text>
-                    <TouchableOpacity
-                        style={styles.photoIcon}
-                        onPress={() => viewInvoiceImages(item)}
-                    >
-                      <Icon name="photo" type="material" color="#4caf50" size={20} />
-                    </TouchableOpacity>
+                    {item.invoice ? (
+                        <TouchableOpacity
+                            style={styles.photoIcon}
+                            onPress={() => viewInvoiceImages(item)}
+                        >
+                          <Icon name="photo" type="material" color="#4caf50" size={20} />
+                        </TouchableOpacity>
+                    ) : ''}
                   </View>
 
                 </View>
@@ -1177,7 +1190,6 @@ const CalendarScreen: React.FC = () => {
     if (!currentBook) {return;}
 
     try {
-      setUploadingInvoice(true);
       const response = await api.flow.uploadInvoice(flow.id, currentBook.bookId, image);
 
       if (response.c === 200) {
@@ -1191,7 +1203,6 @@ const CalendarScreen: React.FC = () => {
       console.error('小票上传失败', error);
       Alert.alert('错误', '小票上传失败');
     } finally {
-      setUploadingInvoice(false);
       // 关闭滑动选项
       swipeableRefs.current[flow.id]?.close();
     }
@@ -1230,7 +1241,6 @@ const CalendarScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              setUploadingInvoice(true);
               const response = await api.flow.deleteInvoice(
                 selectedFlow.id,
                 currentBook.bookId,
@@ -1260,7 +1270,6 @@ const CalendarScreen: React.FC = () => {
               console.error('小票删除失败', error);
               Alert.alert('错误', '小票删除失败');
             } finally {
-              setUploadingInvoice(false);
             }
           },
         },
@@ -1281,6 +1290,7 @@ const CalendarScreen: React.FC = () => {
             uri: selectedInvoices[selectedInvoiceIndex]
               ? api.flow.getInvoiceUrl(selectedInvoices[selectedInvoiceIndex])
               : undefined,
+            headers: headers,
           }}
           style={styles.fullImage}
           resizeMode="contain"
