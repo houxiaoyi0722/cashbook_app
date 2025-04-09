@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useCallback} from 'react';
-import {View, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Platform} from 'react-native';
+import {View, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity} from 'react-native';
 import {Card, Button, Text, Input, Icon, Divider, ListItem, Overlay} from '@rneui/themed';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import YearMonthPicker from './YearMonthPicker';
 import api from '../../services/api';
 import {Budget, FixedFlow} from '../../types';
 import dayjs from 'dayjs';
@@ -32,6 +32,8 @@ const BudgetScreen = () => {
     const [ffEndMonth, setFfEndMonth] = useState(dayjs().add(5, 'month'));
     const [showStartDatePicker, setShowStartDatePicker] = useState(false);
     const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+    const [showStartYearMonthPicker, setShowStartYearMonthPicker] = useState(false);
+    const [showEndYearMonthPicker, setShowEndYearMonthPicker] = useState(false);
 
     // 加载数据
     const loadData = useCallback(async () => {
@@ -236,16 +238,14 @@ const BudgetScreen = () => {
         setFixedFlowModalVisible(true);
     };
 
-    const onChangeStartDate = (event: any, selectedDate?: Date) => {
-        const currentDate = selectedDate || ffStartMonth.toDate();
-        setShowStartDatePicker(Platform.OS === 'ios');
-        setFfStartMonth(dayjs(currentDate));
+    const onChangeStartDate = (date: dayjs.Dayjs) => {
+        setFfStartMonth(date);
+        setShowStartYearMonthPicker(false);
     };
 
-    const onChangeEndDate = (event: any, selectedDate?: Date) => {
-        const currentDate = selectedDate || ffEndMonth.toDate();
-        setShowEndDatePicker(Platform.OS === 'ios');
-        setFfEndMonth(dayjs(currentDate));
+    const onChangeEndDate = (date: dayjs.Dayjs) => {
+        setFfEndMonth(date);
+        setShowEndYearMonthPicker(false);
     };
 
     // 初始加载数据
@@ -487,7 +487,7 @@ const BudgetScreen = () => {
                         <View style={styles.dateRangeContainer}>
                             <View style={styles.dateField}>
                                 <Text style={styles.dateLabel}>开始月份</Text>
-                                <TouchableOpacity onPress={() => setShowStartDatePicker(true)}>
+                                <TouchableOpacity onPress={() => setShowStartYearMonthPicker(true)}>
                                     <Input
                                         value={ffStartMonth.format('YYYY-MM')}
                                         editable={false}
@@ -505,7 +505,7 @@ const BudgetScreen = () => {
 
                             <View style={styles.dateField}>
                                 <Text style={styles.dateLabel}>结束月份</Text>
-                                <TouchableOpacity onPress={() => setShowEndDatePicker(true)}>
+                                <TouchableOpacity onPress={() => setShowEndYearMonthPicker(true)}>
                                     <Input
                                         value={ffEndMonth.format('YYYY-MM')}
                                         editable={false}
@@ -522,23 +522,19 @@ const BudgetScreen = () => {
                             </View>
                         </View>
 
-                        {showStartDatePicker && (
-                            <DateTimePicker
-                                value={ffStartMonth.toDate()}
-                                mode="date"
-                                display="default"
-                                onChange={onChangeStartDate}
-                            />
-                        )}
+                        <YearMonthPicker
+                            visible={showStartYearMonthPicker}
+                            value={ffStartMonth}
+                            onChange={onChangeStartDate}
+                            onClose={() => setShowStartYearMonthPicker(false)}
+                        />
 
-                        {showEndDatePicker && (
-                            <DateTimePicker
-                                value={ffEndMonth.toDate()}
-                                mode="date"
-                                display="default"
-                                onChange={onChangeEndDate}
-                            />
-                        )}
+                        <YearMonthPicker
+                            visible={showEndYearMonthPicker}
+                            value={ffEndMonth}
+                            onChange={onChangeEndDate}
+                            onClose={() => setShowEndYearMonthPicker(false)}
+                        />
 
                         <View style={styles.overlayButtons}>
                             <Button
