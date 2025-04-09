@@ -12,6 +12,7 @@ import {eventBus} from '../../navigation';
 import {useAuth} from '../../context/AuthContext.tsx';
 import * as ImagePicker from 'react-native-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ImageViewer from 'react-native-image-zoom-viewer';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowForm'>;
@@ -417,14 +418,18 @@ const FlowFormScreen: React.FC = () => {
       overlayStyle={styles.imageViewerOverlay}
     >
       <View style={styles.imageViewerContainer}>
-        <Image
-          source={{
-            uri: selectedImage ? api.flow.getInvoiceUrl(selectedImage) : undefined,
-            headers: headers,
-          }}
-          style={styles.fullImage}
-          resizeMode="contain"
-        />
+        {selectedImage && (
+          <ImageViewer
+            imageUrls={[{
+              url: api.flow.getInvoiceUrl(selectedImage),
+              props: { headers },
+            }]}
+            enableSwipeDown={true}
+            onSwipeDown={() => setShowImageViewer(false)}
+            enableImageZoom={true}
+            saveToLocalByLongPress={false}
+          />
+        )}
         <View style={styles.imageViewerButtons}>
           <Button
             icon={<Icon name="close" type="material" color="white" size={24} />}
@@ -752,10 +757,12 @@ const styles = StyleSheet.create({
     padding: 0,
     borderRadius: 10,
     overflow: 'hidden',
+    backgroundColor: 'black',
   },
   imageViewerContainer: {
     flex: 1,
     backgroundColor: 'black',
+    position: 'relative',
   },
   fullImage: {
     flex: 1,
@@ -768,6 +775,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     padding: 15,
+    zIndex: 100,
   },
   closeButton: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

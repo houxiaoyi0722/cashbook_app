@@ -1039,11 +1039,6 @@
     "@babel/helper-string-parser" "^7.25.9"
     "@babel/helper-validator-identifier" "^7.25.9"
 
-"@bam.tech/react-native-image-resizer@^3.0.11":
-  version "3.0.11"
-  resolved "https://registry.npmmirror.com/@bam.tech/react-native-image-resizer/-/react-native-image-resizer-3.0.11.tgz#b9dc0f155b1293fe6d04944e45b6e3252ca2dea3"
-  integrity sha512-J/vAe51uPhJafT0uAIQI3gziqVs4Tnw32bHau/+I7AukSs4YxLXIaOVF6EChZ9ZFu+fLxvVrRTbHKDf+1YoXag==
-
 "@bcoe/v8-coverage@^0.2.3":
   version "0.2.3"
   resolved "https://registry.npmmirror.com/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz#75a2e8b51cb758a7553d6804a5932d7aace75c39"
@@ -1087,11 +1082,6 @@
   version "8.57.1"
   resolved "https://registry.npmmirror.com/@eslint/js/-/js-8.57.1.tgz#de633db3ec2ef6a3c89e2f19038063e8a122e2c2"
   integrity sha512-d9zaMRSTIKDLhctzH12MtXvJKSSUhaHcjV+2Z+GK+EEY7XKpP5yR4x+N3TAcHTcu963nIr+TMcCb4DBCYX1z6Q==
-
-"@expo/vector-icons@^14.1.0":
-  version "14.1.0"
-  resolved "https://registry.npmmirror.com/@expo/vector-icons/-/vector-icons-14.1.0.tgz#d3dddad8b6ea60502e0fe5485b86751827606ce4"
-  integrity sha512-7T09UE9h8QDTsUeMGymB4i+iqvtEeaO5VvUjryFB4tugDTG/bkzViWA74hm5pfjjDEhYMXWaX112mcvhccmIwQ==
 
 "@hapi/hoek@^9.0.0", "@hapi/hoek@^9.3.0":
   version "9.3.0"
@@ -5898,22 +5888,22 @@ react-native-gesture-handler@^2.24.0:
     hoist-non-react-statics "^3.3.0"
     invariant "^2.2.4"
 
+react-native-image-pan-zoom@^2.1.12:
+  version "2.1.12"
+  resolved "https://registry.npmmirror.com/react-native-image-pan-zoom/-/react-native-image-pan-zoom-2.1.12.tgz#eb98bf56fb5610379bdbfdb63219cc1baca98fd2"
+  integrity sha512-BF66XeP6dzuANsPmmFsJshM2Jyh/Mo1t8FsGc1L9Q9/sVP8MJULDabB1hms+eAoqgtyhMr5BuXV3E1hJ5U5H6Q==
+
 react-native-image-picker@^8.2.0:
   version "8.2.0"
   resolved "https://registry.npmmirror.com/react-native-image-picker/-/react-native-image-picker-8.2.0.tgz#d8656fdd1a0f1ad262c9c129d4f75900b685e56e"
   integrity sha512-jIGllQJuJIn0YKss/JEeb0Kos1HSsnIpU+i3bYxR27sOxSyDZQyP9dKR22olssQPlfH+rGNR/Jc6xKRkhm48vw==
 
-react-native-image-progress@^0.6.0:
-  version "0.6.0"
-  resolved "https://registry.npmmirror.com/react-native-image-progress/-/react-native-image-progress-0.6.0.tgz#14614add12beaa247a052e5a52e6a9fee0fb8c67"
-  integrity sha512-AuV5jWzWCO737dzwK1WUt/3o0bTmiVDfS+yLV5IX7+TfnP5WK4pfDWeKNe1VhXbCsi+LmvLgvEyVw9ORkv0QmA==
-
-react-native-image-viewer@^0.0.3:
-  version "0.0.3"
-  resolved "https://registry.npmmirror.com/react-native-image-viewer/-/react-native-image-viewer-0.0.3.tgz#312266f173ae4362c2da318094163358d8862037"
-  integrity sha512-eTssSFN+Bkcd730en4QwYBXrA/nkaQizFJ4q/pLNJaCeIhy1MRuoDe7S+HFd20Y2KqOHCsFgCpMknIFCEvG7aQ==
+react-native-image-zoom-viewer@^3.0.1:
+  version "3.0.1"
+  resolved "https://registry.npmmirror.com/react-native-image-zoom-viewer/-/react-native-image-zoom-viewer-3.0.1.tgz#a2bd5fb3bda15e0686ce88fcde8576726495d7fb"
+  integrity sha512-la6s5DNSuq4GCRLsi5CZ29FPjgTpdCuGIRdO5T9rUrAtxrlpBPhhSnHrbmPVxsdtOUvxHacTh2Gfa9+RraMZQA==
   dependencies:
-    react-native-image-progress "^0.6.0"
+    react-native-image-pan-zoom "^2.1.12"
 
 react-native-ratings@^8.1.0:
   version "8.1.0"

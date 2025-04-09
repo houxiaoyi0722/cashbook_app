@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ScrollView,
-  Image,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Text, Card, Button, Icon, Overlay } from '@rneui/themed';
@@ -24,7 +23,8 @@ import { SwipeListView } from 'react-native-swipe-list-view';
 import api from '../../services/api';
 import * as ImagePicker from 'react-native-image-picker';
 import { Swipeable } from 'react-native-gesture-handler';
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import ImageViewer from 'react-native-image-zoom-viewer';
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 // 配置中文日历
@@ -81,8 +81,6 @@ const CalendarScreen: React.FC = () => {
   const [headers, setHeaders] = useState({});
   const [viewingInvoice, setViewingInvoice] = useState(false);
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
-  const [selectedInvoiceIndex, setSelectedInvoiceIndex] = useState(0);
-  const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
   const swipeableRefs = useRef<{ [key: number]: Swipeable | null }>({});
 
   // 获取日历数据
@@ -122,7 +120,6 @@ const CalendarScreen: React.FC = () => {
       calendarMarksRef.current = updatedMarks;
       setCalendarMarks(updatedMarks);
       setDailyData(dailyData);
-
       // 获取选中日期的流水详情
       if (currentSelectedDate) {
         await fetchDayDetail(currentSelectedDate);
@@ -159,7 +156,7 @@ const CalendarScreen: React.FC = () => {
     return () => {
       eventBus.removeAllListeners('refreshCalendarFlows');
     };
-  }, []);
+  }, [selectedDate]);
   // 当前账本变化时，重新获取数据
   useEffect(() => {
     let isMounted = true;
@@ -1110,8 +1107,6 @@ const CalendarScreen: React.FC = () => {
   const handleInvoiceUpload = async (flow: Flow) => {
     if (!currentBook) {return;}
 
-    setSelectedFlow(flow);
-
     Alert.alert(
       '选择图片来源',
       '请选择小票图片来源',
@@ -1217,64 +1212,7 @@ const CalendarScreen: React.FC = () => {
 
     const invoices = flow.invoice.split(',');
     setSelectedInvoices(invoices);
-    setSelectedInvoiceIndex(0);
-    setSelectedFlow(flow);
     setViewingInvoice(true);
-  };
-
-  // 删除当前查看的小票
-  const deleteCurrentInvoice = async () => {
-    if (!selectedFlow || !currentBook || selectedInvoices.length === 0) {return;}
-
-    const currentInvoice = selectedInvoices[selectedInvoiceIndex];
-
-    Alert.alert(
-      '确认删除',
-      '确定要删除这张小票图片吗？',
-      [
-        {
-          text: '取消',
-          style: 'cancel',
-        },
-        {
-          text: '删除',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const response = await api.flow.deleteInvoice(
-                selectedFlow.id,
-                currentBook.bookId,
-                currentInvoice
-              );
-
-              if (response.c === 200) {
-                // 从列表中移除已删除的图片
-                const updatedInvoices = selectedInvoices.filter((_, index) => index !== selectedInvoiceIndex);
-                setSelectedInvoices(updatedInvoices);
-
-                if (updatedInvoices.length === 0) {
-                  // 如果没有图片了，关闭查看器
-                  setViewingInvoice(false);
-                } else {
-                  // 调整当前查看的索引
-                  setSelectedInvoiceIndex(Math.min(selectedInvoiceIndex, updatedInvoices.length - 1));
-                }
-
-                Alert.alert('成功', '小票已删除');
-                // 刷新数据
-                fetchCalendarFlows();
-              } else {
-                Alert.alert('错误', response.m || '小票删除失败');
-              }
-            } catch (error) {
-              console.error('小票删除失败', error);
-              Alert.alert('错误', '小票删除失败');
-            } finally {
-            }
-          },
-        },
-      ]
-    );
   };
 
   // 渲染小票图片查看器
@@ -1285,31 +1223,18 @@ const CalendarScreen: React.FC = () => {
       overlayStyle={styles.invoiceViewerOverlay}
     >
       <View style={styles.invoiceViewerContainer}>
-        <Image
-          source={{
-            uri: selectedInvoices[selectedInvoiceIndex]
-              ? api.flow.getInvoiceUrl(selectedInvoices[selectedInvoiceIndex])
-              : undefined,
-            headers: headers,
-          }}
-          style={styles.fullImage}
-          resizeMode="contain"
+        <ImageViewer
+            imageUrls={
+              selectedInvoices.map(item => {
+                return {
+                  url: api.flow.getInvoiceUrl(item),
+                  props: { headers },
+                };
+            })}
+            enableSwipeDown={true}
+            enableImageZoom={true}
+            saveToLocalByLongPress={false}
         />
-
-        {/* 指示器和页码 */}
-        {selectedInvoices.length > 1 && (
-          <View style={styles.paginationContainer}>
-            {selectedInvoices.map((_, index) => (
-              <View
-                key={`dot-${index}`}
-                style={[
-                  styles.paginationDot,
-                  index === selectedInvoiceIndex && styles.paginationDotActive,
-                ]}
-              />
-            ))}
-          </View>
-        )}
 
         {/* 控制按钮 */}
         <View style={styles.invoiceViewerControls}>
@@ -1319,53 +1244,6 @@ const CalendarScreen: React.FC = () => {
             onPress={() => setViewingInvoice(false)}
           >
             <Icon name="close" type="material" color="white" size={24} />
-          </TouchableOpacity>
-
-          {/* 左右翻页按钮 */}
-          {selectedInvoices.length > 1 && (
-            <View style={styles.navigationButtons}>
-              <TouchableOpacity
-                style={[
-                  styles.invoiceControlButton,
-                  selectedInvoiceIndex === 0 && styles.disabledButton,
-                ]}
-                onPress={() => {
-                  if (selectedInvoiceIndex > 0) {
-                    setSelectedInvoiceIndex(selectedInvoiceIndex - 1);
-                  }
-                }}
-                disabled={selectedInvoiceIndex === 0}
-              >
-                <Icon name="chevron-left" type="material" color="white" size={28} />
-              </TouchableOpacity>
-
-              <Text style={styles.pageIndicator}>
-                {selectedInvoiceIndex + 1}/{selectedInvoices.length}
-              </Text>
-
-              <TouchableOpacity
-                style={[
-                  styles.invoiceControlButton,
-                  selectedInvoiceIndex === selectedInvoices.length - 1 && styles.disabledButton,
-                ]}
-                onPress={() => {
-                  if (selectedInvoiceIndex < selectedInvoices.length - 1) {
-                    setSelectedInvoiceIndex(selectedInvoiceIndex + 1);
-                  }
-                }}
-                disabled={selectedInvoiceIndex === selectedInvoices.length - 1}
-              >
-                <Icon name="chevron-right" type="material" color="white" size={28} />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* 删除按钮 */}
-          <TouchableOpacity
-            style={[styles.invoiceControlButton, styles.deleteButton]}
-            onPress={deleteCurrentInvoice}
-          >
-            <Icon name="delete" type="material" color="white" size={24} />
           </TouchableOpacity>
         </View>
       </View>

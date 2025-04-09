@@ -367,7 +367,6 @@ class Api {
     // 获取小票图片URL
     getInvoiceUrl: (invoiceName: string): string => {
       if (!this.instance) {throw new Error('API实例未初始化');}
-      console.log(`${this.serverConfig?.url}/api/entry/flow/invoice/show?invoice=${invoiceName}`);
       return `${this.serverConfig?.url}/api/entry/flow/invoice/show?invoice=${invoiceName}`;
     },
 
