@@ -8,6 +8,7 @@ import { MainStackParamList } from '../../navigation/types';
 import { version } from '../../../package.json';
 import updateService from '../../services/updateService';
 import api from '../../services/api.ts';
+import { ServerConfig } from '../../types';
 import { eventBus } from '../../navigation';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
@@ -31,8 +32,23 @@ const SettingsScreen: React.FC = () => {
   const [newPasswordVisible, setNewPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
 
+  const [serverVersion, setServerVersion] = useState<string>('');
+
+  // 获取服务器配置
+  const fetchServerConfig = async () => {
+    try {
+      const response = await api.instance?.get('/api/config');
+      if (response?.data?.c === 200 && response.data.d?.version) {
+        setServerVersion(response.data.d.version);
+      }
+    } catch (error) {
+      console.error('获取服务器配置失败', error);
+    }
+  };
+
   // 监听全局加载事件
   useEffect(() => {
+    fetchServerConfig();
     const showLoadingListener = eventBus.addListener('showLoading', (message: string = '加载中...') => {
       setLoadingMessage(message);
       setIsGlobalLoading(true);
@@ -200,6 +216,14 @@ const SettingsScreen: React.FC = () => {
         <ListItem.Content>
           <ListItem.Title>开发者</ListItem.Title>
           <ListItem.Subtitle>sang</ListItem.Subtitle>
+        </ListItem.Content>
+      </ListItem>
+
+      <ListItem key="server-version">
+        <Icon name="dns" type="material" color="#1976d2" />
+        <ListItem.Content>
+          <ListItem.Title>服务器版本</ListItem.Title>
+          <ListItem.Subtitle>{serverVersion || '未知'}</ListItem.Subtitle>
         </ListItem.Content>
       </ListItem>
       <ListItem key="check-update" onPress={() => updateService.checkForUpdates()}>
