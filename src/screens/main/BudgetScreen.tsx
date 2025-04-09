@@ -1,6 +1,7 @@
 import React, {useState, useEffect, useCallback} from 'react';
-import {View, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity} from 'react-native';
+import {View, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Platform} from 'react-native';
 import {Card, Button, Text, Input, Icon, Divider, ListItem, Overlay} from '@rneui/themed';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import api from '../../services/api';
 import {Budget, FixedFlow} from '../../types';
 import dayjs from 'dayjs';
@@ -27,8 +28,10 @@ const BudgetScreen = () => {
     const [ffName, setFfName] = useState('');
     const [ffAmount, setFfAmount] = useState('');
     const [ffAttribution, setFfAttribution] = useState('');
-    const [ffStartMonth, setFfStartMonth] = useState(dayjs().format('YYYY-MM'));
-    const [ffEndMonth, setFfEndMonth] = useState(dayjs().add(5, 'month').format('YYYY-MM'));
+    const [ffStartMonth, setFfStartMonth] = useState(dayjs());
+    const [ffEndMonth, setFfEndMonth] = useState(dayjs().add(5, 'month'));
+    const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+    const [showEndDatePicker, setShowEndDatePicker] = useState(false);
 
     // 加载数据
     const loadData = useCallback(async () => {
@@ -149,8 +152,8 @@ const BudgetScreen = () => {
                 const newData = {
                     bookId: currentBook.bookId,
                     month: currentMonth,
-                    startMonth: ffStartMonth,
-                    endMonth: ffEndMonth,
+                    startMonth: ffStartMonth.format('YYYY-MM'),
+                    endMonth: ffEndMonth.format('YYYY-MM'),
                     name: ffName.trim(),
                     money: Number(ffAmount),
                     attribution: ffAttribution.trim(),
@@ -216,8 +219,8 @@ const BudgetScreen = () => {
         setFfName('');
         setFfAmount('');
         setFfAttribution('');
-        setFfStartMonth(dayjs().format('YYYY-MM'));
-        setFfEndMonth(dayjs().add(5, 'month').format('YYYY-MM'));
+        setFfStartMonth(dayjs());
+        setFfEndMonth(dayjs().add(5, 'month'));
         setFixedFlowModalVisible(true);
     };
 
@@ -228,9 +231,21 @@ const BudgetScreen = () => {
         setFfAmount(item.money? item.money.toString() : '0');
         setFfAttribution(item.attribution);
         // 假设已存在的固定支出没有开始和结束月份，使用当前月和未来5个月
-        setFfStartMonth(dayjs().format('YYYY-MM'));
-        setFfEndMonth(dayjs().add(5, 'month').format('YYYY-MM'));
+        setFfStartMonth(dayjs());
+        setFfEndMonth(dayjs().add(5, 'month'));
         setFixedFlowModalVisible(true);
+    };
+
+    const onChangeStartDate = (event: any, selectedDate?: Date) => {
+        const currentDate = selectedDate || ffStartMonth.toDate();
+        setShowStartDatePicker(Platform.OS === 'ios');
+        setFfStartMonth(dayjs(currentDate));
+    };
+
+    const onChangeEndDate = (event: any, selectedDate?: Date) => {
+        const currentDate = selectedDate || ffEndMonth.toDate();
+        setShowEndDatePicker(Platform.OS === 'ios');
+        setFfEndMonth(dayjs(currentDate));
     };
 
     // 初始加载数据
@@ -472,38 +487,58 @@ const BudgetScreen = () => {
                         <View style={styles.dateRangeContainer}>
                             <View style={styles.dateField}>
                                 <Text style={styles.dateLabel}>开始月份</Text>
-                                <Input
-                                    value={ffStartMonth}
-                                    onChangeText={setFfStartMonth}
-                                    placeholder="YYYY-MM"
-                                    leftIcon={
-                                        <Icon
-                                            type="material"
-                                            name="date-range"
-                                            size={24}
-                                            color="#1976d2"
-                                        />
-                                    }
-                                />
+                                <TouchableOpacity onPress={() => setShowStartDatePicker(true)}>
+                                    <Input
+                                        value={ffStartMonth.format('YYYY-MM')}
+                                        editable={false}
+                                        leftIcon={
+                                            <Icon
+                                                type="material"
+                                                name="date-range"
+                                                size={24}
+                                                color="#1976d2"
+                                            />
+                                        }
+                                    />
+                                </TouchableOpacity>
                             </View>
 
                             <View style={styles.dateField}>
                                 <Text style={styles.dateLabel}>结束月份</Text>
-                                <Input
-                                    value={ffEndMonth}
-                                    onChangeText={setFfEndMonth}
-                                    placeholder="YYYY-MM"
-                                    leftIcon={
-                                        <Icon
-                                            type="material"
-                                            name="date-range"
-                                            size={24}
-                                            color="#1976d2"
-                                        />
-                                    }
-                                />
+                                <TouchableOpacity onPress={() => setShowEndDatePicker(true)}>
+                                    <Input
+                                        value={ffEndMonth.format('YYYY-MM')}
+                                        editable={false}
+                                        leftIcon={
+                                            <Icon
+                                                type="material"
+                                                name="date-range"
+                                                size={24}
+                                                color="#1976d2"
+                                            />
+                                        }
+                                    />
+                                </TouchableOpacity>
                             </View>
                         </View>
+
+                        {showStartDatePicker && (
+                            <DateTimePicker
+                                value={ffStartMonth.toDate()}
+                                mode="date"
+                                display="default"
+                                onChange={onChangeStartDate}
+                            />
+                        )}
+
+                        {showEndDatePicker && (
+                            <DateTimePicker
+                                value={ffEndMonth.toDate()}
+                                mode="date"
+                                display="default"
+                                onChange={onChangeEndDate}
+                            />
+                        )}
 
                         <View style={styles.overlayButtons}>
                             <Button
