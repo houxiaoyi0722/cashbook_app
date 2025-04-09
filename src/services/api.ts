@@ -112,6 +112,20 @@ class Api {
     return response.data;
   }
 
+  // 更新密码
+  async config() {
+    if (!this.instance) throw new Error('API实例未初始化');
+    console.log('🔐 Attempting to config');
+    const response = await this.instance.get<ApiResponse<{
+      title: string,
+      description: string,
+      keywords: string,
+      version: string,
+      openRegister: boolean
+    }>>('/api/config');
+    return response.data;
+  }
+
   // 账本相关API
   book = {
     // 获取账本列表
@@ -445,13 +459,13 @@ class Api {
     },
 
     // 添加固定支出
-    add: async (data: { 
-      bookId: string, 
-      month: string, 
-      startMonth: string, 
-      endMonth: string, 
-      name: string, 
-      money: number, 
+    add: async (data: {
+      bookId: string,
+      month: string,
+      startMonth: string,
+      endMonth: string,
+      name: string,
+      money: number,
       attribution: string,
       description?: string,
       flowType?: string,

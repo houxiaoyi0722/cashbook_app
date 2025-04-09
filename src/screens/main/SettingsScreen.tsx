@@ -8,7 +8,6 @@ import { MainStackParamList } from '../../navigation/types';
 import { version } from '../../../package.json';
 import updateService from '../../services/updateService';
 import api from '../../services/api.ts';
-import { ServerConfig } from '../../types';
 import { eventBus } from '../../navigation';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
@@ -37,9 +36,9 @@ const SettingsScreen: React.FC = () => {
   // 获取服务器配置
   const fetchServerConfig = async () => {
     try {
-      const response = await api.instance?.get('/api/config');
-      if (response?.data?.c === 200 && response.data.d?.version) {
-        setServerVersion(response.data.d.version);
+      const data = await api.config();
+      if (data.c === 200 && data.d?.version) {
+        setServerVersion(data.d.version);
       }
     } catch (error) {
       console.error('获取服务器配置失败', error);

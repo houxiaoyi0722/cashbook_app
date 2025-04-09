@@ -27,3 +27,18 @@ Content-Type: application/json
 Authorization: {{auth_token}}
 
 {"old":"testtest","new":"testtest","againNew":"testtest"}
+
+
+### 配置
+#{
+#    "c": 200,
+#    "m": "",
+#    "d": {
+#        "title": "Cashbook",
+#        "description": "Cashbook",
+#        "keywords": "Cashbook",
+#        "version": "4.1.2",
+#        "openRegister": false
+#    }
+#}
+POST https://cashbook.sang0722.com:8881/api/config
