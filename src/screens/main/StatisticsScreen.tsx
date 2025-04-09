@@ -3,7 +3,6 @@ import {View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert
 import {Text, Card, Divider, Tab, TabView, Overlay, Icon, Button, ListItem, Avatar} from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import moment from 'moment';
 import { MainStackParamList } from '../../navigation/types';
 import api from '../../services/api';
 import BookSelector from '../../components/BookSelector';
@@ -19,6 +18,7 @@ import {
   LegendComponent,
   GridComponent,
 } from 'echarts/components';
+import dayjs from 'dayjs';
 
 // 注册必要的组件
 echarts.use([
@@ -108,7 +108,7 @@ const StatisticsScreen: React.FC = () => {
   const [monthAnalysis, setMonthAnalysis] = useState<MonthAnalysis | null>(null);
   const [industryTypeData, setIndustryTypeData] = useState<any[]>([]);
   const [payTypeData, setPayTypeData] = useState<any[]>([]);
-  const [currentMonth, setCurrentMonth] = useState(moment().format('YYYY-MM'));
+  const [currentMonth, setCurrentMonth] = useState(dayjs().format('YYYY-MM'));
   const [previousMonths, setPreviousMonths] = useState<{[year: string]: string[]}>({});
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -207,7 +207,7 @@ const StatisticsScreen: React.FC = () => {
       setIsLoading(true);
       // 构建查询参数
       const startDate = `${currentMonth}-01`;
-      const endDate = moment(startDate).endOf('month').format('YYYY-MM-DD');
+      const endDate = dayjs(startDate).endOf('month').format('YYYY-MM-DD');
       const response = await api.analytics.industryType({
         bookId: currentBook.bookId,
         flowType: selectedFlowType,
@@ -245,7 +245,7 @@ const StatisticsScreen: React.FC = () => {
       setIsLoading(true);
       // 构建查询参数
       const startDate = `${currentMonth}-01`;
-      const endDate = moment(startDate).endOf('month').format('YYYY-MM-DD');
+      const endDate = dayjs(startDate).endOf('month').format('YYYY-MM-DD');
 
       const response = await api.analytics.payType({
         bookId: currentBook.bookId,
@@ -284,7 +284,7 @@ const StatisticsScreen: React.FC = () => {
       setIsLoading(true);
       // 构建查询参数
       const startDate = `${currentMonth}-01`;
-      const endDate = moment(startDate).endOf('month').format('YYYY-MM-DD');
+      const endDate = dayjs(startDate).endOf('month').format('YYYY-MM-DD');
 
       const response = await api.analytics.attribution({
         bookId: currentBook.bookId,
@@ -500,7 +500,7 @@ const StatisticsScreen: React.FC = () => {
 
       // 构建查询参数
       const startDate = `${currentMonth}-01`;
-      const endDate = moment(startDate).endOf('month').format('YYYY-MM-DD');
+      const endDate = dayjs(startDate).endOf('month').format('YYYY-MM-DD');
       let params: {
         pageNum: number;
         pageSize: number;
@@ -650,7 +650,7 @@ const StatisticsScreen: React.FC = () => {
           {item.name || `${item.industryType}`}{item.attribution ? ' - ' + item.attribution : ''}
         </ListItem.Title>
         <ListItem.Subtitle style={styles.detailItemSubtitle}>
-          {moment(item.day).format('YYYY-MM-DD')} · {item.payType} · {item.industryType}
+          {dayjs(item.day).format('YYYY-MM-DD')} · {item.payType} · {item.industryType}
         </ListItem.Subtitle>
         <ListItem.Subtitle style={styles.detailItemSubtitle}>
           {item.description}

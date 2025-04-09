@@ -17,7 +17,7 @@ import { MainStackParamList } from '../../navigation/types';
 import { useBookkeeping } from '../../context/BookkeepingContext';
 import BookSelector from '../../components/BookSelector';
 import { Flow, DailyData, CalendarMark } from '../../types';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import {eventBus} from '../../navigation';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import api from '../../services/api';
@@ -47,8 +47,8 @@ const CalendarScreen: React.FC = () => {
   const [dayDetailLoading, setDayDetailLoading] = useState(false);
   const [showYearMonthSelector, setShowYearMonthSelector] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedYear, setSelectedYear] = useState(moment().year());
-  const [selectedMonth, setSelectedMonth] = useState(moment().month() + 1);
+  const [selectedYear, setSelectedYear] = useState(dayjs().year());
+  const [selectedMonth, setSelectedMonth] = useState(dayjs().month() + 1);
   const [refreshing, setRefreshing] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicateGroups, setDuplicateGroups] = useState<any[]>([]);
@@ -203,7 +203,7 @@ const CalendarScreen: React.FC = () => {
   // 修改 handleDayPress 函数，添加月份切换逻辑
   const handleDayPress = useCallback(async (day: any) => {
     // 检查是否点击了其他月份的日期
-    const clickedMonth = moment(day.dateString).format('YYYY-MM');
+    const clickedMonth = dayjs(day.dateString).format('YYYY-MM');
     if (clickedMonth !== currentMonth) {
       // 如果点击了其他月份的日期，先切换月份
       setCurrentMonth(clickedMonth);
@@ -227,7 +227,7 @@ const CalendarScreen: React.FC = () => {
             backgroundColor: '#ffffff',
           },
           text: {
-            color: selectedDate === moment().format('YYYY-MM-DD') ? '#1976d2' : '#111111',
+            color: selectedDate === dayjs().format('YYYY-MM-DD') ? '#1976d2' : '#111111',
           },
         },
       };
@@ -271,7 +271,7 @@ const CalendarScreen: React.FC = () => {
 
   // 修改 handleMonthChange 函数，确保月份变化时更新数据
   const handleMonthChange = useCallback((month: any) => {
-    const newMonth = moment(month.dateString).format('YYYY-MM');
+    const newMonth = dayjs(month.dateString).format('YYYY-MM');
     if (newMonth !== currentMonth) {
       setCurrentMonth(newMonth);
 
@@ -303,7 +303,7 @@ const CalendarScreen: React.FC = () => {
             {/* 收支信息缩略展示 */}
             <View style={styles.flowSummary}>
               <Text style={styles.flowSummaryText}>
-                {moment(selectedDate).format('MM-DD')} {' '}
+                {dayjs(selectedDate).format('MM-DD')} {' '}
                 <Text style={{ color: '#4caf50' }}>收:{dayTotals.inSum.toFixed(0)}</Text>
                 {' | '}
                 <Text style={{ color: '#f44336' }}>支:{dayTotals.outSum.toFixed(0)}</Text>
@@ -480,7 +480,7 @@ const CalendarScreen: React.FC = () => {
               style={styles.picker}
               onValueChange={(itemValue: React.SetStateAction<number>) => setSelectedYear(itemValue)}
             >
-              {Array.from({ length: 10 }, (_, i) => moment().year() - 9 + i).map(year => (
+              {Array.from({ length: 10 }, (_, i) => dayjs().year() - 9 + i).map(year => (
                 <Picker.Item key={`year-${year}`} label={`${year}年`} value={year} />
               ))}
             </Picker>
@@ -1325,7 +1325,7 @@ const CalendarScreen: React.FC = () => {
               renderHeader={(date) => (
                   <TouchableOpacity onPress={handleMonthHeaderPress} style={styles.calendarHeader}>
                     <Text style={styles.calendarHeaderText}>
-                      {currentMonth ? `${currentMonth.split('-')[0]}年${currentMonth.split('-')[1]}月` : moment(date).format('YYYY年 MM月')}
+                      {currentMonth ? `${currentMonth.split('-')[0]}年${currentMonth.split('-')[1]}月` : dayjs(date).format('YYYY年 MM月')}
                     </Text>
                     <Icon name="arrow-drop-down" type="material" size={24} color="#1976d2" />
                   </TouchableOpacity>

@@ -4,7 +4,6 @@ import { Text, Card, Button, Input, ButtonGroup, Divider, Icon, Overlay } from '
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import moment from 'moment';
 import { MainStackParamList } from '../../navigation/types';
 import api from '../../services/api';
 import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
@@ -13,6 +12,7 @@ import {useAuth} from '../../context/AuthContext.tsx';
 import * as ImagePicker from 'react-native-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ImageViewer from 'react-native-image-zoom-viewer';
+import dayjs from "dayjs";
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowForm'>;
@@ -168,7 +168,7 @@ const FlowFormScreen: React.FC = () => {
           payType,
           attribution,
           description: description.trim() || undefined,
-          day: moment(flowDate).format('YYYY-MM-DD'),
+          day: dayjs(flowDate).format('YYYY-MM-DD'),
         });
         Alert.alert('成功', '流水已更新');
         eventBus.emit('refreshCalendarFlows');
@@ -183,7 +183,7 @@ const FlowFormScreen: React.FC = () => {
           payType,
           attribution,
           description: description.trim() || undefined,
-          day: moment(flowDate).format('YYYY-MM-DD'),
+          day: dayjs(flowDate).format('YYYY-MM-DD'),
         });
         Alert.alert('成功', '流水已创建');
         eventBus.emit('refreshCalendarFlows');
@@ -212,14 +212,6 @@ const FlowFormScreen: React.FC = () => {
       Alert.alert('提示', '请先保存流水后再上传小票');
       return;
     }
-
-    const options: ImagePicker.ImageLibraryOptions = {
-      mediaType: 'photo',
-      maxWidth: 1200,
-      maxHeight: 1200,
-      quality: 0.8,
-      includeBase64: false,
-    };
 
     Alert.alert(
       '选择图片来源',
@@ -579,7 +571,7 @@ const FlowFormScreen: React.FC = () => {
             disabled={isLoading}
           >
             <Text style={styles.dateText}>
-              {moment(flowDate).format('YYYY-MM-DD')}
+              {dayjs(flowDate).format('YYYY-MM-DD')}
             </Text>
           </TouchableOpacity>
 
