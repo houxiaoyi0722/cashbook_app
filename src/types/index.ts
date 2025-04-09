@@ -36,6 +36,7 @@ export interface Flow {
   payType: string;
   description?: string;
   attribution?: string;
+  invoice?: string;
   day: string;
   createdAt: string;
   updatedAt: string;

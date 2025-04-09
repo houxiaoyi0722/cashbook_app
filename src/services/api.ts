@@ -342,6 +342,44 @@ class Api {
       const response = await this.instance.post(`/api/entry/flow/condidate/ignoreAll`, params);
       return response.data;
     },
+
+    // 小票上传
+    uploadInvoice: async (id: number, bookId: string, image: any): Promise<ApiResponse<any>> => {
+      if (!this.instance) throw new Error('API实例未初始化');
+      const formData = new FormData();
+      formData.append('id', id.toString());
+      formData.append('bookId', bookId);
+      formData.append('invoice', {
+        uri: image.uri,
+        type: 'image/jpeg',
+        name: image.fileName || 'invoice.jpg'
+      });
+
+      console.log(`📤 Uploading invoice for flow: ${id}`);
+      const response = await this.instance.post('/api/entry/flow/invoice/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      return response.data;
+    },
+
+    // 获取小票图片URL
+    getInvoiceUrl: (invoiceName: string): string => {
+      if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`${this.serverConfig?.url}/api/entry/flow/invoice/show?invoice=${invoiceName}`)
+      return `${this.serverConfig?.url}/api/entry/flow/invoice/show?invoice=${invoiceName}`;
+    },
+
+    // 删除小票
+    deleteInvoice: async (id: number, bookId: string, invoice: string): Promise<ApiResponse<any>> => {
+      if (!this.instance) throw new Error('API实例未初始化');
+      console.log(`🗑️ Deleting invoice: ${invoice} for flow: ${id}`);
+      const response = await this.instance.get('/api/entry/flow/invoice/del', {
+        params: { id, bookId, invoice }
+      });
+      return response.data;
+    },
   };
 
   // 分析相关API

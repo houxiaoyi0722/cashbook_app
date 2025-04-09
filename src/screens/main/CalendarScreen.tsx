@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ScrollView,
+  Image,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Text, Card, Button, Icon, Overlay } from '@rneui/themed';
@@ -21,6 +22,8 @@ import moment from 'moment';
 import {eventBus} from '../../navigation';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import api from '../../services/api';
+import * as ImagePicker from 'react-native-image-picker';
+import { Swipeable } from 'react-native-gesture-handler';
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 // 配置中文日历
@@ -54,7 +57,7 @@ const CalendarScreen: React.FC = () => {
     description: true,
     industryType: true,
     flowType: true,
-    payType: true
+    payType: true,
   });
 
   // 使用 useRef 存储状态
@@ -65,7 +68,7 @@ const CalendarScreen: React.FC = () => {
   const dayCardData = useMemo(() => ({
     selectedDate,
     dailyData,
-    dayFlows
+    dayFlows,
   }), [selectedDate, dailyData, dayFlows]);
 
   // 添加平账功能相关状态和函数
@@ -73,9 +76,17 @@ const CalendarScreen: React.FC = () => {
   const [balanceCandidates, setBalanceCandidates] = useState<any[]>([]);
   const [balanceLoading, setBalanceLoading] = useState(false);
 
+  // 添加小票上传相关状态和函数
+  const [uploadingInvoice, setUploadingInvoice] = useState(false);
+  const [viewingInvoice, setViewingInvoice] = useState(false);
+  const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
+  const [selectedInvoiceIndex, setSelectedInvoiceIndex] = useState(0);
+  const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
+  const swipeableRefs = useRef<{ [key: number]: Swipeable | null }>({});
+
   // 获取日历数据
   const fetchCalendarFlows = useCallback(async () => {
-    if (!currentBook || !currentMonth) return;
+    if (!currentBook || !currentMonth) {return;}
 
     try {
       // 获取日历数据
@@ -102,7 +113,7 @@ const CalendarScreen: React.FC = () => {
             text: {
               color: 'white',
             },
-          }
+          },
         };
       }
 
@@ -123,7 +134,7 @@ const CalendarScreen: React.FC = () => {
 
   // 获取某天的流水详情
   const fetchDayDetail = useCallback(async (date: string) => {
-    if (!currentBook) return;
+    if (!currentBook) {return;}
     try {
       setDayDetailLoading(true);
       const flows = await fetchDayFlows(date);
@@ -210,7 +221,7 @@ const CalendarScreen: React.FC = () => {
           text: {
             color: selectedDate === moment().format('YYYY-MM-DD') ? '#1976d2' : '#111111',
           },
-        }
+        },
       };
     }
 
@@ -226,7 +237,7 @@ const CalendarScreen: React.FC = () => {
           text: {
             color: 'white',
           },
-        }
+        },
       };
     } else {
       newMarks[day.dateString] = {
@@ -238,7 +249,7 @@ const CalendarScreen: React.FC = () => {
           text: {
             color: 'white',
           },
-        }
+        },
       };
     }
 
@@ -333,13 +344,28 @@ const CalendarScreen: React.FC = () => {
                   <Text style={styles.flowItemType}>
                     {item.flowType} | {item.industryType} | {item.payType}
                   </Text>
-                  <Text style={styles.flowItemDesc} numberOfLines={1}>
-                    {item.description ? item.description : ''}
-                  </Text>
+                  <View style={styles.flowItemDescLine}>
+                    <Text style={styles.flowItemDesc} numberOfLines={1}>
+                      {item.description ? item.description : ''}
+                    </Text>
+                    <TouchableOpacity
+                        style={styles.photoIcon}
+                        onPress={() => viewInvoiceImages(item)}
+                    >
+                      <Icon name="photo" type="material" color="#4caf50" size={20} />
+                    </TouchableOpacity>
+                  </View>
+
                 </View>
               )}
               renderHiddenItem={({ item }) => (
                 <View style={styles.rowBack}>
+                  <TouchableOpacity
+                      style={[styles.backRightBtn, styles.backCameraBtnLeft]}
+                      onPress={() => handleInvoiceUpload(item)}
+                  >
+                    <Icon name="camera" type="material" color="white" size={20} />
+                  </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.backRightBtn, styles.backRightBtnLeft]}
                     onPress={() => {
@@ -361,7 +387,7 @@ const CalendarScreen: React.FC = () => {
                             style: 'destructive',
                             onPress: async () => {
                               try {
-                                if (!currentBook) return;
+                                if (!currentBook) {return;}
                                 await api.flow.delete(item.id, currentBook.bookId);
                                 Alert.alert('成功', '流水已删除');
                                 // 重新获取日期流水
@@ -372,8 +398,8 @@ const CalendarScreen: React.FC = () => {
                                 console.error('删除流水失败', error);
                                 Alert.alert('错误', '删除流水失败');
                               }
-                            }
-                          }
+                            },
+                          },
                         ]
                       );
                     }}
@@ -383,7 +409,7 @@ const CalendarScreen: React.FC = () => {
                 </View>
               )}
               leftOpenValue={0}
-              rightOpenValue={-140}
+              rightOpenValue={-150}
               previewRowKey={'0'}
               previewOpenValue={-40}
               previewOpenDelay={3000}
@@ -507,7 +533,7 @@ const CalendarScreen: React.FC = () => {
         padding: 2,
         width: 32,
         height: 32,
-        justifyContent: 'center'
+        justifyContent: 'center',
       }}>
         {/* 日期数字 */}
         <Text
@@ -515,7 +541,7 @@ const CalendarScreen: React.FC = () => {
             color: isSelected ? 'white' :
                   state === 'today' ? '#1976d2' :
                   state === 'disabled' ? '#949494' : '#111111',
-            fontWeight: state === 'today' ? 'bold' : 'normal'
+            fontWeight: state === 'today' ? 'bold' : 'normal',
           }}
         >
           {day.day}
@@ -545,7 +571,7 @@ const CalendarScreen: React.FC = () => {
     // 创建新的筛选条件对象
     const newCriteria = {
       ...duplicateCriteria,
-      [key]: !duplicateCriteria[key as keyof typeof duplicateCriteria]
+      [key]: !duplicateCriteria[key as keyof typeof duplicateCriteria],
     };
 
     // 先更新状态
@@ -560,13 +586,13 @@ const CalendarScreen: React.FC = () => {
 
   // 添加一个新函数，接受筛选条件作为参数
   const fetchDuplicateFlowsWithCriteria = useCallback(async (criteria: typeof duplicateCriteria) => {
-    if (!currentBook) return;
+    if (!currentBook) {return;}
     try {
       setDuplicateLoading(true);
 
       const response = await api.flow.getDuplicateFlows({
         bookId: currentBook.bookId,
-        criteria: criteria
+        criteria: criteria,
       });
 
       if (response.c === 200 && response.d) {
@@ -609,65 +635,65 @@ const CalendarScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.criteriaButton,
-                  duplicateCriteria.name && styles.criteriaButtonActive
+                  duplicateCriteria.name && styles.criteriaButtonActive,
                 ]}
                 onPress={() => toggleCriteria('name')}
               >
                 <Text style={[
                   styles.criteriaButtonText,
-                  duplicateCriteria.name && styles.criteriaButtonTextActive
+                  duplicateCriteria.name && styles.criteriaButtonTextActive,
                 ]}>名称</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.criteriaButton,
-                  duplicateCriteria.description && styles.criteriaButtonActive
+                  duplicateCriteria.description && styles.criteriaButtonActive,
                 ]}
                 onPress={() => toggleCriteria('description')}
               >
                 <Text style={[
                   styles.criteriaButtonText,
-                  duplicateCriteria.description && styles.criteriaButtonTextActive
+                  duplicateCriteria.description && styles.criteriaButtonTextActive,
                 ]}>备注</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.criteriaButton,
-                  duplicateCriteria.flowType && styles.criteriaButtonActive
+                  duplicateCriteria.flowType && styles.criteriaButtonActive,
                 ]}
                 onPress={() => toggleCriteria('flowType')}
               >
                 <Text style={[
                   styles.criteriaButtonText,
-                  duplicateCriteria.flowType && styles.criteriaButtonTextActive
+                  duplicateCriteria.flowType && styles.criteriaButtonTextActive,
                 ]}>类型</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.criteriaButton,
-                  duplicateCriteria.industryType && styles.criteriaButtonActive
+                  duplicateCriteria.industryType && styles.criteriaButtonActive,
                 ]}
                 onPress={() => toggleCriteria('industryType')}
               >
                 <Text style={[
                   styles.criteriaButtonText,
-                  duplicateCriteria.industryType && styles.criteriaButtonTextActive
+                  duplicateCriteria.industryType && styles.criteriaButtonTextActive,
                 ]}>分类</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.criteriaButton,
-                  duplicateCriteria.payType && styles.criteriaButtonActive
+                  duplicateCriteria.payType && styles.criteriaButtonActive,
                 ]}
                 onPress={() => toggleCriteria('payType')}
               >
                 <Text style={[
                   styles.criteriaButtonText,
-                  duplicateCriteria.payType && styles.criteriaButtonTextActive
+                  duplicateCriteria.payType && styles.criteriaButtonTextActive,
                 ]}>支付方式</Text>
               </TouchableOpacity>
             </View>
@@ -693,7 +719,7 @@ const CalendarScreen: React.FC = () => {
                         </Text>
                         <Text style={[
                           styles.duplicateItemMoney,
-                          {color: flow.flowType === '支出' ? '#f44336' : flow.flowType === '收入' ? '#4caf50' : '#111111'}
+                          {color: flow.flowType === '支出' ? '#f44336' : flow.flowType === '收入' ? '#4caf50' : '#111111'},
                         ]}>
                           {flow.flowType === '支出' ? '-' : flow.flowType === '收入' ? '+' : ''}
                           {flow.money.toFixed(2)}
@@ -749,7 +775,7 @@ const CalendarScreen: React.FC = () => {
 
   // 添加删除流水的函数
   const handleDeleteDuplicateFlow = useCallback(async (flow: any) => {
-    if (!currentBook) return;
+    if (!currentBook) {return;}
 
     Alert.alert(
       '确认删除',
@@ -777,20 +803,20 @@ const CalendarScreen: React.FC = () => {
               console.error('删除流水失败', error);
               Alert.alert('错误', '删除流水失败');
             }
-          }
-        }
+          },
+        },
       ]
     );
   }, [currentBook, fetchDuplicateFlows, fetchCalendarFlows]);
 
   // 获取平账候选数据
   const fetchBalanceCandidates = useCallback(async () => {
-    if (!currentBook) return;
+    if (!currentBook) {return;}
     try {
       setBalanceLoading(true);
 
       const response = await api.flow.getBalanceCandidates({
-        bookId: currentBook.bookId
+        bookId: currentBook.bookId,
       });
 
       if (response.c === 200 && response.d) {
@@ -808,13 +834,13 @@ const CalendarScreen: React.FC = () => {
 
   // 处理平账确认
   const handleConfirmBalance = useCallback(async (outId: number, inIds: number[]) => {
-    if (!currentBook || inIds.length === 0) return;
+    if (!currentBook || inIds.length === 0) {return;}
 
     try {
       const response = await api.flow.confirmBalance({
         outId,
         inIds,
-        bookId: currentBook.bookId
+        bookId: currentBook.bookId,
       });
 
       if (response.c === 200) {
@@ -835,7 +861,7 @@ const CalendarScreen: React.FC = () => {
 
   // 处理忽略平账项
   const handleIgnoreBalanceItem = useCallback(async (id: number) => {
-    if (!currentBook) return;
+    if (!currentBook) {return;}
 
     Alert.alert(
       '确认忽略',
@@ -849,14 +875,14 @@ const CalendarScreen: React.FC = () => {
             try {
               const response = await api.flow.ignoreBalanceItem({
                 id,
-                bookId: currentBook.bookId
+                bookId: currentBook.bookId,
               });
 
               if (response.c === 200) {
                 // 从候选列表中移除已忽略的项
                 setBalanceCandidates(prev => {
                   return prev.filter(item => {
-                    if (item.out.id === id) return false;
+                    if (item.out.id === id) {return false;}
                     if (Array.isArray(item.in)) {
                       item.in = item.in.filter((inItem: { id: number; }) => inItem.id !== id);
                       return item.in.length > 0;
@@ -874,15 +900,15 @@ const CalendarScreen: React.FC = () => {
               console.error('忽略平账项失败', error);
               Alert.alert('错误', '忽略平账项失败');
             }
-          }
-        }
+          },
+        },
       ]
     );
   }, [currentBook]);
 
   // 处理忽略所有平账项
   const handleIgnoreAllBalanceItems = useCallback(async () => {
-    if (!currentBook || balanceCandidates.length === 0) return;
+    if (!currentBook || balanceCandidates.length === 0) {return;}
 
     Alert.alert(
       '确认忽略全部',
@@ -897,7 +923,7 @@ const CalendarScreen: React.FC = () => {
               // 收集所有ID
               const allIds: number[] = [];
               balanceCandidates.forEach(item => {
-                if (item.out) allIds.push(item.out.id);
+                if (item.out) {allIds.push(item.out.id);}
                 if (Array.isArray(item.in)) {
                   item.in.forEach((inItem: { id: number; }) => allIds.push(inItem.id));
                 } else if (item.in) {
@@ -907,7 +933,7 @@ const CalendarScreen: React.FC = () => {
 
               const response = await api.flow.ignoreAllBalanceItems({
                 bookId: currentBook.bookId,
-                ids: allIds
+                ids: allIds,
               });
 
               if (response.c === 200) {
@@ -921,8 +947,8 @@ const CalendarScreen: React.FC = () => {
               console.error('忽略所有平账项失败', error);
               Alert.alert('错误', '忽略所有平账项失败');
             }
-          }
-        }
+          },
+        },
       ]
     );
   }, [currentBook, balanceCandidates]);
@@ -969,7 +995,7 @@ const CalendarScreen: React.FC = () => {
                       </Text>
                       <Text style={[
                         styles.duplicateItemMoney,
-                        {color: '#f44336'}
+                        {color: '#f44336'},
                       ]}>
                         -{item.out.money.toFixed(2)}
                       </Text>
@@ -1009,7 +1035,7 @@ const CalendarScreen: React.FC = () => {
                       </Text>
                       <Text style={[
                         styles.duplicateItemMoney,
-                        {color: item.in.flowType === '收入' ? '#4caf50' : '#757575'}
+                        {color: item.in.flowType === '收入' ? '#4caf50' : '#757575'},
                       ]}>
                         {item.in.flowType === '收入' ? '+' : ''}
                         {item.in.money.toFixed(2)}
@@ -1066,6 +1092,275 @@ const CalendarScreen: React.FC = () => {
       </Overlay>
     );
   };
+
+  // 处理小票上传
+  const handleInvoiceUpload = async (flow: Flow) => {
+    if (!currentBook) {return;}
+
+    setSelectedFlow(flow);
+
+    Alert.alert(
+      '选择图片来源',
+      '请选择小票图片来源',
+      [
+        {
+          text: '相机',
+          onPress: () => launchCamera(flow),
+        },
+        {
+          text: '相册',
+          onPress: () => launchImageLibrary(flow),
+        },
+        {
+          text: '取消',
+          style: 'cancel',
+          onPress: () => {
+            // 关闭滑动选项
+            swipeableRefs.current[flow.id]?.close();
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  // 启动相机
+  const launchCamera = async (flow: Flow) => {
+    try {
+      const result = await ImagePicker.launchCamera({
+        mediaType: 'photo',
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.8,
+      });
+
+      if (result.assets && result.assets.length > 0) {
+        uploadImage(flow, result.assets[0]);
+      } else {
+        // 关闭滑动选项
+        swipeableRefs.current[flow.id]?.close();
+      }
+    } catch (error) {
+      console.error('相机启动失败', error);
+      Alert.alert('错误', '无法启动相机');
+      // 关闭滑动选项
+      swipeableRefs.current[flow.id]?.close();
+    }
+  };
+
+  // 启动图片库
+  const launchImageLibrary = async (flow: Flow) => {
+    try {
+      const result = await ImagePicker.launchImageLibrary({
+        mediaType: 'photo',
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.8,
+      });
+
+      if (result.assets && result.assets.length > 0) {
+        uploadImage(flow, result.assets[0]);
+      } else {
+        // 关闭滑动选项
+        swipeableRefs.current[flow.id]?.close();
+      }
+    } catch (error) {
+      console.error('图片库启动失败', error);
+      Alert.alert('错误', '无法打开图片库');
+      // 关闭滑动选项
+      swipeableRefs.current[flow.id]?.close();
+    }
+  };
+
+  // 上传图片
+  const uploadImage = async (flow: Flow, image: ImagePicker.Asset) => {
+    if (!currentBook) {return;}
+
+    try {
+      setUploadingInvoice(true);
+      const response = await api.flow.uploadInvoice(flow.id, currentBook.bookId, image);
+
+      if (response.c === 200) {
+        Alert.alert('成功', '小票上传成功');
+        // 刷新数据
+        fetchCalendarFlows();
+      } else {
+        Alert.alert('错误', response.m || '小票上传失败');
+      }
+    } catch (error) {
+      console.error('小票上传失败', error);
+      Alert.alert('错误', '小票上传失败');
+    } finally {
+      setUploadingInvoice(false);
+      // 关闭滑动选项
+      swipeableRefs.current[flow.id]?.close();
+    }
+  };
+
+  // 查看小票图片
+  const viewInvoiceImages = (flow: Flow) => {
+    if (!flow.invoice) {
+      Alert.alert('提示', '该流水没有小票图片');
+      return;
+    }
+
+    const invoices = flow.invoice.split(',');
+    setSelectedInvoices(invoices);
+    setSelectedInvoiceIndex(0);
+    setSelectedFlow(flow);
+    setViewingInvoice(true);
+  };
+
+  // 删除当前查看的小票
+  const deleteCurrentInvoice = async () => {
+    if (!selectedFlow || !currentBook || selectedInvoices.length === 0) {return;}
+
+    const currentInvoice = selectedInvoices[selectedInvoiceIndex];
+
+    Alert.alert(
+      '确认删除',
+      '确定要删除这张小票图片吗？',
+      [
+        {
+          text: '取消',
+          style: 'cancel',
+        },
+        {
+          text: '删除',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setUploadingInvoice(true);
+              const response = await api.flow.deleteInvoice(
+                selectedFlow.id,
+                currentBook.bookId,
+                currentInvoice
+              );
+
+              if (response.c === 200) {
+                // 从列表中移除已删除的图片
+                const updatedInvoices = selectedInvoices.filter((_, index) => index !== selectedInvoiceIndex);
+                setSelectedInvoices(updatedInvoices);
+
+                if (updatedInvoices.length === 0) {
+                  // 如果没有图片了，关闭查看器
+                  setViewingInvoice(false);
+                } else {
+                  // 调整当前查看的索引
+                  setSelectedInvoiceIndex(Math.min(selectedInvoiceIndex, updatedInvoices.length - 1));
+                }
+
+                Alert.alert('成功', '小票已删除');
+                // 刷新数据
+                fetchCalendarFlows();
+              } else {
+                Alert.alert('错误', response.m || '小票删除失败');
+              }
+            } catch (error) {
+              console.error('小票删除失败', error);
+              Alert.alert('错误', '小票删除失败');
+            } finally {
+              setUploadingInvoice(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // 渲染小票图片查看器
+  const renderInvoiceViewer = () => (
+    <Overlay
+      isVisible={viewingInvoice && selectedInvoices.length > 0}
+      onBackdropPress={() => setViewingInvoice(false)}
+      overlayStyle={styles.invoiceViewerOverlay}
+    >
+      <View style={styles.invoiceViewerContainer}>
+        <Image
+          source={{
+            uri: selectedInvoices[selectedInvoiceIndex]
+              ? api.flow.getInvoiceUrl(selectedInvoices[selectedInvoiceIndex])
+              : undefined,
+          }}
+          style={styles.fullImage}
+          resizeMode="contain"
+        />
+
+        {/* 指示器和页码 */}
+        {selectedInvoices.length > 1 && (
+          <View style={styles.paginationContainer}>
+            {selectedInvoices.map((_, index) => (
+              <View
+                key={`dot-${index}`}
+                style={[
+                  styles.paginationDot,
+                  index === selectedInvoiceIndex && styles.paginationDotActive,
+                ]}
+              />
+            ))}
+          </View>
+        )}
+
+        {/* 控制按钮 */}
+        <View style={styles.invoiceViewerControls}>
+          {/* 关闭按钮 */}
+          <TouchableOpacity
+            style={styles.invoiceControlButton}
+            onPress={() => setViewingInvoice(false)}
+          >
+            <Icon name="close" type="material" color="white" size={24} />
+          </TouchableOpacity>
+
+          {/* 左右翻页按钮 */}
+          {selectedInvoices.length > 1 && (
+            <View style={styles.navigationButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.invoiceControlButton,
+                  selectedInvoiceIndex === 0 && styles.disabledButton,
+                ]}
+                onPress={() => {
+                  if (selectedInvoiceIndex > 0) {
+                    setSelectedInvoiceIndex(selectedInvoiceIndex - 1);
+                  }
+                }}
+                disabled={selectedInvoiceIndex === 0}
+              >
+                <Icon name="chevron-left" type="material" color="white" size={28} />
+              </TouchableOpacity>
+
+              <Text style={styles.pageIndicator}>
+                {selectedInvoiceIndex + 1}/{selectedInvoices.length}
+              </Text>
+
+              <TouchableOpacity
+                style={[
+                  styles.invoiceControlButton,
+                  selectedInvoiceIndex === selectedInvoices.length - 1 && styles.disabledButton,
+                ]}
+                onPress={() => {
+                  if (selectedInvoiceIndex < selectedInvoices.length - 1) {
+                    setSelectedInvoiceIndex(selectedInvoiceIndex + 1);
+                  }
+                }}
+                disabled={selectedInvoiceIndex === selectedInvoices.length - 1}
+              >
+                <Icon name="chevron-right" type="material" color="white" size={28} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* 删除按钮 */}
+          <TouchableOpacity
+            style={[styles.invoiceControlButton, styles.deleteButton]}
+            onPress={deleteCurrentInvoice}
+          >
+            <Icon name="delete" type="material" color="white" size={24} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Overlay>
+  );
 
   if (!currentBook) {
     return (
@@ -1205,6 +1500,7 @@ const CalendarScreen: React.FC = () => {
       {renderYearMonthSelector()}
       {renderDuplicateModal()}
       {renderBalanceModal()}
+      {renderInvoiceViewer()}
     </View>
   );
 };
@@ -1323,6 +1619,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 2,
   },
+  flowItemDescLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   flowItemName: {
     fontSize: 14,
     fontWeight: 'bold',
@@ -1339,6 +1640,10 @@ const styles = StyleSheet.create({
   flowItemDesc: {
     fontSize: 11,
     color: '#9e9e9e',
+    maxWidth: '80%',
+  },
+  photoIcon: {
+    width: 50,
   },
   itemDivider: {
     marginVertical: 5,
@@ -1438,11 +1743,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'absolute',
     top: 0,
-    width: 70,
+    width: 50,
   },
   backRightBtnLeft: {
     backgroundColor: '#2196F3',
-    right: 70,
+    right: 50,
+  },
+  backCameraBtnLeft: {
+    backgroundColor: '#2db300',
+    right: 100,
     borderTopLeftRadius: 5,
     borderBottomLeftRadius: 5,
   },
@@ -1726,6 +2035,121 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#1976d2',
     fontWeight: 'bold',
+  },
+  leftSwipeActions: {
+    backgroundColor: '#1976d2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 100,
+  },
+  uploadInvoiceButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100%',
+    width: '100%',
+  },
+  swipeActionText: {
+    color: 'white',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  flowRightContainer: {
+    alignItems: 'flex-end',
+  },
+  flowActions: {
+    flexDirection: 'row',
+    marginTop: 5,
+  },
+  invoiceButton: {
+    padding: 5,
+    marginLeft: 8,
+    backgroundColor: '#e3f2fd',
+    borderRadius: 4,
+  },
+  invoiceViewerOverlay: {
+    width: '90%',
+    height: '70%',
+    padding: 0,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  invoiceViewerContainer: {
+    flex: 1,
+    backgroundColor: 'black',
+  },
+  fullImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  invoiceViewerControls: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 15,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  invoiceControlButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    backgroundColor: 'rgba(244, 67, 54, 0.7)',
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  navigationButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pageIndicator: {
+    color: 'white',
+    marginHorizontal: 10,
+    fontSize: 16,
+  },
+  paginationContainer: {
+    position: 'absolute',
+    bottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    marginHorizontal: 4,
+  },
+  paginationDotActive: {
+    backgroundColor: 'white',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#1976d2',
+    fontSize: 16,
   },
 });
 
