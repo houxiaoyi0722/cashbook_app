@@ -32,6 +32,7 @@ const BudgetScreen = () => {
     const [ffEndMonth, setFfEndMonth] = useState(dayjs().add(5, 'month'));
     const [showStartYearMonthPicker, setShowStartYearMonthPicker] = useState(false);
     const [showEndYearMonthPicker, setShowEndYearMonthPicker] = useState(false);
+    const [showMonthPicker, setShowMonthPicker] = useState(false);
 
     // 加载数据
     const loadData = useCallback(async () => {
@@ -275,7 +276,9 @@ const BudgetScreen = () => {
                         <Icon name="chevron-left" type="material" color="#1976d2"/>
                     </TouchableOpacity>
 
-                    <Text style={styles.monthText}>{currentMonth}</Text>
+                    <TouchableOpacity onPress={() => setShowMonthPicker(true)}>
+                        <Text style={styles.monthText}>{currentMonth}</Text>
+                    </TouchableOpacity>
 
                     <TouchableOpacity
                         onPress={() => setCurrentMonth(dayjs(currentMonth).add(1, 'month').format('YYYY-MM'))}
@@ -520,20 +523,6 @@ const BudgetScreen = () => {
                             </View>
                         </View>
 
-                        <YearMonthPicker
-                            visible={showStartYearMonthPicker}
-                            value={ffStartMonth}
-                            onChange={onChangeStartDate}
-                            onClose={() => setShowStartYearMonthPicker(false)}
-                        />
-
-                        <YearMonthPicker
-                            visible={showEndYearMonthPicker}
-                            value={ffEndMonth}
-                            onChange={onChangeEndDate}
-                            onClose={() => setShowEndYearMonthPicker(false)}
-                        />
-
                         <View style={styles.overlayButtons}>
                             <Button
                                 title="取消"
@@ -558,6 +547,27 @@ const BudgetScreen = () => {
                         <ActivityIndicator size="large" color="#1976d2"/>
                     </View>
                 )}
+            <YearMonthPicker
+                visible={showStartYearMonthPicker}
+                value={ffStartMonth}
+                onChange={onChangeStartDate}
+                onClose={() => setShowStartYearMonthPicker(false)}
+            />
+            <YearMonthPicker
+                visible={showEndYearMonthPicker}
+                value={ffEndMonth}
+                onChange={onChangeEndDate}
+                onClose={() => setShowEndYearMonthPicker(false)}
+            />
+            <YearMonthPicker
+                visible={showMonthPicker}
+                value={dayjs(currentMonth)}
+                onChange={(date) => {
+                    setCurrentMonth(date.format('YYYY-MM'));
+                    setShowMonthPicker(false);
+                }}
+                onClose={() => setShowMonthPicker(false)}
+            />
         </View>
     );
 };
@@ -572,6 +582,16 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 4,
+    },
+    yearMonthPickerContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
     },
     monthSelector: {
         flexDirection: 'row',
