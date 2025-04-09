@@ -30,8 +30,6 @@ const BudgetScreen = () => {
     const [ffAttribution, setFfAttribution] = useState('');
     const [ffStartMonth, setFfStartMonth] = useState(dayjs());
     const [ffEndMonth, setFfEndMonth] = useState(dayjs().add(5, 'month'));
-    const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-    const [showEndDatePicker, setShowEndDatePicker] = useState(false);
     const [showStartYearMonthPicker, setShowStartYearMonthPicker] = useState(false);
     const [showEndYearMonthPicker, setShowEndYearMonthPicker] = useState(false);
 
@@ -343,7 +341,7 @@ const BudgetScreen = () => {
                             <Icon name="repeat" type="material" color="#1976d2" size={20}/>
                             <Text style={styles.titleText}> 固定支出管理</Text>
                         </Card.Title>
-                        <TouchableOpacity onPress={openAddFixedFlowModal}>
+                        <TouchableOpacity onPress={openAddFixedFlowModal} style={styles.budgetRefresh}>
                             <Icon name="add" type="material" color="#1976d2" size={24}/>
                         </TouchableOpacity>
                     </View>
@@ -573,13 +571,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 4,
     },
     monthSelector: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        paddingVertical: 16,
         backgroundColor: 'white',
         borderBottomWidth: 1,
         borderBottomColor: '#e0e0e0',
@@ -597,7 +594,7 @@ const styles = StyleSheet.create({
         marginTop: 5,
         margin: 10,
         borderRadius: 10,
-        maxHeight: '55%',
+        maxHeight: '63%',
     },
     cardTitle: {
         flexDirection: 'row',
@@ -629,7 +626,7 @@ const styles = StyleSheet.create({
         color: '#333',
     },
     progressContainer: {
-        marginBottom: 16,
+        marginBottom: 4,
         flexDirection: 'row',
         alignItems: 'center',
     },
@@ -671,7 +668,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 8,
     },
     fixedExpenseTitle: {
         fontSize: 16,
@@ -684,7 +681,7 @@ const styles = StyleSheet.create({
     },
     fixedFlowList: {
         marginBottom: 16,
-        maxHeight: '70%',
+        maxHeight: '80%',
     },
     fixedFlowTitle: {
         fontSize: 16,
