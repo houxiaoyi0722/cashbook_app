@@ -363,9 +363,6 @@ const FlowFormScreen: React.FC = () => {
 
   // 渲染小票图片列表
   const renderInvoiceImages = () => {
-    if (invoiceImages.length === 0) {
-      return null;
-    }
 
     return (
       <View style={styles.invoiceContainer}>
