@@ -66,6 +66,9 @@ const CalendarScreen: React.FC = () => {
   const dailyDataRef = useRef<DailyData>({});
   const calendarMarksRef = useRef<CalendarMark>({});
 
+  const [refreshKey, setRefreshKey] = useState(0);
+
+
   // 使用 useMemo 缓存卡片数据
   const dayCardData = useMemo(() => ({
     selectedDate,
@@ -1091,7 +1094,7 @@ const CalendarScreen: React.FC = () => {
   };
 
   // 查看小票图片
-  const viewInvoiceImages = (flow: Flow) => {
+  const viewInvoiceImages = async (flow: Flow) => {
     if (!flow.invoice) {
       Alert.alert('提示', '该流水没有小票');
       return;
@@ -1103,7 +1106,18 @@ const CalendarScreen: React.FC = () => {
     setShowInvoiceViewer(true);
 
     // 预缓存小票图片
-    ImageCacheService.cacheImages(invoiceList);
+    try {
+      // 预缓存图片
+      await Promise.all(
+          invoiceList.map(async (name) => {
+            await ImageCacheService.cacheImage(name);
+          })
+      );
+      // 更新刷新键以强制刷新组件
+      setRefreshKey(prev => prev + 1);
+    } catch (error) {
+      console.error('缓存图片失败:', error);
+    }
   };
 
   // 处理小票上传
@@ -1240,7 +1254,8 @@ const CalendarScreen: React.FC = () => {
     >
       <View style={{ flex: 1, backgroundColor: 'black' }}>
         <ImageViewer
-          imageUrls={currentInvoiceList.map((invoice) => ({
+            key={`invoice-list-${refreshKey}`} // 使用key强制刷新
+            imageUrls={currentInvoiceList.map((invoice) => ({
             url: ImageCacheService.getImageUrl(invoice),
           }))}
           onSwipeDown={() => setShowInvoiceViewer(false)}

@@ -61,6 +61,7 @@ const FlowFormScreen: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [cachedImages, setCachedImages] = useState<Set<string>>(new Set());
 
   // 获取流水详情
   useEffect(() => {
@@ -80,8 +81,19 @@ const FlowFormScreen: React.FC = () => {
         const invoiceNames = currentFlow.invoice.split(',');
         setInvoiceImages(invoiceNames);
 
-        // 预缓存图片
-        ImageCacheService.cacheImages(invoiceNames);
+        try {
+          // 预缓存图片
+          await Promise.all(
+            invoiceNames.map(async (name) => {
+              await ImageCacheService.cacheImage(name);
+              setCachedImages(prev => new Set([...prev, name]));
+            })
+          );
+          // 更新刷新键以强制刷新组件
+          setRefreshKey(prev => prev + 1);
+        } catch (error) {
+          console.error('缓存图片失败:', error);
+        }
       }
     };
 
@@ -289,19 +301,25 @@ const FlowFormScreen: React.FC = () => {
           if (updatedFlow && updatedFlow.invoice) {
             const invoiceNames = updatedFlow.invoice.split(',');
 
-            // 检查是否有新增的小票
-            const newInvoices = invoiceNames.filter(invoice => !invoiceImages.includes(invoice));
-            if (newInvoices.length > 0) {
-              // 预缓存新上传的图片
-              await ImageCacheService.cacheImages(newInvoices);
+            try {
+              // 只缓存新上传的图片
+              const newInvoices = invoiceNames.filter(name => !cachedImages.has(name));
+              await Promise.all(
+                newInvoices.map(async (name) => {
+                  await ImageCacheService.cacheImage(name);
+                  setCachedImages(prev => new Set([...prev, name]));
+                })
+              );
+              // 更新刷新键以强制刷新组件
+              setRefreshKey(prev => prev + 1);
+            } catch (error) {
+              console.error('缓存新上传图片失败:', error);
             }
 
-            // 更新小票列表并刷新组件
+            // 更新小票列表
             setInvoiceImages(invoiceNames);
-            setRefreshKey(prev => prev + 1);
           }
         }
-
       } else {
         Alert.alert('错误', response.m || '小票上传失败');
       }
