@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Image, FlatList } from 'react-native';
 import { Text, Card, Button, Input, ButtonGroup, Divider, Icon, Overlay } from '@rneui/themed';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -12,7 +12,8 @@ import {useAuth} from '../../context/AuthContext.tsx';
 import * as ImagePicker from 'react-native-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ImageViewer from 'react-native-image-zoom-viewer';
-import dayjs from "dayjs";
+import dayjs from 'dayjs';
+import RNFS from 'react-native-fs';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowForm'>;
@@ -61,7 +62,8 @@ const FlowFormScreen: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [headers, setHeaders] = useState({});
-
+  const [cachedImages, setCachedImages] = useState<{[key: string]: string}>({});
+  const [isImageCaching, setIsImageCaching] = useState(false);
 
   // 获取流水详情
   useEffect(() => {
@@ -80,6 +82,9 @@ const FlowFormScreen: React.FC = () => {
       if (currentFlow.invoice) {
         const invoiceNames = currentFlow.invoice.split(',');
         setInvoiceImages(invoiceNames);
+
+        // 预加载图片并缓存
+        preloadAndCacheImages(invoiceNames);
       }
     };
 
@@ -115,15 +120,99 @@ const FlowFormScreen: React.FC = () => {
     init();
   }, []);
 
+  // 当获取到认证令牌后，预加载图片
   useEffect(() => {
-    const fetchToken = async () => {
-      const token = await AsyncStorage.getItem('auth_token');
-      setHeaders({
-        Authorization: token,
-      });
-    };
-    fetchToken();
-  }, []);
+    if (headers && invoiceImages.length > 0) {
+      preloadAndCacheImages(invoiceImages);
+    }
+  }, [headers, invoiceImages]);
+
+  // 预加载和缓存图片
+  const preloadAndCacheImages = useCallback(async (imageNames: string[]) => {
+    // if (isImageCaching || !headers) {return;}
+
+    setIsImageCaching(true);
+    const newCachedImages = {...cachedImages};
+
+    try {
+      await Promise.all(imageNames.map(async (imageName) => {
+        // 如果已经缓存了，则跳过
+        if (cachedImages[imageName]) {return;}
+
+        const remoteUrl = api.flow.getInvoiceUrl(imageName);
+        const localPath = `${RNFS.CachesDirectoryPath}/${imageName}`;
+
+        // 检查本地是否已存在该文件
+        // const exists = await RNFS.exists(localPath);
+        // if (exists) {
+        //   newCachedImages[imageName] = `file://${localPath}`;
+        //   return;
+        // }
+
+        try {
+          const token = await AsyncStorage.getItem('auth_token');
+          if (token) {
+            // 开始下载文件
+            console.log(`开始下载图片: ${imageName}`);
+            const response = await fetch(remoteUrl, {
+              headers: {
+                Authorization: token,
+              },
+            });
+
+            console.log('图片接口返回',remoteUrl, headers ,response);
+
+            if (!response.ok) {
+              throw new Error(`网络请求失败: ${response.status}`);
+            }
+
+            // 获取图片的blob数据
+            const blob = await response.blob();
+            const reader = new FileReader();
+
+            // 将blob转换为base64
+            return new Promise<void>((resolve, reject) => {
+              reader.onloadend = async () => {
+                try {
+                  const base64data = reader.result as string;
+                  console.log('图片加载成功',base64data);
+                  // 移除base64前缀
+                  const base64Image = base64data.split(',')[1];
+
+                  // 写入文件系统
+                  await RNFS.writeFile(localPath, base64Image, 'base64');
+                  console.log(`图片缓存成功: ${imageName}`);
+
+                  // 更新缓存字典
+                  newCachedImages[imageName] = `file://${localPath}`;
+                  resolve();
+                } catch (error) {
+                  console.error(`写入文件失败: ${imageName}`, error);
+                  reject(error);
+                }
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch (error) {
+          console.error(`下载图片失败: ${imageName}`, error);
+        }
+      }));
+
+      // 更新缓存状态
+      setCachedImages(newCachedImages);
+    } catch (error) {
+      console.error('缓存图片过程中发生错误:', error);
+    } finally {
+      setIsImageCaching(false);
+    }
+  }, [cachedImages, headers, isImageCaching]);
+
+  // 获取图片URL（优先使用缓存）
+  const getImageUrl = useCallback((imageName: string) => {
+    return cachedImages[imageName] || api.flow.getInvoiceUrl(imageName);
+  }, [cachedImages]);
 
   // 验证表单
   const validateForm = () => {
@@ -363,7 +452,6 @@ const FlowFormScreen: React.FC = () => {
 
   // 渲染小票图片列表
   const renderInvoiceImages = () => {
-
     return (
       <View style={styles.invoiceContainer}>
         <Text style={styles.label}>小票图片</Text>
@@ -375,13 +463,23 @@ const FlowFormScreen: React.FC = () => {
               style={styles.invoiceImageContainer}
               onPress={() => viewInvoiceImage(item)}
             >
-              <Image
-                source={{
-                  uri: api.flow.getInvoiceUrl(item),
-                  headers: headers,
-                }}
-                style={styles.invoiceImage}
-              />
+              <View style={styles.invoiceImageWrapper}>
+
+                <Image
+                  source={{
+                    uri: getImageUrl(item),
+                  }}
+                  style={styles.invoiceImage}
+                  resizeMode="cover"
+                />
+                {!cachedImages[item] && (
+                  <ActivityIndicator
+                    style={styles.thumbnailLoading}
+                    size="small"
+                    color="#1976d2"
+                  />
+                )}
+              </View>
             </TouchableOpacity>
           )}
           keyExtractor={(item, index) => `invoice-${index}`}
@@ -394,6 +492,7 @@ const FlowFormScreen: React.FC = () => {
               <Icon name="add" type="material" color="#1976d2" size={24} />
             </TouchableOpacity>
           }
+          showsHorizontalScrollIndicator={false}
         />
       </View>
     );
@@ -410,13 +509,18 @@ const FlowFormScreen: React.FC = () => {
         {selectedImage && (
           <ImageViewer
             imageUrls={[{
-              url: api.flow.getInvoiceUrl(selectedImage),
-              props: { headers },
+              url: getImageUrl(selectedImage),
             }]}
             enableSwipeDown={true}
             onSwipeDown={() => setShowImageViewer(false)}
             enableImageZoom={true}
             saveToLocalByLongPress={false}
+            loadingRender={() => (
+              <View style={styles.imageLoadingContainer}>
+                <ActivityIndicator size="large" color="#1976d2" />
+                <Text style={styles.imageLoadingText}>图片加载中...</Text>
+              </View>
+            )}
           />
         )}
         <View style={styles.imageViewerButtons}>
@@ -746,11 +850,11 @@ const styles = StyleSheet.create({
     padding: 0,
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: 'black',
+    backgroundColor: 'white',
   },
   imageViewerContainer: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: 'white',
     position: 'relative',
   },
   fullImage: {
@@ -793,6 +897,32 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: '#1976d2',
     fontSize: 16,
+  },
+  invoiceImageWrapper: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#f9f9f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  thumbnailLoading: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -10,
+    marginTop: -10,
+  },
+  imageLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
+  },
+  imageLoadingText: {
+    marginTop: 10,
+    color: '#1976d2',
+    fontSize: 14,
   },
 });
 

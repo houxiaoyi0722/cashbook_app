@@ -381,6 +381,14 @@ class Api {
       });
       return response.data;
     },
+    loadImageWithAuth: async (url: string) => {
+      try {
+        // 1. 使用 fetch 下载图片（携带 headers）
+        return await this.instance?.get(url);
+      } catch (error) {
+        console.error('预加载失败:', error);
+      }
+    },
   };
 
   // 分析相关API
