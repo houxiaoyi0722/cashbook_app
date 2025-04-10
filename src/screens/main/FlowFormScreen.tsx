@@ -143,11 +143,11 @@ const FlowFormScreen: React.FC = () => {
         const localPath = `${RNFS.CachesDirectoryPath}/${imageName}`;
 
         // 检查本地是否已存在该文件
-        // const exists = await RNFS.exists(localPath);
-        // if (exists) {
-        //   newCachedImages[imageName] = `file://${localPath}`;
-        //   return;
-        // }
+        const exists = await RNFS.exists(localPath);
+        if (exists) {
+          newCachedImages[imageName] = `file://${localPath}`;
+          return;
+        }
 
         try {
           const token = await AsyncStorage.getItem('auth_token');
