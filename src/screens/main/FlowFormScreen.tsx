@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Image, FlatList } from 'react-native';
 import { Text, Card, Button, Input, ButtonGroup, Divider, Icon, Overlay } from '@rneui/themed';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -10,10 +10,9 @@ import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
 import {eventBus} from '../../navigation';
 import {useAuth} from '../../context/AuthContext.tsx';
 import * as ImagePicker from 'react-native-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import ImageViewer from 'react-native-image-zoom-viewer';
 import dayjs from 'dayjs';
-import RNFS from 'react-native-fs';
+import ImageCacheService from '../../services/ImageCacheService';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowForm'>;
@@ -61,9 +60,7 @@ const FlowFormScreen: React.FC = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showImageViewer, setShowImageViewer] = useState(false);
-  const [headers, setHeaders] = useState({});
-  const [cachedImages, setCachedImages] = useState<{[key: string]: string}>({});
-  const [isImageCaching, setIsImageCaching] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // 获取流水详情
   useEffect(() => {
@@ -83,8 +80,8 @@ const FlowFormScreen: React.FC = () => {
         const invoiceNames = currentFlow.invoice.split(',');
         setInvoiceImages(invoiceNames);
 
-        // 预加载图片并缓存
-        preloadAndCacheImages(invoiceNames);
+        // 预缓存图片
+        ImageCacheService.cacheImages(invoiceNames);
       }
     };
 
@@ -122,97 +119,10 @@ const FlowFormScreen: React.FC = () => {
 
   // 当获取到认证令牌后，预加载图片
   useEffect(() => {
-    if (headers && invoiceImages.length > 0) {
-      preloadAndCacheImages(invoiceImages);
+    if (invoiceImages.length > 0) {
+      ImageCacheService.cacheImages(invoiceImages);
     }
-  }, [headers, invoiceImages]);
-
-  // 预加载和缓存图片
-  const preloadAndCacheImages = useCallback(async (imageNames: string[]) => {
-    // if (isImageCaching || !headers) {return;}
-
-    setIsImageCaching(true);
-    const newCachedImages = {...cachedImages};
-
-    try {
-      await Promise.all(imageNames.map(async (imageName) => {
-        // 如果已经缓存了，则跳过
-        if (cachedImages[imageName]) {return;}
-
-        const remoteUrl = api.flow.getInvoiceUrl(imageName);
-        const localPath = `${RNFS.CachesDirectoryPath}/${imageName}`;
-
-        // 检查本地是否已存在该文件
-        const exists = await RNFS.exists(localPath);
-        if (exists) {
-          newCachedImages[imageName] = `file://${localPath}`;
-          return;
-        }
-
-        try {
-          const token = await AsyncStorage.getItem('auth_token');
-          if (token) {
-            // 开始下载文件
-            console.log(`开始下载图片: ${imageName}`);
-            const response = await fetch(remoteUrl, {
-              headers: {
-                Authorization: token,
-              },
-            });
-
-            console.log('图片接口返回',remoteUrl, headers ,response);
-
-            if (!response.ok) {
-              throw new Error(`网络请求失败: ${response.status}`);
-            }
-
-            // 获取图片的blob数据
-            const blob = await response.blob();
-            const reader = new FileReader();
-
-            // 将blob转换为base64
-            return new Promise<void>((resolve, reject) => {
-              reader.onloadend = async () => {
-                try {
-                  const base64data = reader.result as string;
-                  console.log('图片加载成功',base64data);
-                  // 移除base64前缀
-                  const base64Image = base64data.split(',')[1];
-
-                  // 写入文件系统
-                  await RNFS.writeFile(localPath, base64Image, 'base64');
-                  console.log(`图片缓存成功: ${imageName}`);
-
-                  // 更新缓存字典
-                  newCachedImages[imageName] = `file://${localPath}`;
-                  resolve();
-                } catch (error) {
-                  console.error(`写入文件失败: ${imageName}`, error);
-                  reject(error);
-                }
-              };
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
-          }
-        } catch (error) {
-          console.error(`下载图片失败: ${imageName}`, error);
-        }
-      }));
-
-      // 更新缓存状态
-      setCachedImages(newCachedImages);
-    } catch (error) {
-      console.error('缓存图片过程中发生错误:', error);
-    } finally {
-      setIsImageCaching(false);
-    }
-  }, [cachedImages, headers, isImageCaching]);
-
-  // 获取图片URL（优先使用缓存）
-  const getImageUrl = useCallback((imageName: string) => {
-    return cachedImages[imageName] || api.flow.getInvoiceUrl(imageName);
-  }, [cachedImages]);
+  }, [invoiceImages]);
 
   // 验证表单
   const validateForm = () => {
@@ -259,7 +169,6 @@ const FlowFormScreen: React.FC = () => {
           description: description.trim() || undefined,
           day: dayjs(flowDate).format('YYYY-MM-DD'),
         });
-        Alert.alert('成功', '流水已更新');
         eventBus.emit('refreshCalendarFlows');
       } else {
         // 创建流水
@@ -274,7 +183,6 @@ const FlowFormScreen: React.FC = () => {
           description: description.trim() || undefined,
           day: dayjs(flowDate).format('YYYY-MM-DD'),
         });
-        Alert.alert('成功', '流水已创建');
         eventBus.emit('refreshCalendarFlows');
       }
 
@@ -371,23 +279,29 @@ const FlowFormScreen: React.FC = () => {
 
       if (response.c === 200) {
         // 刷新流水信息以获取更新后的小票列表
-        const updatedFlowResponse = await api.flow.page({
-          pageNum: 1,
-          pageSize: 1,
+        const updatedFlowResponse = await api.flow.list({
+          id: currentFlow.id,
           bookId: currentBook.bookId,
-          startDay: currentFlow.day,
-          endDay: currentFlow.day,
         });
 
-        if (updatedFlowResponse.c === 200 && updatedFlowResponse.d.data.length > 0) {
-          const updatedFlow = updatedFlowResponse.d.data.find(flow => flow.id === currentFlow.id);
+        if (updatedFlowResponse.c === 200 && updatedFlowResponse.d.length > 0) {
+          const updatedFlow = updatedFlowResponse.d.find(flow => flow.id === currentFlow.id);
           if (updatedFlow && updatedFlow.invoice) {
             const invoiceNames = updatedFlow.invoice.split(',');
+
+            // 检查是否有新增的小票
+            const newInvoices = invoiceNames.filter(invoice => !invoiceImages.includes(invoice));
+            if (newInvoices.length > 0) {
+              // 预缓存新上传的图片
+              await ImageCacheService.cacheImages(newInvoices);
+            }
+
+            // 更新小票列表并刷新组件
             setInvoiceImages(invoiceNames);
+            setRefreshKey(prev => prev + 1);
           }
         }
 
-        Alert.alert('成功', '小票上传成功');
       } else {
         Alert.alert('错误', response.m || '小票上传失败');
       }
@@ -403,6 +317,9 @@ const FlowFormScreen: React.FC = () => {
   const viewInvoiceImage = (invoiceName: string) => {
     setSelectedImage(invoiceName);
     setShowImageViewer(true);
+
+    // 尝试缓存当前查看的图片
+    ImageCacheService.cacheImage(invoiceName);
   };
 
   // 删除小票图片
@@ -431,10 +348,14 @@ const FlowFormScreen: React.FC = () => {
 
               if (response.c === 200) {
                 // 从列表中移除已删除的图片
-                setInvoiceImages(invoiceImages.filter(name => name !== selectedImage));
+                const updatedImages = invoiceImages.filter(invoice => invoice !== selectedImage);
+                setInvoiceImages(updatedImages);
+
+                // 从缓存中清除图片
+                await ImageCacheService.clearCache(selectedImage);
+
                 setShowImageViewer(false);
                 setSelectedImage(null);
-                Alert.alert('成功', '小票已删除');
               } else {
                 Alert.alert('错误', response.m || '小票删除失败');
               }
@@ -455,45 +376,47 @@ const FlowFormScreen: React.FC = () => {
     return (
       <View style={styles.invoiceContainer}>
         <Text style={styles.label}>小票图片</Text>
-        <FlatList
-          data={invoiceImages}
-          horizontal
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.invoiceImageContainer}
-              onPress={() => viewInvoiceImage(item)}
-            >
-              <View style={styles.invoiceImageWrapper}>
+        <View style={styles.invoiceListContainer}>
+          <TouchableOpacity
+            style={styles.addInvoiceButton}
+            onPress={handleInvoiceUpload}
+            disabled={isLoading || uploadingImage}
+          >
+            <Icon name="add-a-photo" type="material" color="#1976d2" size={24} />
+            <Text style={styles.addButtonText}>上传小票</Text>
+          </TouchableOpacity>
 
-                <Image
-                  source={{
-                    uri: getImageUrl(item),
-                  }}
-                  style={styles.invoiceImage}
-                  resizeMode="cover"
-                />
-                {!cachedImages[item] && (
-                  <ActivityIndicator
-                    style={styles.thumbnailLoading}
-                    size="small"
-                    color="#1976d2"
+          <FlatList
+            key={`invoice-list-${refreshKey}`} // 使用key强制刷新
+            data={invoiceImages}
+            horizontal
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.invoiceImageContainer}
+                onPress={() => viewInvoiceImage(item)}
+              >
+                <View style={styles.invoiceImageWrapper}>
+                  <Image
+                    source={{
+                      uri: ImageCacheService.getImageUrl(item),
+                    }}
+                    style={styles.invoiceImage}
+                    resizeMode="cover"
                   />
-                )}
-              </View>
-            </TouchableOpacity>
-          )}
-          keyExtractor={(item, index) => `invoice-${index}`}
-          ListHeaderComponent={
-            <TouchableOpacity
-              style={styles.addInvoiceButton}
-              onPress={handleInvoiceUpload}
-              disabled={isLoading || uploadingImage}
-            >
-              <Icon name="add" type="material" color="#1976d2" size={24} />
-            </TouchableOpacity>
-          }
-          showsHorizontalScrollIndicator={false}
-        />
+                  {!ImageCacheService.isImageCached(item) && (
+                    <ActivityIndicator
+                      style={styles.thumbnailLoading}
+                      size="small"
+                      color="#1976d2"
+                    />
+                  )}
+                </View>
+              </TouchableOpacity>
+            )}
+            keyExtractor={(item, index) => `invoice-${item}-${index}`}
+            showsHorizontalScrollIndicator={false}
+          />
+        </View>
       </View>
     );
   };
@@ -509,12 +432,13 @@ const FlowFormScreen: React.FC = () => {
         {selectedImage && (
           <ImageViewer
             imageUrls={[{
-              url: getImageUrl(selectedImage),
+              url: ImageCacheService.getImageUrl(selectedImage),
             }]}
             enableSwipeDown={true}
             onSwipeDown={() => setShowImageViewer(false)}
             enableImageZoom={true}
             saveToLocalByLongPress={false}
+            backgroundColor="white"
             loadingRender={() => (
               <View style={styles.imageLoadingContainer}>
                 <ActivityIndicator size="large" color="#1976d2" />
@@ -812,6 +736,11 @@ const styles = StyleSheet.create({
   },
   invoiceContainer: {
     marginBottom: 20,
+    marginTop: 10,
+  },
+  invoiceListContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 10,
   },
   invoiceImageContainer: {
     marginRight: 10,
@@ -828,11 +757,18 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#1976d2',
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     borderStyle: 'dashed',
+    marginRight: 10,
+    backgroundColor: '#f0f7ff',
+  },
+  addButtonText: {
+    fontSize: 12,
+    color: '#1976d2',
+    marginTop: 4,
   },
   uploadContainer: {
     padding: 15,

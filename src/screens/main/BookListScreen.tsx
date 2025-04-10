@@ -74,7 +74,6 @@ const BookListScreen: React.FC = () => {
           onPress: async () => {
             try {
               await deleteBook(book.id);
-              Alert.alert('成功', '账本已删除');
             } catch (error) {
               console.error('删除账本失败', error);
               Alert.alert('错误', '删除账本失败');

@@ -70,13 +70,9 @@ const BookFormScreen: React.FC = () => {
         let data = books.find(item => item.bookId == bookId)!;
         data.bookName = name;
         await updateBook(bookId, data);
-
-        Alert.alert('成功', '账本已更新');
       } else {
         // 创建账本
         await createBook(name);
-
-        Alert.alert('成功', '账本已创建');
       }
 
       navigation.goBack();
@@ -97,7 +93,6 @@ const BookFormScreen: React.FC = () => {
       book = await shareBook(book?.id);
       setShareKey(book.shareKey!)
       setIsShared(true);
-      Alert.alert('成功', '已生成共享码');
     } catch (error) {
       console.error('生成共享码失败', error);
       Alert.alert('错误', '生成共享码失败');

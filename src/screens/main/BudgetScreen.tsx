@@ -91,7 +91,6 @@ const BudgetScreen = () => {
 
             const response = await api.budget.update(budgetData);
             if (response.c === 200) {
-                Alert.alert('成功', '预算保存成功');
                 await loadData();
                 setShowBudgetModal(false);
             } else {
@@ -142,7 +141,6 @@ const BudgetScreen = () => {
 
                 const response = await api.fixedFlow.update(updateData);
                 if (response.c === 200) {
-                    Alert.alert('成功', '固定支出更新成功');
                     setFixedFlowModalVisible(false);
                     await loadData();
                 } else {
@@ -162,7 +160,6 @@ const BudgetScreen = () => {
 
                 const response = await api.fixedFlow.add(newData);
                 if (response.c === 200) {
-                    Alert.alert('成功', '固定支出添加成功');
                     setFixedFlowModalVisible(false);
                     await loadData();
                 } else {
@@ -197,7 +194,6 @@ const BudgetScreen = () => {
                         try {
                             const response = await api.fixedFlow.delete(item.id!, currentBook.bookId);
                             if (response.c === 200) {
-                                Alert.alert('成功', '固定支出删除成功');
                                 await loadData();
                             } else {
                                 Alert.alert('错误', response.m || '删除失败');

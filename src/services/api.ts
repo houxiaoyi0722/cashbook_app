@@ -192,6 +192,7 @@ class Api {
   flow = {
     // 分页获取流水列表
     page: async (params: {
+      id?: number,
       pageNum: number;
       pageSize: number;
       bookId: string;
@@ -222,6 +223,26 @@ class Api {
         notInOut: number;
         data: Flow[];
       }>>('/api/entry/flow/page', params);
+      return response.data;
+    },
+
+    // 获取流水列表
+    list: async (params: {
+      id?: number,
+      bookId: string;
+      startDay?: string;
+      endDay?: string;
+      flowType?: string;
+      industryType?: string;
+      payType?: string;
+      moneySort?: string;
+      attribution?: string;
+      name?: string;
+      description?: string;
+    }): Promise<ApiResponse<Flow[]>> => {
+      if (!this.instance) {throw new Error('API实例未初始化');}
+      console.log(`📊 Fetching flows for book ${params.bookId}`, params);
+      const response = await this.instance.post<ApiResponse<Flow[]>>('/api/entry/flow/list', params);
       return response.data;
     },
 

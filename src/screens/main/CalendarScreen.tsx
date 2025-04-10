@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Text, Card, Button, Icon, Overlay } from '@rneui/themed';
@@ -23,8 +24,8 @@ import { SwipeListView } from 'react-native-swipe-list-view';
 import api from '../../services/api';
 import * as ImagePicker from 'react-native-image-picker';
 import { Swipeable } from 'react-native-gesture-handler';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import ImageViewer from 'react-native-image-zoom-viewer';
+import ImageCacheService from '../../services/ImageCacheService';
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 // 配置中文日历
@@ -78,10 +79,13 @@ const CalendarScreen: React.FC = () => {
   const [balanceLoading, setBalanceLoading] = useState(false);
 
   // 添加小票上传相关状态和函数
-  const [headers, setHeaders] = useState({});
-  const [viewingInvoice, setViewingInvoice] = useState(false);
-  const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
   const swipeableRefs = useRef<{ [key: number]: Swipeable | null }>({});
+
+  // 添加新的小票上传相关状态和函数
+  const [currentFlow, setCurrentFlow] = useState<Flow | null>(null);
+  const [currentInvoiceList, setCurrentInvoiceList] = useState<string[]>([]);
+  const [showInvoiceViewer, setShowInvoiceViewer] = useState(false);
+  const [uplaoding, setUploading] = useState(false);
 
   // 获取日历数据
   const fetchCalendarFlows = useCallback(async () => {
@@ -189,16 +193,6 @@ const CalendarScreen: React.FC = () => {
 
     return () => { isMounted = false; };
   }, [currentBook]);
-
-  useEffect(() => {
-    const fetchToken = async () => {
-      const token = await AsyncStorage.getItem('auth_token');
-      setHeaders({
-        Authorization: token,
-      });
-    };
-    fetchToken();
-  }, []);
 
   // 修改 handleDayPress 函数，添加月份切换逻辑
   const handleDayPress = useCallback(async (day: any) => {
@@ -399,7 +393,6 @@ const CalendarScreen: React.FC = () => {
                               try {
                                 if (!currentBook) {return;}
                                 await api.flow.delete(item.id, currentBook.bookId);
-                                Alert.alert('成功', '流水已删除');
                                 // 重新获取日期流水
                                 fetchDayDetail(selectedDate);
                                 // 刷新日历数据
@@ -804,8 +797,6 @@ const CalendarScreen: React.FC = () => {
                 await fetchDuplicateFlows();
                 // 刷新日历数据
                 await fetchCalendarFlows();
-
-                Alert.alert('成功', '流水已删除');
               } else {
                 Alert.alert('错误', response.m || '删除流水失败');
               }
@@ -858,8 +849,6 @@ const CalendarScreen: React.FC = () => {
         setBalanceCandidates(prev => prev.filter(item => item.out.id !== outId));
         // 刷新日历数据
         fetchCalendarFlows();
-
-        Alert.alert('成功', '平账成功');
       } else {
         Alert.alert('错误', response.m || '平账失败');
       }
@@ -901,8 +890,6 @@ const CalendarScreen: React.FC = () => {
                     }
                   });
                 });
-
-                Alert.alert('成功', '已忽略平账项');
               } else {
                 Alert.alert('错误', response.m || '忽略平账项失败');
               }
@@ -1103,29 +1090,41 @@ const CalendarScreen: React.FC = () => {
     );
   };
 
+  // 查看小票图片
+  const viewInvoiceImages = (flow: Flow) => {
+    if (!flow.invoice) {
+      Alert.alert('提示', '该流水没有小票');
+      return;
+    }
+
+    const invoiceList = flow.invoice.split(',');
+    setCurrentFlow(flow);
+    setCurrentInvoiceList(invoiceList);
+    setShowInvoiceViewer(true);
+
+    // 预缓存小票图片
+    ImageCacheService.cacheImages(invoiceList);
+  };
+
   // 处理小票上传
   const handleInvoiceUpload = async (flow: Flow) => {
-    if (!currentBook) {return;}
+    setCurrentFlow(flow);
 
     Alert.alert(
-      '选择图片来源',
-      '请选择小票图片来源',
+      '上传小票图片',
+      '请选择图片来源',
       [
         {
-          text: '相机',
+          text: '拍照',
           onPress: () => launchCamera(flow),
         },
         {
-          text: '相册',
+          text: '从相册选择',
           onPress: () => launchImageLibrary(flow),
         },
         {
           text: '取消',
           style: 'cancel',
-          onPress: () => {
-            // 关闭滑动选项
-            swipeableRefs.current[flow.id]?.close();
-          },
         },
       ],
       { cancelable: true }
@@ -1182,72 +1181,98 @@ const CalendarScreen: React.FC = () => {
 
   // 上传图片
   const uploadImage = async (flow: Flow, image: ImagePicker.Asset) => {
-    if (!currentBook) {return;}
-
     try {
-      const response = await api.flow.uploadInvoice(flow.id, currentBook.bookId, image);
+      setUploading(true);
+      const response = await api.flow.uploadInvoice(flow.id, currentBook?.bookId!, image);
 
       if (response.c === 200) {
-        Alert.alert('成功', '小票上传成功');
-        // 刷新数据
-        fetchCalendarFlows();
+        // 刷新流水列表
+        const day = dayjs(flow.day).format('YYYY-MM-DD');
+        await fetchDayDetail(day);
+
+        // 获取最新的流水信息
+        const updatedFlowResponse = await api.flow.list({
+          id: flow.id,
+          bookId: currentBook?.bookId!,
+        });
+        console.log('updatedFlowResponse',updatedFlowResponse);
+        if (updatedFlowResponse.c === 200 && updatedFlowResponse.d.length > 0) {
+          const updatedFlow = updatedFlowResponse.d.find(f => f.id === flow.id);
+          console.log('updatedFlow',updatedFlow);
+          if (updatedFlow && updatedFlow.invoice) {
+            const invoiceNames = updatedFlow.invoice.split(',');
+
+            // 如果图片查看器已打开，则更新显示
+            if (currentFlow?.id === flow.id) {
+              // 找出新上传的小票
+              const newInvoices = invoiceNames.filter(name => !currentInvoiceList.includes(name));
+
+              if (newInvoices.length > 0) {
+                // 预缓存新上传的图片
+                console.log('预缓存新上传的图片',newInvoices);
+                await ImageCacheService.cacheImages(newInvoices);
+
+                // 更新当前流水和小票列表
+                setCurrentFlow(updatedFlow);
+                setCurrentInvoiceList(invoiceNames);
+              }
+            }
+          }
+        }
+
       } else {
         Alert.alert('错误', response.m || '小票上传失败');
       }
     } catch (error) {
-      console.error('小票上传失败', error);
+      console.error('小票上传失败:', error);
       Alert.alert('错误', '小票上传失败');
     } finally {
-      // 关闭滑动选项
-      swipeableRefs.current[flow.id]?.close();
+      setUploading(false);
     }
   };
 
-  // 查看小票图片
-  const viewInvoiceImages = (flow: Flow) => {
-    if (!flow.invoice) {
-      Alert.alert('提示', '该流水没有小票图片');
-      return;
-    }
-
-    const invoices = flow.invoice.split(',');
-    setSelectedInvoices(invoices);
-    setViewingInvoice(true);
-  };
-
-  // 渲染小票图片查看器
+  // 渲染小票查看器
   const renderInvoiceViewer = () => (
-    <Overlay
-      isVisible={viewingInvoice && selectedInvoices.length > 0}
-      onBackdropPress={() => setViewingInvoice(false)}
-      overlayStyle={styles.invoiceViewerOverlay}
+    <Modal
+      visible={showInvoiceViewer && currentInvoiceList.length > 0}
+      transparent={true}
+      onRequestClose={() => setShowInvoiceViewer(false)}
     >
-      <View style={styles.invoiceViewerContainer}>
+      <View style={{ flex: 1, backgroundColor: 'black' }}>
         <ImageViewer
-            imageUrls={
-              selectedInvoices.map(item => {
-                return {
-                  url: api.flow.getInvoiceUrl(item),
-                  props: { headers },
-                };
-            })}
-            enableSwipeDown={true}
-            enableImageZoom={true}
-            saveToLocalByLongPress={false}
+          imageUrls={currentInvoiceList.map((invoice) => ({
+            url: ImageCacheService.getImageUrl(invoice),
+          }))}
+          onSwipeDown={() => setShowInvoiceViewer(false)}
+          enableSwipeDown={true}
+          enableImageZoom={true}
+          saveToLocalByLongPress={false}
+          loadingRender={() => (
+            <View style={styles.imageLoadingContainer}>
+              <ActivityIndicator size="large" color="#1976d2" />
+              <Text style={styles.imageLoadingText}>图片加载中...</Text>
+            </View>
+          )}
         />
-
-        {/* 控制按钮 */}
-        <View style={styles.invoiceViewerControls}>
-          {/* 关闭按钮 */}
-          <TouchableOpacity
-            style={styles.invoiceControlButton}
-            onPress={() => setViewingInvoice(false)}
-          >
-            <Icon name="close" type="material" color="white" size={24} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={{
+            position: 'absolute',
+            top: 40,
+            right: 20,
+            zIndex: 9999,
+          }}
+          onPress={() => setShowInvoiceViewer(false)}
+        >
+          <Icon name="close" type="material" color="white" size={24} />
+        </TouchableOpacity>
+        {uplaoding && (
+          <View style={styles.uploadingOverlay}>
+            <ActivityIndicator size="large" color="#1976d2" />
+            <Text style={styles.uploadingText}>处理中...</Text>
+          </View>
+        )}
       </View>
-    </Overlay>
+    </Modal>
   );
 
   if (!currentBook) {
@@ -2037,6 +2062,32 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     color: '#1976d2',
+    fontSize: 16,
+  },
+  imageLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
+  },
+  imageLoadingText: {
+    marginTop: 10,
+    color: '#1976d2',
+    fontSize: 14,
+  },
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  uploadingText: {
+    marginTop: 10,
+    color: 'white',
     fontSize: 16,
   },
 });
