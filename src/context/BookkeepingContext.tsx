@@ -10,7 +10,6 @@ import {eventBus} from '../navigation';
 interface BookkeepingContextType {
   isLoading: boolean;
   currentBook: Book | null;
-  currentBudget: Budget | null;
   remoteAttributions: string[],
   remotePayType: string[],
   updateCurrentBook: (currentBook: Book | null) => Promise<void>;
@@ -115,6 +114,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setIsLoading(true);
       const response = await api.flow.page({
         bookId: currentBook.bookId,
+        moneySort: 'desc',
         pageNum: 1,
         pageSize: 100,
         startDay: date,
@@ -178,7 +178,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         fetchDayFlows,
         addFlow,
         updateFlow,
-        deleteFlow
+        deleteFlow,
       }}
     >
       {children}

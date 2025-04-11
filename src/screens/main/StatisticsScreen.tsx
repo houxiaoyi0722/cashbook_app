@@ -518,6 +518,7 @@ const StatisticsScreen: React.FC = () => {
         pageNum: page,
         pageSize: PAGE_SIZE,
         bookId: currentBook.bookId,
+        moneySort: 'desc',
         startDay: startDate,
         endDay: endDate,
         flowType: selectedFlowType,
