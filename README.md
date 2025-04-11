@@ -30,6 +30,8 @@ Cashbook App 是 [Cashbook](https://github.com/dingdangdog/cashbook) 的移动�
 - ⚖️ 平账功能，轻松处理退款和转账
 - 📚 多账本管理，分类整理不同用途的账目
 - 🔐 安全连接到您的 Cashbook 服务器
+- 📊 预算管理,设定预算，实时监控支出进度
+- 🧾 小票管理,拍照或上传小票
 
 ## 📱 连接到 Cashbook 服务器
 
