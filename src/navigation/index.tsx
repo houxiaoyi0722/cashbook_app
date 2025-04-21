@@ -35,57 +35,64 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 // 主标签导航
 const MainTabs = () => {
   return (
-    <Tab.Navigator
-      screenOptions={{
-        tabBarActiveTintColor: '#1976d2',
-        tabBarInactiveTintColor: '#757575',
-        tabBarLabelStyle: {
-          fontSize: 12,
-        },
-        headerShown: false,
-      }}
-    >
-      <Tab.Screen
-        name="Calendar"
-        component={CalendarScreen}
-        options={{
-          tabBarLabel: '流水日历',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="calendar-today" type="material" color={color} size={size} />
-          ),
-        }}
+    <>
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor="#f5f5f5"
+        translucent={false}
       />
-      <Tab.Screen
-        name="Statistics"
-        component={StatisticsScreen}
-        options={{
-          tabBarLabel: '统计',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="bar-chart" type="material" color={color} size={size} />
-          ),
+      <Tab.Navigator
+        screenOptions={{
+          tabBarActiveTintColor: '#1976d2',
+          tabBarInactiveTintColor: '#757575',
+          tabBarLabelStyle: {
+            fontSize: 12,
+          },
+          headerShown: false,
         }}
-      />
-      <Tab.Screen
-        name="Budget"
-        component={BudgetScreen}
-        options={{
-          tabBarLabel: '预算',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="account-balance-wallet" type="material" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          tabBarLabel: '设置',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="settings" type="material" color={color} size={size} />
-          ),
-        }}
-      />
-    </Tab.Navigator>
+      >
+        <Tab.Screen
+          name="Calendar"
+          component={CalendarScreen}
+          options={{
+            tabBarLabel: '流水日历',
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="calendar-today" type="material" color={color} size={size} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Statistics"
+          component={StatisticsScreen}
+          options={{
+            tabBarLabel: '统计',
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="bar-chart" type="material" color={color} size={size} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Budget"
+          component={BudgetScreen}
+          options={{
+            tabBarLabel: '预算',
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="account-balance-wallet" type="material" color={color} size={size} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{
+            tabBarLabel: '设置',
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="settings" type="material" color={color} size={size} />
+            ),
+          }}
+        />
+      </Tab.Navigator>
+    </>
   );
 };
 

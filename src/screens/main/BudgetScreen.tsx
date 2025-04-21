@@ -1,5 +1,5 @@
 import React, {useState, useEffect, useCallback} from 'react';
-import {View, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity} from 'react-native';
+import {View, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, StatusBar, Platform} from 'react-native';
 import {Card, Button, Text, Input, Icon, Divider, ListItem, Overlay} from '@rneui/themed';
 import YearMonthPicker from './YearMonthPicker';
 import api from '../../services/api';
@@ -572,6 +572,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#f5f5f5',
+        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
     },
     cardTitleContainer: {
         flexDirection: 'row',
