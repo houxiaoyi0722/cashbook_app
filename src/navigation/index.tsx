@@ -4,6 +4,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {Icon} from '@rneui/themed';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StatusBar } from 'react-native';
 
 // 认证相关屏幕
 import ServerListScreen from '../screens/auth/ServerListScreen';
@@ -143,6 +144,13 @@ const AppNavigator = () => {
               headerTintColor: '#fff',
               headerTitleStyle: {
                 fontWeight: 'bold',
+              },
+              // 确保标题栏不会延伸到状态栏
+              headerTransparent: false,
+              headerShadowVisible: false,
+              // 设置内容样式
+              contentStyle: {
+                backgroundColor: '#f5f5f5',
               },
             }}
           >

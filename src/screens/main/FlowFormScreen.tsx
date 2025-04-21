@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Image, FlatList } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity, Image, FlatList, StatusBar } from 'react-native';
 import { Text, Card, Button, Input, ButtonGroup, Divider, Icon, Overlay } from '@rneui/themed';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -483,200 +483,209 @@ const FlowFormScreen: React.FC = () => {
 
   if (isFetching) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
-      </View>
+      <>
+        <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
+        <View style={styles.container}>
+          <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
+        </View>
+      </>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView>
-        <Card containerStyle={styles.card}>
-          <Card.Title>{currentFlow ? '编辑流水' : '创建流水'}</Card.Title>
+    <>
+      <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
+      <View style={styles.container}>
+        <ScrollView>
+          <Card containerStyle={styles.card}>
+            <Card.Title>{currentFlow ? '编辑流水' : '创建流水'}</Card.Title>
 
-          <ButtonGroup
-            buttons={flowTypeButtons}
-            selectedIndex={flowTypes.indexOf(flowType)}
-            onPress={(index) => setFlowType(flowTypes[index])}
-            containerStyle={styles.buttonGroup}
-            selectedButtonStyle={{ backgroundColor: '#1976d2' }}
-            disabled={isLoading}
-          />
+            <ButtonGroup
+              buttons={flowTypeButtons}
+              selectedIndex={flowTypes.indexOf(flowType)}
+              onPress={(index) => setFlowType(flowTypes[index])}
+              containerStyle={styles.buttonGroup}
+              selectedButtonStyle={{ backgroundColor: '#1976d2' }}
+              disabled={isLoading}
+            />
 
-          <Input
-            label="交易方名称"
-            placeholder="请输入交易方名称"
-            value={name}
-            onChangeText={setName}
-            disabled={isLoading}
-            leftIcon={{ type: 'material', name: 'shopping-cart', color: '#1976d2' }}
-            errorMessage={name.trim() ? '' : '交易方名称不能为空'}
-          />
+            <Input
+              label="交易方名称"
+              placeholder="请输入交易方名称"
+              value={name}
+              onChangeText={setName}
+              disabled={isLoading}
+              leftIcon={{ type: 'material', name: 'shopping-cart', color: '#1976d2' }}
+              errorMessage={name.trim() ? '' : '交易方名称不能为空'}
+              inputStyle={{ fontSize: 14, lineHeight: 18, paddingVertical: 4 }}
+            />
 
-          <Input
-            label="金额"
-            placeholder="请输入金额"
-            value={money}
-            onChangeText={setMoney}
-            keyboardType="numeric"
-            disabled={isLoading}
-            leftIcon={{ type: 'material', name: 'account-balance-wallet', color: '#1976d2' }}
-            errorMessage={money && !isNaN(Number(money)) && Number(money) > 0 ? '' : '请输入有效的金额'}
-          />
+            <Input
+              label="金额"
+              placeholder="请输入金额"
+              value={money}
+              onChangeText={setMoney}
+              keyboardType="numeric"
+              disabled={isLoading}
+              leftIcon={{ type: 'material', name: 'account-balance-wallet', color: '#1976d2' }}
+              errorMessage={money && !isNaN(Number(money)) && Number(money) > 0 ? '' : '请输入有效的金额'}
+              inputStyle={{ fontSize: 14, lineHeight: 18, paddingVertical: 4 }}
+            />
 
-          <Text style={styles.label}>交易类型</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.typeContainer}>
-              {industryTypes.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.typeItem,
-                    industryType === type && styles.selectedTypeItem,
-                  ]}
-                  onPress={() => setIndustryType(type)}
-                  disabled={isLoading}
-                >
-                  <Text
+            <Text style={styles.label}>交易类型</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.typeContainer}>
+                {industryTypes.map((type) => (
+                  <TouchableOpacity
+                    key={type}
                     style={[
-                      styles.typeText,
-                      industryType === type && styles.selectedTypeText,
+                      styles.typeItem,
+                      industryType === type && styles.selectedTypeItem,
                     ]}
+                    onPress={() => setIndustryType(type)}
+                    disabled={isLoading}
                   >
-                    {type}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
+                    <Text
+                      style={[
+                        styles.typeText,
+                        industryType === type && styles.selectedTypeText,
+                      ]}
+                    >
+                      {type}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
 
-          <Divider style={styles.divider} />
+            <Divider style={styles.divider} />
 
-          <Text style={styles.label}>支付方式</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.typeContainer}>
-              {payTypes.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.typeItem,
-                    payType === type && styles.selectedTypeItem,
-                  ]}
-                  onPress={() => setPayType(type)}
-                  disabled={isLoading}
-                >
-                  <Text
+            <Text style={styles.label}>支付方式</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.typeContainer}>
+                {payTypes.map((type) => (
+                  <TouchableOpacity
+                    key={type}
                     style={[
-                      styles.typeText,
-                      payType === type && styles.selectedTypeText,
+                      styles.typeItem,
+                      payType === type && styles.selectedTypeItem,
                     ]}
+                    onPress={() => setPayType(type)}
+                    disabled={isLoading}
                   >
-                    {type}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
+                    <Text
+                      style={[
+                        styles.typeText,
+                        payType === type && styles.selectedTypeText,
+                      ]}
+                    >
+                      {type}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
 
-          <Text style={styles.label}>归属人</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.typeContainer}>
-              {attributions.map((item) => (
-                <TouchableOpacity
-                  key={item}
-                  style={[
-                    styles.typeItem,
-                    attribution === item && styles.selectedTypeItem,
-                  ]}
-                  onPress={() => setAttribution(item)}
-                  disabled={isLoading}
-                >
-                  <Text
+            <Text style={styles.label}>归属人</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.typeContainer}>
+                {attributions.map((item) => (
+                  <TouchableOpacity
+                    key={item}
                     style={[
-                      styles.typeText,
-                      attribution === item && styles.selectedTypeText,
+                      styles.typeItem,
+                      attribution === item && styles.selectedTypeItem,
                     ]}
+                    onPress={() => setAttribution(item)}
+                    disabled={isLoading}
                   >
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.typeText,
+                        attribution === item && styles.selectedTypeText,
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            <Divider style={styles.divider} />
+
+            <Text style={styles.label}>交易日期</Text>
+            <TouchableOpacity
+              style={styles.dateContainer}
+              onPress={() => setShowDatePicker(true)}
+              disabled={isLoading}
+            >
+              <Text style={styles.dateText}>
+                {dayjs(flowDate).format('YYYY-MM-DD')}
+              </Text>
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={flowDate}
+                mode="date"
+                display="default"
+                onChange={handleDateChange}
+              />
+            )}
+
+            <Input
+              label="备注（可选）"
+              placeholder="请输入备注"
+              value={description}
+              onChangeText={setDescription}
+              disabled={isLoading}
+              leftIcon={{ type: 'material', name: 'description', color: '#1976d2' }}
+              multiline
+              numberOfLines={3}
+              inputStyle={{ fontSize: 14, textAlignVertical: 'top', paddingTop: 8 }}
+            />
+
+            {/* 小票上传区域 */}
+            {currentFlow ? renderInvoiceImages() : (
+              <View style={styles.uploadContainer}>
+                <Text style={styles.uploadInfoText}>保存流水后可上传小票图片</Text>
+              </View>
+            )}
+
+            <View style={styles.buttonContainer}>
+              <Button
+                title="取消"
+                type="outline"
+                containerStyle={styles.button}
+                onPress={() => navigation.goBack()}
+                disabled={isLoading}
+              />
+
+              <Button
+                title={isLoading ? '保存中...' : '保存'}
+                containerStyle={styles.button}
+                onPress={handleSave}
+                disabled={isLoading}
+              />
             </View>
-          </ScrollView>
+          </Card>
+        </ScrollView>
 
-          <Divider style={styles.divider} />
+        {/* 小票图片查看器 */}
+        {renderImageViewer()}
 
-          <Text style={styles.label}>交易日期</Text>
-          <TouchableOpacity
-            style={styles.dateContainer}
-            onPress={() => setShowDatePicker(true)}
-            disabled={isLoading}
-          >
-            <Text style={styles.dateText}>
-              {dayjs(flowDate).format('YYYY-MM-DD')}
+        {/* 加载指示器 */}
+        {(isLoading || uploadingImage) && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#1976d2" />
+            <Text style={styles.loadingText}>
+              {uploadingImage ? '上传中...' : '处理中...'}
             </Text>
-          </TouchableOpacity>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={flowDate}
-              mode="date"
-              display="default"
-              onChange={handleDateChange}
-            />
-          )}
-
-          <Input
-            label="备注（可选）"
-            placeholder="请输入备注"
-            value={description}
-            onChangeText={setDescription}
-            disabled={isLoading}
-            leftIcon={{ type: 'material', name: 'description', color: '#1976d2' }}
-            multiline
-            numberOfLines={3}
-          />
-
-          {/* 小票上传区域 */}
-          {currentFlow ? renderInvoiceImages() : (
-            <View style={styles.uploadContainer}>
-              <Text style={styles.uploadInfoText}>保存流水后可上传小票图片</Text>
-            </View>
-          )}
-
-          <View style={styles.buttonContainer}>
-            <Button
-              title="取消"
-              type="outline"
-              containerStyle={styles.button}
-              onPress={() => navigation.goBack()}
-              disabled={isLoading}
-            />
-
-            <Button
-              title={isLoading ? '保存中...' : '保存'}
-              containerStyle={styles.button}
-              onPress={handleSave}
-              disabled={isLoading}
-            />
           </View>
-        </Card>
-      </ScrollView>
-
-      {/* 小票图片查看器 */}
-      {renderImageViewer()}
-
-      {/* 加载指示器 */}
-      {(isLoading || uploadingImage) && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#1976d2" />
-          <Text style={styles.loadingText}>
-            {uploadingImage ? '上传中...' : '处理中...'}
-          </Text>
-        </View>
-      )}
-    </View>
+        )}
+      </View>
+    </>
   );
 };
 

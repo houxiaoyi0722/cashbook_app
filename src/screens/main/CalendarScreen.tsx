@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ScrollView,
   Modal,
+  StatusBar,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Text, Card, Button, Icon, Overlay } from '@rneui/themed';
@@ -1305,131 +1306,134 @@ const CalendarScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <BookSelector />
+    <>
+      <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
+      <View style={styles.container}>
+        <BookSelector />
 
-      <View style={styles.headerActions}>
-        <View style={{ flex: 1 }} />
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => {
-            setShowBalanceModal(true);
-            fetchBalanceCandidates();
-          }}
+        <View style={styles.headerActions}>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => {
+              setShowBalanceModal(true);
+              fetchBalanceCandidates();
+            }}
+          >
+            <Icon name="account-balance" type="material" color="#1976d2" size={16} />
+            <Text style={styles.actionButtonText}>平账</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => {
+              setShowDuplicateModal(true);
+              fetchDuplicateFlows();
+            }}
+          >
+            <Icon name="filter-alt" type="material" color="#1976d2" size={16} />
+            <Text style={styles.actionButtonText}>去重</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          style={styles.scrollView}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#1976d2']}
+              tintColor="#1976d2"
+            />
+          }
         >
-          <Icon name="account-balance" type="material" color="#1976d2" size={16} />
-          <Text style={styles.actionButtonText}>平账</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => {
-            setShowDuplicateModal(true);
-            fetchDuplicateFlows();
-          }}
-        >
-          <Icon name="filter-alt" type="material" color="#1976d2" size={16} />
-          <Text style={styles.actionButtonText}>去重</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#1976d2']}
-            tintColor="#1976d2"
-          />
-        }
-      >
-        <Card containerStyle={styles.calendarCard}>
-          <Calendar
-              current={currentMonth}
-              key={currentMonth}
-              onDayPress={(day) => {
-                handleDayPress(day);
-              }}
-              onMonthChange={handleMonthChange}
-              markingType="custom"
-              markedDates={calendarMarks}
-              theme={{
-                todayTextColor: '#1976d2',
-                arrowColor: '#1976d2',
-                monthTextColor: '#1976d2',
-                selectedDayBackgroundColor: '#1976d2',
-                selectedDayTextColor: 'white',
-              }}
-              monthFormat={'yyyy年 MM月'}
-              renderHeader={(date) => (
-                  <TouchableOpacity onPress={handleMonthHeaderPress} style={styles.calendarHeader}>
-                    <Text style={styles.calendarHeaderText}>
-                      {currentMonth ? `${currentMonth.split('-')[0]}年${currentMonth.split('-')[1]}月` : dayjs(date).format('YYYY年 MM月')}
-                    </Text>
-                    <Icon name="arrow-drop-down" type="material" size={24} color="#1976d2" />
+          <Card containerStyle={styles.calendarCard}>
+            <Calendar
+                current={currentMonth}
+                key={currentMonth}
+                onDayPress={(day) => {
+                  handleDayPress(day);
+                }}
+                onMonthChange={handleMonthChange}
+                markingType="custom"
+                markedDates={calendarMarks}
+                theme={{
+                  todayTextColor: '#1976d2',
+                  arrowColor: '#1976d2',
+                  monthTextColor: '#1976d2',
+                  selectedDayBackgroundColor: '#1976d2',
+                  selectedDayTextColor: 'white',
+                }}
+                monthFormat={'yyyy年 MM月'}
+                renderHeader={(date) => (
+                    <TouchableOpacity onPress={handleMonthHeaderPress} style={styles.calendarHeader}>
+                      <Text style={styles.calendarHeaderText}>
+                        {currentMonth ? `${currentMonth.split('-')[0]}年${currentMonth.split('-')[1]}月` : dayjs(date).format('YYYY年 MM月')}
+                      </Text>
+                      <Icon name="arrow-drop-down" type="material" size={24} color="#1976d2" />
+                    </TouchableOpacity>
+                )}
+                dayComponent={({ date, state }) => (
+                  <TouchableOpacity
+                    onPress={() => {
+                      handleDayPress(date);
+                    }}
+                  >
+                    {renderCustomDay(date, state)}
                   </TouchableOpacity>
-              )}
-              dayComponent={({ date, state }) => (
-                <TouchableOpacity
-                  onPress={() => {
-                    handleDayPress(date);
-                  }}
-                >
-                  {renderCustomDay(date, state)}
-                </TouchableOpacity>
-              )}
-          />
+                )}
+            />
 
-          {/* 将月度汇总直接放在日历卡片内部 */}
-          <View style={styles.monthSummaryContent}>
-            <View style={styles.monthSummaryRow}>
-              <View style={styles.monthSummaryItem}>
-                <Text style={styles.monthSummaryLabel}>总收入</Text>
-                <Text style={[styles.monthSummaryValue, { color: '#4caf50' }]}>
-                  {/* 计算总收入 */}
-                  {Object.entries(dailyData)
-                      .filter(([date]) => date.startsWith(currentMonth))
-                      .reduce((sum, [, data]) => sum + (data.inSum || 0), 0)
-                      .toFixed(2)}
-                </Text>
-              </View>
+            {/* 将月度汇总直接放在日历卡片内部 */}
+            <View style={styles.monthSummaryContent}>
+              <View style={styles.monthSummaryRow}>
+                <View style={styles.monthSummaryItem}>
+                  <Text style={styles.monthSummaryLabel}>总收入</Text>
+                  <Text style={[styles.monthSummaryValue, { color: '#4caf50' }]}>
+                    {/* 计算总收入 */}
+                    {Object.entries(dailyData)
+                        .filter(([date]) => date.startsWith(currentMonth))
+                        .reduce((sum, [, data]) => sum + (data.inSum || 0), 0)
+                        .toFixed(2)}
+                  </Text>
+                </View>
 
-              <View style={styles.monthSummaryItem}>
-                <Text style={styles.monthSummaryLabel}>总支出</Text>
-                <Text style={[styles.monthSummaryValue, { color: '#f44336' }]}>
-                  {/* 计算总支出 */}
-                  {Object.entries(dailyData)
-                      .filter(([date]) => date.startsWith(currentMonth))
-                      .reduce((sum, [, data]) => sum + (data.outSum || 0), 0)
-                      .toFixed(2)}
-                </Text>
-              </View>
+                <View style={styles.monthSummaryItem}>
+                  <Text style={styles.monthSummaryLabel}>总支出</Text>
+                  <Text style={[styles.monthSummaryValue, { color: '#f44336' }]}>
+                    {/* 计算总支出 */}
+                    {Object.entries(dailyData)
+                        .filter(([date]) => date.startsWith(currentMonth))
+                        .reduce((sum, [, data]) => sum + (data.outSum || 0), 0)
+                        .toFixed(2)}
+                  </Text>
+                </View>
 
-              <View style={styles.monthSummaryItem}>
-                <Text style={styles.monthSummaryLabel}>不计收支</Text>
-                <Text style={[styles.monthSummaryValue, { color: '#070707' }]}>
-                  {/* 计算不计收支 */}
-                  {Object.entries(dailyData)
-                      .filter(([date]) => date.startsWith(currentMonth))
-                      .reduce((sum, [, data]) => sum + (data.zeroSum || 0), 0)
-                      .toFixed(2)}
-                </Text>
+                <View style={styles.monthSummaryItem}>
+                  <Text style={styles.monthSummaryLabel}>不计收支</Text>
+                  <Text style={[styles.monthSummaryValue, { color: '#070707' }]}>
+                    {/* 计算不计收支 */}
+                    {Object.entries(dailyData)
+                        .filter(([date]) => date.startsWith(currentMonth))
+                        .reduce((sum, [, data]) => sum + (data.zeroSum || 0), 0)
+                        .toFixed(2)}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
-        </Card>
-      </ScrollView>
-      <DayCard
-          selectedDate={dayCardData.selectedDate}
-          dayFlows={dayCardData.dayFlows}
-          onAddFlow={handleAddFlow}
-      />
-      {renderYearMonthSelector()}
-      {renderDuplicateModal()}
-      {renderBalanceModal()}
-      {renderInvoiceViewer()}
-    </View>
+          </Card>
+        </ScrollView>
+        <DayCard
+            selectedDate={dayCardData.selectedDate}
+            dayFlows={dayCardData.dayFlows}
+            onAddFlow={handleAddFlow}
+        />
+        {renderYearMonthSelector()}
+        {renderDuplicateModal()}
+        {renderBalanceModal()}
+        {renderInvoiceViewer()}
+      </View>
+    </>
   );
 };
 
