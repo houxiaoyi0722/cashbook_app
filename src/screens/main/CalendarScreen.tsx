@@ -1,33 +1,34 @@
-﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+﻿import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
-  View,
-  StyleSheet,
-  Alert,
   ActivityIndicator,
-  TouchableOpacity,
+  Alert,
+  Modal,
   RefreshControl,
   ScrollView,
-  Modal,
   StatusBar,
-  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import { Text, Card, Button, Icon, Overlay } from '@rneui/themed';
-import { Calendar, LocaleConfig } from 'react-native-calendars';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MainStackParamList } from '../../navigation/types';
-import { useBookkeeping } from '../../context/BookkeepingContext';
+import {Picker} from '@react-native-picker/picker';
+import {Button, Card, Icon, Overlay, Text} from '@rneui/themed';
+import {Calendar, LocaleConfig} from 'react-native-calendars';
+import {useNavigation} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {MainStackParamList} from '../../navigation/types';
+import {useBookkeeping} from '../../context/BookkeepingContext';
 import BookSelector from '../../components/BookSelector';
-import { Flow, DailyData, CalendarMark } from '../../types';
+import {CalendarMark, DailyData, Flow} from '../../types';
 import dayjs from 'dayjs';
 import {eventBus} from '../../navigation';
-import { SwipeListView } from 'react-native-swipe-list-view';
+import {SwipeListView} from 'react-native-swipe-list-view';
 import api from '../../services/api';
 import * as ImagePicker from 'react-native-image-picker';
-import { Swipeable } from 'react-native-gesture-handler';
+import {Swipeable} from 'react-native-gesture-handler';
 import ImageViewer from 'react-native-image-zoom-viewer';
 import ImageCacheService from '../../services/ImageCacheService';
+import {SafeAreaView} from 'react-native-safe-area-context';
+
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 // 配置中文日历
@@ -1307,7 +1308,7 @@ const CalendarScreen: React.FC = () => {
   }
 
   return (
-    <>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
       <View style={styles.container}>
         <BookSelector />
@@ -1434,7 +1435,7 @@ const CalendarScreen: React.FC = () => {
         {renderBalanceModal()}
         {renderInvoiceViewer()}
       </View>
-    </>
+    </SafeAreaView>
   );
 };
 
@@ -1442,7 +1443,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
   },
   scrollView: {
     padding: 0,

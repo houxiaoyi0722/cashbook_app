@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert, ActivityIndicator, Platform, StatusBar } from 'react-native';
-import { Text, Card, Icon, ListItem, Dialog, Input, Overlay } from '@rneui/themed';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useAuth } from '../../context/AuthContext';
-import { MainStackParamList } from '../../navigation/types';
-import { version } from '../../../package.json';
+import React, {useEffect, useState} from 'react';
+import {ActivityIndicator, Alert, ScrollView, StyleSheet, View} from 'react-native';
+import {Card, Dialog, Icon, Input, ListItem, Overlay, Text} from '@rneui/themed';
+import {useNavigation} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {useAuth} from '../../context/AuthContext';
+import {MainStackParamList} from '../../navigation/types';
+import {version} from '../../../package.json';
 import updateService from '../../services/updateService';
 import api from '../../services/api.ts';
-import { eventBus } from '../../navigation';
+import {eventBus} from '../../navigation';
+import {SafeAreaView} from 'react-native-safe-area-context';
+
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -315,16 +317,18 @@ const SettingsScreen: React.FC = () => {
   );
 
   return (
-    <View style={styles.container}>
-      <ScrollView>
-        {renderUserInfo()}
-        {renderAccountSettings()}
-        {renderAboutInfo()}
-      </ScrollView>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.container}>
+        <ScrollView>
+          {renderUserInfo()}
+          {renderAccountSettings()}
+          {renderAboutInfo()}
+        </ScrollView>
 
-      {renderChangePasswordDialog()}
-      {renderLoadingOverlay()}
-    </View>
+        {renderChangePasswordDialog()}
+        {renderLoadingOverlay()}
+      </View>
+    </SafeAreaView>
   );
 };
 
@@ -332,7 +336,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
   },
   card: {
     margin: 10,

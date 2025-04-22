@@ -1,23 +1,30 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, FlatList, Modal, Dimensions, Platform, StatusBar} from 'react-native';
-import {Text, Card, Divider, Tab, TabView, Overlay, Icon, Button, ListItem, Avatar} from '@rneui/themed';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MainStackParamList } from '../../navigation/types';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Modal,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import {Avatar, Button, Card, Divider, Icon, ListItem, Overlay, Tab, TabView, Text} from '@rneui/themed';
+import {useNavigation} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {MainStackParamList} from '../../navigation/types';
 import api from '../../services/api';
 import BookSelector from '../../components/BookSelector';
-import {MonthAnalysis, AnalyticsItem, Flow} from '../../types';
+import {AnalyticsItem, Flow, MonthAnalysis} from '../../types';
 import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
+import {SafeAreaView} from 'react-native-safe-area-context';
 
 import * as echarts from 'echarts/core';
-import { PieChart, BarChart } from 'echarts/charts';
-import { SvgChart, SVGRenderer } from '@wuba/react-native-echarts';
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-} from 'echarts/components';
+import {BarChart, PieChart} from 'echarts/charts';
+import {SvgChart, SVGRenderer} from '@wuba/react-native-echarts';
+import {GridComponent, LegendComponent, TitleComponent, TooltipComponent,} from 'echarts/components';
 import dayjs from 'dayjs';
 
 // 注册必要的组件
@@ -1334,7 +1341,8 @@ const StatisticsScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.container}>
       <BookSelector />
         {renderMonthSelector()}
         <Tab
@@ -1397,6 +1405,7 @@ const StatisticsScreen: React.FC = () => {
       {/* 流水详情弹窗 */}
       {renderFlowDetailsModal()}
     </View>
+    </SafeAreaView>
   );
 };
 
@@ -1404,7 +1413,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
   },
   loader: {
     flex: 1,
