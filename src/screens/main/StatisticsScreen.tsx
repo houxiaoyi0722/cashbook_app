@@ -9,7 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import {Avatar, Button, Card, Divider, Icon, ListItem, Overlay, Tab, TabView, Text} from '@rneui/themed';
 import {useNavigation} from '@react-navigation/native';
@@ -24,7 +24,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import * as echarts from 'echarts/core';
 import {BarChart, PieChart} from 'echarts/charts';
 import {SvgChart, SVGRenderer} from '@wuba/react-native-echarts';
-import {GridComponent, LegendComponent, TitleComponent, TooltipComponent,} from 'echarts/components';
+import {GridComponent, LegendComponent, TitleComponent, TooltipComponent} from 'echarts/components';
 import dayjs from 'dayjs';
 
 // 注册必要的组件
@@ -120,6 +120,12 @@ const StatisticsScreen: React.FC = () => {
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // 添加盈余相关状态
+  const [monthBalance, setMonthBalance] = useState<string>('0.00');
+  const [yearBalance, setYearBalance] = useState<string>('0.00');
+  const [yearIncomeTotal, setYearIncomeTotal] = useState<string>('0.00');
+  const [yearExpenseTotal, setYearExpenseTotal] = useState<string>('0.00');
+
   // 添加选中项状态到组件顶层
   const [selectedIndustryItem, setSelectedIndustryItem] = useState<string | null>(null);
   const [selectedPayTypeItem, setSelectedPayTypeItem] = useState<string | null>(null);
@@ -146,6 +152,31 @@ const StatisticsScreen: React.FC = () => {
 
   // 添加流水类型选择状态
   const [selectedFlowType, setSelectedFlowType] = useState<'支出' | '收入' | '不计收支'>('支出');
+
+  // 获取月度分析
+  const fetchMonthAnalysis = useCallback(async () => {
+    if (!currentBook || !currentMonth) {return;}
+
+    try {
+      setIsLoading(true);
+      const response = await api.analytics.monthAnalysis(currentMonth, currentBook.bookId);
+
+      if (response.c === 200 && response.d) {
+        setMonthAnalysis(response.d);
+
+        // 计算当月盈余 = 收入 - 支出
+        const inSum = parseFloat(response.d.inSum);
+        const outSum = parseFloat(response.d.outSum);
+        const balance = (inSum - outSum).toFixed(2);
+        setMonthBalance(balance);
+      }
+    } catch (error) {
+      console.error('获取当月分析失败', error);
+      Alert.alert('错误', '获取当月分析失败');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentBook, currentMonth]);
 
   // 获取月度数据
   const fetchMonthData = useCallback(async () => {
@@ -178,29 +209,30 @@ const StatisticsScreen: React.FC = () => {
         if (months.length > 0 && (!currentMonth || !months.includes(currentMonth))) {
           setCurrentMonth(months[0]);
         }
+
+        // 计算当前年份的盈余
+        const currentYear = currentMonth.substring(0, 4);
+        let yearIncome = 0;
+        let yearExpense = 0;
+
+        // 筛选出当前年份的数据
+        const yearData = response.d.filter((item: AnalyticsItem) => item.type.startsWith(currentYear));
+
+        // 累加收入和支出
+        yearData.forEach((item: AnalyticsItem) => {
+          yearIncome += item.inSum;
+          yearExpense += item.outSum;
+        });
+
+        // 计算年度盈余 = 年度总收入 - 年度总支出
+        const balance = (yearIncome - yearExpense).toFixed(2);
+        setYearBalance(balance);
+        setYearIncomeTotal(yearIncome.toFixed(2));
+        setYearExpenseTotal(yearExpense.toFixed(2));
       }
     } catch (error) {
       console.error('获取月度数据失败', error instanceof Error ? error.message : String(error));
       Alert.alert('错误', '获取月度数据失败');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentBook,currentMonth]);
-
-  // 获取月度分析
-  const fetchMonthAnalysis = useCallback(async () => {
-    if (!currentBook || !currentMonth) {return;}
-
-    try {
-      setIsLoading(true);
-      const response = await api.analytics.monthAnalysis(currentMonth, currentBook.bookId);
-
-      if (response.c === 200 && response.d) {
-        setMonthAnalysis(response.d);
-      }
-    } catch (error) {
-      console.error('获取当月分析失败', error);
-      Alert.alert('错误', '获取当月分析失败');
     } finally {
       setIsLoading(false);
     }
@@ -830,6 +862,145 @@ const StatisticsScreen: React.FC = () => {
     );
   };
 
+  // 渲染盈余概览
+  const renderBalanceOverview = () => {
+    const currentYear = currentMonth.substring(0, 4);
+    const monthBalanceValue = parseFloat(monthBalance);
+    const yearBalanceValue = parseFloat(yearBalance);
+
+    // 计算盈亏比
+    const incomeValue = parseFloat(yearIncomeTotal);
+    const expenseValue = parseFloat(yearExpenseTotal);
+    const totalValue = incomeValue + expenseValue;
+    const incomeRatio = totalValue > 0 ? (incomeValue / totalValue) * 100 : 0;
+    const expenseRatio = totalValue > 0 ? (expenseValue / totalValue) * 100 : 0;
+
+    return (
+      <Card containerStyle={styles.compactCard}>
+        <Card.Title>现金流概览</Card.Title>
+
+        <View style={styles.balanceContainer}>
+          <View style={styles.balanceItem}>
+            <Text style={styles.balanceLabel}>当月盈余</Text>
+            <View style={styles.balanceValueContainer}>
+              <Text
+                style={[
+                  styles.balanceValue,
+                  { color: monthBalanceValue >= 0 ? '#4caf50' : '#f44336' },
+                ]}
+              >
+                {monthBalanceValue >= 0 ? '+' : ''}{monthBalance}
+              </Text>
+              <Icon
+                name={monthBalanceValue >= 0 ? 'trending-up' : 'trending-down'}
+                type="material"
+                size={16}
+                color={monthBalanceValue >= 0 ? '#4caf50' : '#f44336'}
+                style={styles.balanceIcon}
+              />
+            </View>
+          </View>
+
+          <View style={styles.balanceItemDivider} />
+
+          <View style={styles.balanceItem}>
+            <Text style={styles.balanceLabel}>{currentYear}年盈余</Text>
+            <View style={styles.balanceValueContainer}>
+              <Text
+                style={[
+                  styles.balanceValue,
+                  { color: yearBalanceValue >= 0 ? '#4caf50' : '#f44336' },
+                ]}
+              >
+                {yearBalanceValue >= 0 ? '+' : ''}{yearBalance}
+              </Text>
+              <Icon
+                name={yearBalanceValue >= 0 ? 'trending-up' : 'trending-down'}
+                type="material"
+                size={16}
+                color={yearBalanceValue >= 0 ? '#4caf50' : '#f44336'}
+                style={styles.balanceIcon}
+              />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.yearBalanceContainer}>
+          <Text style={styles.yearBalanceTitle}>{currentYear}年度收支分析</Text>
+
+          {/* 收支比例条 */}
+          <View style={styles.ratioBarContainer}>
+            <View style={styles.ratioBar}>
+              <View style={styles.ratioBarInner}>
+                <View
+                  style={[
+                    styles.ratioIncome,
+                    { flex: incomeRatio },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.ratioExpense,
+                    { flex: expenseRatio },
+                  ]}
+                />
+              </View>
+            </View>
+            <View style={styles.ratioLegendContainer}>
+              <View style={styles.ratioLegend}>
+                <View style={[styles.ratioLegendColor, { backgroundColor: '#4caf50' }]} />
+                <Text style={styles.ratioLegendText}>收入 {incomeRatio.toFixed(1)}%</Text>
+              </View>
+              <View style={styles.ratioLegend}>
+                <View style={[styles.ratioLegendColor, { backgroundColor: '#f44336' }]} />
+                <Text style={styles.ratioLegendText}>支出 {expenseRatio.toFixed(1)}%</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.yearBalanceDetails}>
+            <View style={styles.yearBalanceRow}>
+              <Icon name="trending-up" type="material" size={16} color="#4caf50" />
+              <Text style={styles.yearBalanceLabel}>年度总收入</Text>
+              <Text style={[styles.yearBalanceValue, { color: '#4caf50' }]}>
+                {yearIncomeTotal}
+              </Text>
+            </View>
+
+            <View style={styles.yearBalanceRow}>
+              <Icon name="trending-down" type="material" size={16} color="#f44336" />
+              <Text style={styles.yearBalanceLabel}>年度总支出</Text>
+              <Text style={[styles.yearBalanceValue, { color: '#f44336' }]}>
+                {yearExpenseTotal}
+              </Text>
+            </View>
+
+            <View style={[styles.yearBalanceRow, {borderBottomWidth: 0, paddingBottom: 0}]}>
+              <Icon
+                name={yearBalanceValue >= 0 ? 'account-balance' : 'warning'}
+                type="material"
+                size={16}
+                color={yearBalanceValue >= 0 ? '#4caf50' : '#f44336'}
+              />
+              <Text style={styles.yearBalanceLabel}>年度结余</Text>
+              <Text
+                style={[
+                  styles.yearBalanceValue,
+                  {
+                    color: yearBalanceValue >= 0 ? '#4caf50' : '#f44336',
+                    fontWeight: 'bold',
+                  },
+                ]}
+              >
+                {yearBalanceValue >= 0 ? '+' : ''}{yearBalance}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Card>
+    );
+  };
+
   // Update the renderIndustryTypeAnalysis function
   const renderIndustryTypeAnalysis = () => {
     if (!industryTypeData || industryTypeData.length === 0) {
@@ -1376,6 +1547,7 @@ const StatisticsScreen: React.FC = () => {
                   />
                 }>
                   {renderMonthOverview()}
+                  {renderBalanceOverview()}
                   {renderMonthTrend()}
                 </ScrollView>
             )}
@@ -1743,6 +1915,113 @@ const styles = StyleSheet.create({
   selectedFlowTypeText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  compactCard: {
+    margin: 10,
+    borderRadius: 10,
+    padding: 12,
+    paddingBottom: 8,
+  },
+  balanceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 8,
+  },
+  balanceItem: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  balanceValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  balanceLabel: {
+    fontSize: 13,
+    color: '#757575',
+    marginBottom: 4,
+  },
+  balanceValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  balanceIcon: {
+    marginLeft: 4,
+  },
+  balanceItemDivider: {
+    borderLeftWidth: 1,
+    borderLeftColor: '#e0e0e0',
+  },
+  yearBalanceContainer: {
+    marginTop: 5,
+  },
+  yearBalanceTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginVertical: 5,
+  },
+  yearBalanceDetails: {
+    marginTop: 5,
+  },
+  yearBalanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  yearBalanceLabel: {
+    fontSize: 13,
+    color: '#757575',
+    marginLeft: 6,
+    flex: 1,
+  },
+  yearBalanceValue: {
+    fontSize: 15,
+    fontWeight: '500',
+    textAlign: 'right',
+  },
+  ratioBarContainer: {
+    marginTop: 5,
+    marginBottom: 8,
+  },
+  ratioBar: {
+    height: 16,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  ratioBarInner: {
+    flexDirection: 'row',
+    height: '100%',
+    width: '100%',
+  },
+  ratioIncome: {
+    height: '100%',
+    backgroundColor: '#4caf50',
+  },
+  ratioExpense: {
+    height: '100%',
+    backgroundColor: '#f44336',
+  },
+  ratioLegendContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 3,
+  },
+  ratioLegend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratioLegendColor: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 3,
+  },
+  ratioLegendText: {
+    fontSize: 11,
+    color: '#757575',
   },
 });
 
