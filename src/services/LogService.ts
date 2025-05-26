@@ -89,10 +89,7 @@ export class LogService {
         this.loggingEnabled = serverConfig.loggingEnabled;
         return;
       }
-
-      // 如果服务器配置中没有设置，则从本地存储获取
-      const storedValue = await AsyncStorage.getItem(LOGGING_ENABLED_KEY);
-      this.loggingEnabled = storedValue === 'true';
+      this.loggingEnabled = false;
     } catch (error) {
       this.originalConsole.error('加载日志开关状态失败:', error);
       this.loggingEnabled = false; // 默认关闭
@@ -258,7 +255,6 @@ export class LogService {
               this.originalConsole.log(`已删除过期日志文件: ${file.name}`);
             }
           } catch (statError) {
-            this.originalConsole.error(`获取文件状态失败: ${file.name}`, statError);
           }
         }
       }
@@ -396,49 +392,36 @@ export class LogService {
         file.name.endsWith('.log')
       );
 
-      // 按照文件名排序（包含序号的文件名）
-      todayLogFiles.sort((a, b) => a.name.localeCompare(b.name));
-
       let targetFilePath: string;
+      let needsNewFile = false;
 
       // 如果没有当天的日志文件，创建第一个
       if (todayLogFiles.length === 0) {
         targetFilePath = `${this.logDirectory}/${baseFileName}.log`;
       } else {
-        // 检查最新的日志文件大小
+        // 获取最新的日志文件
         const latestFile = todayLogFiles[todayLogFiles.length - 1];
+        // 估计写入后的文件大小
+        const estimatedSize = latestFile.size + logContent.length * 2; // 粗略估计 UTF-8 字符平均占用 2 字节
 
-        // 如果文件大小接近或超过1MB，创建新文件
-        if (latestFile.size >= this.MAX_FILE_SIZE) {
-          // 创建新的文件名，格式为 app-YYYY-MM-DD-n.log，其中n是序号
+        // 如果预计写入后文件大小会超过限制，创建新文件
+        if (estimatedSize > this.MAX_FILE_SIZE) {
           const fileIndex = todayLogFiles.length;
           targetFilePath = `${this.logDirectory}/${baseFileName}-${fileIndex}.log`;
+          needsNewFile = true;
         } else {
           // 使用现有文件
           targetFilePath = latestFile.path;
         }
       }
 
-      // 检查文件是否存在
-      const fileExists = await RNFS.exists(targetFilePath);
-
-      if (fileExists) {
-        // 追加到现有文件
-        await RNFS.appendFile(targetFilePath, logContent, 'utf8');
-      } else {
+      // 写入日志
+      if (needsNewFile || !(await RNFS.exists(targetFilePath))) {
         // 创建新文件
         await RNFS.writeFile(targetFilePath, logContent, 'utf8');
-      }
-
-      // 检查写入后的文件大小
-      if (fileExists) {
-        const fileInfo = await RNFS.stat(targetFilePath);
-        // 如果写入后文件大小超过限制，创建新文件并将这条日志写入新文件
-        if (fileInfo.size > this.MAX_FILE_SIZE) {
-          const fileIndex = todayLogFiles.length - 1;
-          const newFilePath = `${this.logDirectory}/${baseFileName}-${fileIndex}.log`;
-          await RNFS.writeFile(newFilePath, logContent, 'utf8');
-        }
+      } else {
+        // 追加到现有文件
+        await RNFS.appendFile(targetFilePath, logContent, 'utf8');
       }
     } catch (writeError) {
       // 使用原始console避免递归
@@ -465,20 +448,14 @@ export class LogService {
    */
   public async deleteAllLogs(): Promise<void> {
     try {
-      if (!this.isInitialized) {
-        await this.initialize();
-      }
-
       // 手动删除日志文件
       const files = await RNFS.readDir(this.logDirectory);
       for (const file of files) {
         if (file.isFile() && file.name.endsWith('.log')) {
-          await RNFS.unlink(file.path);
+          RNFS.unlink(file.path);
         }
       }
 
-      // 写入一条新的日志，确保日志系统继续工作
-      await this.info('LogService', '日志已清理');
     } catch (error) {
       this.originalConsole.error('删除日志文件失败:', error);
       throw error;

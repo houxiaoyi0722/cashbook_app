@@ -25,10 +25,10 @@ class ServerConfigManager {
   async saveConfig(config: ServerConfig): Promise<void> {
     try {
       const configs = await this.getAllConfigs();
-      
+
       // 检查是否已存在相同ID的配置
       const existingIndex = configs.findIndex(c => c.id === config.id);
-      
+
       if (existingIndex >= 0) {
         // 更新现有配置
         configs[existingIndex] = config;
@@ -36,7 +36,7 @@ class ServerConfigManager {
         // 添加新配置
         configs.push(config);
       }
-      
+
       await AsyncStorage.setItem(SERVER_CONFIGS_KEY, JSON.stringify(configs));
     } catch (error) {
       console.error('保存服务器配置失败', error);
@@ -50,7 +50,7 @@ class ServerConfigManager {
       const configs = await this.getAllConfigs();
       const filteredConfigs = configs.filter(c => c.id !== id);
       await AsyncStorage.setItem(SERVER_CONFIGS_KEY, JSON.stringify(filteredConfigs));
-      
+
       // 如果删除的是当前选中的服务器，清除当前服务器
       const currentServer = await this.getCurrentServer();
       if (currentServer && currentServer.id === id) {
@@ -67,7 +67,7 @@ class ServerConfigManager {
     try {
       const currentServerId = await AsyncStorage.getItem(CURRENT_SERVER_KEY);
       if (!currentServerId) return null;
-      
+
       const configs = await this.getAllConfigs();
       return configs.find(c => c.id === currentServerId) || null;
     } catch (error) {
@@ -122,4 +122,4 @@ export const setServerConfig = async (config: ServerConfig): Promise<void> => {
 
 export const clearServerConfig = async (): Promise<void> => {
   await AsyncStorage.removeItem(STORAGE_KEY);
-}; 
+};

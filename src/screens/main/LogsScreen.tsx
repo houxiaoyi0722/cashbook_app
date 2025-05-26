@@ -126,7 +126,6 @@ const LogsScreen: React.FC = () => {
       setLogFiles(logFiles);
       setTotalSize(formatBytes(totalBytes));
       setDebugInfo(debug);
-      console.log('日志文件获取成功:', logFiles.length);
     } catch (error: any) {
       console.error('获取日志文件失败:', error);
       setErrorMessage(`获取日志文件失败: ${error?.message || '未知错误'}`);
@@ -276,21 +275,7 @@ const LogsScreen: React.FC = () => {
   useEffect(() => {
     fetchLogFiles();
     loadLoggingState();
-
-    // 记录页面访问日志
-    try {
-      logger.debug('LogsScreen', '访问日志管理页面');
-    } catch (error) {
-      console.warn('记录访问日志失败:', error);
-    }
-
-    return () => {
-      try {
-        logger.debug('LogsScreen', '离开日志管理页面');
-      } catch (error) {
-        console.warn('记录离开日志失败:', error);
-      }
-    };
+    return () => {};
   }, []);
 
   // 渲染日志文件项
