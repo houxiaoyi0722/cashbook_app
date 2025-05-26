@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { Button, Card, Divider, Icon } from '@rneui/themed';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,101 +36,102 @@ const LogsScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [totalSize, setTotalSize] = useState('0 B');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // 安全地获取日志目录路径
-  const getLogDirectoryPath = () => {
-    return Platform.OS === 'android'
-      ? `${RNFS.ExternalDirectoryPath}/cashbook_logs`
-      : `${RNFS.DocumentDirectoryPath}/cashbook_logs`;
-  };
-
-  // 确保日志目录存在
-  const ensureLogDirectory = async () => {
-    try {
-      const logDir = getLogDirectoryPath();
-      const exists = await RNFS.exists(logDir);
-      
-      if (!exists) {
-        await RNFS.mkdir(logDir);
-        console.log('已创建日志目录:', logDir);
-      }
-      return logDir;
-    } catch (error) {
-      console.error('确保日志目录存在时出错:', error);
-      return null;
-    }
-  };
-
-  // 直接从文件系统获取日志文件
-  const getLogFilesFromFS = async () => {
-    try {
-      const logDir = getLogDirectoryPath();
-      const exists = await RNFS.exists(logDir);
-      
-      if (!exists) {
-        return [];
-      }
-      
-      const files = await RNFS.readDir(logDir);
-      return files.filter(file => file.isFile());
-    } catch (error) {
-      console.error('从文件系统获取日志文件失败:', error);
-      return [];
-    }
-  };
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
+  const [selectedLogContent, setSelectedLogContent] = useState<string | null>(null);
+  const [logModalVisible, setLogModalVisible] = useState(false);
+  const [selectedLogName, setSelectedLogName] = useState<string>('');
 
   // 获取日志文件信息
   const fetchLogFiles = async () => {
     setLoading(true);
     setErrorMessage(null);
+    setDebugInfo(null);
 
     try {
-      // 确保日志目录存在
-      await ensureLogDirectory();
-      
-      // 直接从文件系统获取日志文件
-      const fsFiles = await getLogFilesFromFS();
-      
-      console.log('找到日志文件数量:', fsFiles.length);
-      
-      const files: LogFile[] = [];
+      // 记录调试信息
+      let debug = '开始获取日志文件...\n';
+
+      // 获取日志目录路径
+      const logDir = (logger as any).getLogDirectoryPath?.() || '';
+      debug += `日志目录: ${logDir}\n`;
+
+      // 检查目录是否存在
+      let dirExists = false;
+      try {
+        dirExists = await RNFS.exists(logDir);
+        debug += `目录存在: ${dirExists}\n`;
+      } catch (dirError: any) {
+        debug += `检查目录失败: ${dirError?.message}\n`;
+      }
+
+      // 如果目录不存在，尝试创建
+      if (!dirExists && logDir) {
+        try {
+          await RNFS.mkdir(logDir);
+          debug += '已创建日志目录\n';
+        } catch (mkdirError: any) {
+          debug += `创建目录失败: ${mkdirError?.message}\n`;
+        }
+      }
+
+      // 直接从文件系统读取日志文件
+      debug += '尝试从文件系统读取日志文件...\n';
+      let logFiles: LogFile[] = [];
       let totalBytes = 0;
 
-      // 如果有文件，则处理每个文件
-      if (fsFiles && fsFiles.length > 0) {
-        for (const file of fsFiles) {
-          try {
-            const fileName = file.name;
-            const fileSize = file.size;
-            totalBytes += fileSize;
-
-            files.push({
-              path: file.path,
-              name: fileName,
-              size: formatBytes(fileSize),
-              date: new Date(file.mtime || Date.now()).toLocaleString(),
-            });
-          } catch (err) {
-            console.error('处理文件信息失败:', err);
-          }
-        }
-
-        // 按修改时间倒序排序
-        files.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      }
-
-      setLogFiles(files);
-      setTotalSize(formatBytes(totalBytes));
-
-      // 手动记录日志
       try {
-        await logger.info('LogsScreen', '成功获取日志文件列表');
-      } catch (logError) {
-        console.warn('记录日志失败:', logError);
+        if (logDir) {
+          const files = await RNFS.readDir(logDir);
+          debug += `从文件系统读取到 ${files.length} 个文件\n`;
+
+          // 过滤出日志文件
+          const logFilePaths = files
+            .filter(file => file.isFile() && file.name.endsWith('.log'))
+            .map(file => file.path);
+
+          debug += `找到 ${logFilePaths.length} 个日志文件\n`;
+
+          // 处理每个日志文件
+          for (const path of logFilePaths) {
+            try {
+              const stat = await RNFS.stat(path);
+              const fileName = path.split('/').pop() || 'unknown';
+              const fileSize = stat.size || 0;
+              totalBytes += fileSize;
+
+              logFiles.push({
+                path,
+                name: fileName,
+                size: formatBytes(fileSize),
+                date: new Date(stat.mtime || Date.now()).toLocaleString(),
+              });
+
+              debug += `成功添加文件: ${fileName}, 大小: ${formatBytes(fileSize)}\n`;
+            } catch (err: any) {
+              debug += `处理文件失败: ${err?.message}\n`;
+            }
+          }
+
+          // 按修改时间倒序排序
+          logFiles.sort((a, b) => {
+            try {
+              return new Date(b.date).getTime() - new Date(a.date).getTime();
+            } catch {
+              return 0;
+            }
+          });
+        }
+      } catch (fsError: any) {
+        debug += `从文件系统读取失败: ${fsError?.message}\n`;
       }
-    } catch (error) {
-      console.error('获取日志文件列表失败:', error);
-      setErrorMessage('获取日志文件失败，请稍后重试');
+
+      setLogFiles(logFiles);
+      setTotalSize(formatBytes(totalBytes));
+      setDebugInfo(debug);
+      console.log('日志文件获取成功:', logFiles.length);
+    } catch (error: any) {
+      console.error('获取日志文件失败:', error);
+      setErrorMessage(`获取日志文件失败: ${error?.message || '未知错误'}`);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -161,44 +164,17 @@ const LogsScreen: React.FC = () => {
           onPress: async () => {
             setLoading(true);
             try {
-              // 尝试使用库的方法清理
-              try {
-                await logger.deleteAllLogs();
-              } catch (libError) {
-                console.warn('使用库方法清理日志失败:', libError);
-              }
+              // 使用日志服务删除所有日志
+              await logger.deleteAllLogs();
 
-              // 手动删除日志目录中的所有文件
-              try {
-                const logDir = getLogDirectoryPath();
-                const exists = await RNFS.exists(logDir);
-                
-                if (exists) {
-                  const files = await RNFS.readDir(logDir);
-                  for (const file of files) {
-                    if (file.isFile()) {
-                      await RNFS.unlink(file.path);
-                    }
-                  }
-                }
-              } catch (dirError) {
-                console.warn('手动清理日志文件失败:', dirError);
-              }
-
-              // 重新初始化日志服务以创建新的日志文件
-              try {
-                await logger.initialize();
-              } catch (initError) {
-                console.warn('重新初始化日志服务失败:', initError);
-              }
-
+              // 记录操作成功
               setTimeout(() => {
                 logger.info('LogsScreen', '成功清理所有日志文件');
               }, 500);
 
               Alert.alert('成功', '已清理所有日志文件');
               fetchLogFiles();
-            } catch (error) {
+            } catch (error: any) {
               console.error('清理日志文件失败:', error);
               Alert.alert('错误', '清理日志文件失败，请稍后重试');
             } finally {
@@ -211,102 +187,37 @@ const LogsScreen: React.FC = () => {
     );
   };
 
-  // 发送日志文件
-  const handleSendLogs = async () => {
-    setLoading(true);
-    try {
-      if (logFiles.length === 0) {
-        Alert.alert('提示', '当前没有日志文件可发送');
-        setLoading(false);
-        return;
-      }
-
-      // 尝试使用库的方法发送
-      try {
-        await logger.sendLogsByEmail({
-          subject: 'Cashbook App 日志文件 - ' + new Date().toLocaleString(),
-        });
-      } catch (sendError) {
-        // 如果库方法失败，使用替代方法
-        Alert.alert('提示', '发送日志文件失败，请稍后重试');
-        console.error('发送日志文件失败:', sendError);
-      }
-
-      setTimeout(() => {
-        logger.info('LogsScreen', '成功发送日志文件');
-      }, 500);
-    } catch (error) {
-      console.error('发送日志文件失败:', error);
-      Alert.alert('错误', '发送日志文件失败，请稍后重试');
-    } finally {
-      setLoading(false);
+  // 显示调试信息
+  const handleShowDebugInfo = () => {
+    if (debugInfo) {
+      Alert.alert('调试信息', debugInfo, [{ text: '关闭' }]);
+    } else {
+      Alert.alert('提示', '暂无调试信息');
     }
   };
 
-  // 手动创建测试日志文件（用于测试）
-  const handleCreateTestLog = async () => {
-    setLoading(true);
+  // 查看日志文件内容
+  const handleViewLogFile = async (filePath: string, fileName: string) => {
     try {
-      const logDir = await ensureLogDirectory();
-      if (!logDir) {
-        Alert.alert('错误', '无法创建日志目录');
+      setLoading(true);
+
+      // 检查文件是否存在
+      const exists = await RNFS.exists(filePath);
+      if (!exists) {
         setLoading(false);
+        Alert.alert('错误', '文件不存在或已被删除');
         return;
       }
 
-      // 创建一个测试日志文件
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const testFilePath = `${logDir}/test-log-${timestamp}.txt`;
-      const content = `这是一个测试日志文件\n创建时间: ${new Date().toLocaleString()}\n`;
-
-      await RNFS.writeFile(testFilePath, content, 'utf8');
-      console.log('测试日志文件已创建:', testFilePath);
-
-      Alert.alert('成功', '测试日志文件已创建');
-      fetchLogFiles();
-    } catch (error) {
-      console.error('创建测试日志文件失败:', error);
-      Alert.alert('错误', '创建测试日志文件失败');
-    } finally {
+      const content = await RNFS.readFile(filePath, 'utf8');
+      setSelectedLogContent(content);
+      setSelectedLogName(fileName);
+      setLogModalVisible(true);
       setLoading(false);
-    }
-  };
-
-  // 创建一条应用日志（用于测试）
-  const handleCreateAppLog = async () => {
-    setLoading(true);
-    try {
-      // 确保日志目录存在
-      await ensureLogDirectory();
-      
-      // 记录不同级别的日志
-      console.log('开始记录测试日志');
-      
-      // 测试控制台日志捕获
-      console.log('这是一条console.log测试日志');
-      console.info('这是一条console.info测试日志');
-      console.warn('这是一条console.warn测试日志');
-      console.error('这是一条console.error测试日志');
-      
-      // 使用 await 确保日志已写入
-      await logger.debug('LogsScreen', '这是一条调试日志');
-      await logger.info('LogsScreen', '这是一条信息日志');
-      await logger.warn('LogsScreen', '这是一条警告日志');
-      await logger.error('LogsScreen', '这是一条错误日志', new Error('测试错误'));
-      
-      console.log('日志记录完成');
-      
-      Alert.alert('成功', '已创建应用日志记录');
-      
-      // 等待较长时间让日志写入文件系统
-      setTimeout(() => {
-        fetchLogFiles();
-      }, 2000);
-    } catch (error) {
-      console.error('创建应用日志失败:', error);
-      Alert.alert('错误', '创建应用日志失败');
-    } finally {
+    } catch (error: any) {
       setLoading(false);
+      console.error('读取日志文件失败:', error);
+      Alert.alert('错误', '无法读取日志文件: ' + (error?.message || '未知错误'));
     }
   };
 
@@ -319,14 +230,14 @@ const LogsScreen: React.FC = () => {
   // 组件挂载时获取日志文件列表
   useEffect(() => {
     fetchLogFiles();
-    
+
     // 记录页面访问日志
     try {
       logger.debug('LogsScreen', '访问日志管理页面');
     } catch (error) {
       console.warn('记录访问日志失败:', error);
     }
-    
+
     return () => {
       try {
         logger.debug('LogsScreen', '离开日志管理页面');
@@ -338,25 +249,27 @@ const LogsScreen: React.FC = () => {
 
   // 渲染日志文件项
   const renderLogFileItem = ({ item }: { item: LogFile }) => (
-    <Card containerStyle={styles.fileCard}>
-      <View style={styles.fileHeader}>
-        <Icon name="description" type="material" size={20} color="#1976d2" />
-        <Text style={styles.fileName} numberOfLines={1}>
-          {item.name}
-        </Text>
-      </View>
-      <Divider style={styles.divider} />
-      <View style={styles.fileInfo}>
-        <Text style={styles.fileInfoText}>
-          <Text style={styles.fileInfoLabel}>大小：</Text>
-          {item.size}
-        </Text>
-        <Text style={styles.fileInfoText}>
-          <Text style={styles.fileInfoLabel}>修改时间：</Text>
-          {item.date}
-        </Text>
-      </View>
-    </Card>
+    <TouchableOpacity onPress={() => handleViewLogFile(item.path, item.name)}>
+      <Card containerStyle={styles.fileCard}>
+        <View style={styles.fileHeader}>
+          <Icon name="description" type="material" size={20} color="#1976d2" />
+          <Text style={styles.fileName} numberOfLines={1}>
+            {item.name}
+          </Text>
+        </View>
+        <Divider style={styles.divider} />
+        <View style={styles.fileInfo}>
+          <Text style={styles.fileInfoText}>
+            <Text style={styles.fileInfoLabel}>大小：</Text>
+            {item.size}
+          </Text>
+          <Text style={styles.fileInfoText}>
+            <Text style={styles.fileInfoLabel}>修改时间：</Text>
+            {item.date}
+          </Text>
+        </View>
+      </Card>
+    </TouchableOpacity>
   );
 
   return (
@@ -364,13 +277,17 @@ const LogsScreen: React.FC = () => {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            style={styles.deleteButton}
+            onPress={() => handleClearLogs}
           >
-            <Icon name="arrow-back" type="material" size={24} color="#1976d2" />
+            <Icon name="delete" type="material" size={24} color="#1976d2" />
           </TouchableOpacity>
-          <Text style={styles.title}>日志管理</Text>
-          <View style={styles.placeholder} />
+          <TouchableOpacity
+            style={styles.debugButton}
+            onPress={handleShowDebugInfo}
+          >
+            <Icon name="bug-report" type="material" size={24} color="#1976d2" />
+          </TouchableOpacity>
         </View>
 
         <Card containerStyle={styles.summaryCard}>
@@ -386,65 +303,6 @@ const LogsScreen: React.FC = () => {
             </View>
           </View>
         </Card>
-
-        <View style={styles.actionsContainer}>
-          <Button
-            title="发送日志"
-            icon={{
-              name: 'send',
-              type: 'material',
-              color: 'white',
-              size: 20,
-            }}
-            buttonStyle={[styles.actionButton, { backgroundColor: '#4caf50' }]}
-            onPress={handleSendLogs}
-            disabled={loading || logFiles.length === 0}
-          />
-          <Button
-            title="清理日志"
-            icon={{
-              name: 'delete',
-              type: 'material',
-              color: 'white',
-              size: 20,
-            }}
-            buttonStyle={[styles.actionButton, { backgroundColor: '#f44336' }]}
-            onPress={handleClearLogs}
-            disabled={loading || logFiles.length === 0}
-          />
-        </View>
-
-        {/* 添加测试按钮 */}
-        {__DEV__ && (
-          <View style={styles.devContainer}>
-            <View style={styles.devButtonRow}>
-              <Button
-                title="创建测试日志"
-                icon={{
-                  name: 'add',
-                  type: 'material',
-                  color: 'white',
-                  size: 18,
-                }}
-                buttonStyle={[styles.devButton, { backgroundColor: '#9c27b0' }]}
-                onPress={handleCreateTestLog}
-                disabled={loading}
-              />
-              <Button
-                title="创建应用日志"
-                icon={{
-                  name: 'bug-report',
-                  type: 'material',
-                  color: 'white',
-                  size: 18,
-                }}
-                buttonStyle={[styles.devButton, { backgroundColor: '#ff9800' }]}
-                onPress={handleCreateAppLog}
-                disabled={loading}
-              />
-            </View>
-          </View>
-        )}
 
         <Text style={styles.sectionTitle}>日志文件列表</Text>
 
@@ -467,11 +325,6 @@ const LogsScreen: React.FC = () => {
           <View style={styles.emptyContainer}>
             <Icon name="description" type="material" size={48} color="#e0e0e0" />
             <Text style={styles.emptyText}>暂无日志文件</Text>
-            {__DEV__ && (
-              <Text style={styles.emptySubText}>
-                您可以点击上方的按钮创建测试日志或应用日志
-              </Text>
-            )}
           </View>
         ) : (
           <FlatList
@@ -490,6 +343,29 @@ const LogsScreen: React.FC = () => {
             }
           />
         )}
+
+        {/* 日志内容查看模态框 */}
+        <Modal
+          visible={logModalVisible}
+          animationType="slide"
+          transparent={false}
+          onRequestClose={() => setLogModalVisible(false)}
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{selectedLogName}</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setLogModalVisible(false)}
+              >
+                <Icon name="close" type="material" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.logContentContainer}>
+              <Text style={styles.logContent}>{selectedLogContent}</Text>
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -503,13 +379,18 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: "flex-end",
     paddingHorizontal: 16,
     paddingVertical: 10,
     backgroundColor: 'white',
   },
-  backButton: {
+  deleteButton: {
     padding: 4,
+    marginRight: 0,
+  },
+  debugButton: {
+    padding: 4,
+    marginLeft: 0,
   },
   title: {
     fontSize: 18,
@@ -549,28 +430,14 @@ const styles = StyleSheet.create({
   },
   actionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     marginBottom: 16,
   },
   actionButton: {
     paddingHorizontal: 16,
     borderRadius: 8,
-  },
-  devContainer: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  devButtonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    paddingHorizontal: 16,
-  },
-  devButton: {
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginHorizontal: 8,
+    minWidth: 120,
   },
   sectionTitle: {
     fontSize: 16,
@@ -652,12 +519,39 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#757575',
   },
-  emptySubText: {
-    marginTop: 8,
+  // 日志内容模态框样式
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  logContentContainer: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: 'white',
+  },
+  logContent: {
     fontSize: 14,
-    color: '#9e9e9e',
-    textAlign: 'center',
-    paddingHorizontal: 32,
+    color: '#333',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 });
 

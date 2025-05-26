@@ -189,15 +189,14 @@ const SettingsScreen: React.FC = () => {
         <ListItem.Chevron />
       </ListItem>
 
-      <ListItem 
-        onPress={() => navigation.navigate('Logs')} 
-        bottomDivider 
+      <ListItem
+        onPress={() => navigation.navigate('Logs')}
+        bottomDivider
         key="logs"
       >
         <Icon name="description" type="material" color="#1976d2" />
         <ListItem.Content>
           <ListItem.Title>日志管理</ListItem.Title>
-          <ListItem.Subtitle>查看和管理应用日志文件</ListItem.Subtitle>
         </ListItem.Content>
         <ListItem.Chevron />
       </ListItem>

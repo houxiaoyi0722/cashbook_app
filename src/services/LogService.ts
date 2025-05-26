@@ -1,22 +1,17 @@
-import { FileLogger, LogLevel } from 'react-native-file-logger';
 import RNFS from 'react-native-fs';
 import { Platform } from 'react-native';
 
 /**
- * 日志服务 - 封装 FileLogger 功能，提供简单的日志记录接口
+ * 日志服务 - 自定义实现，提供简单的日志记录接口
  */
 export class LogService {
   private static instance: LogService;
   private isInitialized: boolean = false;
-  private logDirectoryPath: string = '';
+  private logDirectory: string;
   private originalConsole: any = {};
+  private readonly MAX_LOG_DAYS: number = 7; // 日志保留天数
 
   private constructor() {
-    // 设置日志目录路径
-    this.logDirectoryPath = Platform.OS === 'android'
-      ? `${RNFS.ExternalDirectoryPath}/cashbook_logs`
-      : `${RNFS.DocumentDirectoryPath}/cashbook_logs`;
-
     // 保存原始console方法引用
     this.originalConsole = {
       log: console.log,
@@ -25,6 +20,11 @@ export class LogService {
       error: console.error,
       debug: console.debug,
     };
+
+    // 设置日志目录路径 - 使用应用私有目录确保有写入权限
+    this.logDirectory = Platform.OS === 'android'
+      ? `${RNFS.ExternalDirectoryPath}/logs`
+      : `${RNFS.DocumentDirectoryPath}/logs`;
   }
 
   /**
@@ -38,26 +38,47 @@ export class LogService {
   }
 
   /**
-   * 获取日志目录路径
+   * 初始化日志服务
    */
-  public getLogDirectoryPath(): string {
-    return this.logDirectoryPath;
+  public async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
+    try {
+      // 确保日志目录存在
+      await this.ensureLogDirectoryExists();
+
+      // 清理过期日志
+      await this.cleanupOldLogs();
+
+      // 重写控制台方法以捕获日志
+      this.setupConsoleCapture();
+
+      // 写入初始化成功日志
+      await this.info('LogService', '日志服务初始化成功');
+      this.originalConsole.log('日志服务初始化成功');
+
+      this.isInitialized = true;
+    } catch (error) {
+      this.originalConsole.error('LogService 初始化失败:', error);
+      throw error;
+    }
   }
 
   /**
    * 确保日志目录存在
    */
-  public async ensureLogDirectory(): Promise<boolean> {
+  private async ensureLogDirectoryExists(): Promise<void> {
     try {
-      const exists = await RNFS.exists(this.logDirectoryPath);
+      const exists = await RNFS.exists(this.logDirectory);
       if (!exists) {
-        await RNFS.mkdir(this.logDirectoryPath);
-        console.log('日志目录已创建:', this.logDirectoryPath);
+        await RNFS.mkdir(this.logDirectory);
+        this.originalConsole.log('日志目录已创建:', this.logDirectory);
       }
-      return true;
     } catch (error) {
-      console.error('创建日志目录失败:', error);
-      return false;
+      this.originalConsole.error('创建日志目录失败:', error);
+      throw error;
     }
   }
 
@@ -70,31 +91,31 @@ export class LogService {
     // 重写 console.log
     console.log = function(...args: any[]) {
       self.originalConsole.log.apply(console, args);
-      self.captureConsoleOutput('LOG', args);
+      self.captureConsoleOutput('log', args);
     };
 
     // 重写 console.info
     console.info = function(...args: any[]) {
       self.originalConsole.info.apply(console, args);
-      self.captureConsoleOutput('INFO', args);
+      self.captureConsoleOutput('info', args);
     };
 
     // 重写 console.warn
     console.warn = function(...args: any[]) {
       self.originalConsole.warn.apply(console, args);
-      self.captureConsoleOutput('WARN', args);
+      self.captureConsoleOutput('warn', args);
     };
 
     // 重写 console.error
     console.error = function(...args: any[]) {
       self.originalConsole.error.apply(console, args);
-      self.captureConsoleOutput('ERROR', args);
+      self.captureConsoleOutput('error', args);
     };
 
     // 重写 console.debug
     console.debug = function(...args: any[]) {
       self.originalConsole.debug.apply(console, args);
-      self.captureConsoleOutput('DEBUG', args);
+      self.captureConsoleOutput('debug', args);
     };
   }
 
@@ -118,15 +139,15 @@ export class LogService {
         }
       }).join(' ');
 
-      // 异步写入日志文件
-      this.writeLogToFile(
-        level === 'LOG' ? 'INFO' : level as any,
-        'Console',
-        message
-      ).catch(err => {
-        // 使用原始console避免递归
-        this.originalConsole.error('写入控制台日志失败:', err);
-      });
+      // 将控制台级别映射到日志级别
+      let logLevel = level.toUpperCase();
+      if (level === 'log') {
+        logLevel = 'INFO'; // console.log 映射到 INFO 级别
+      }
+
+      // 写入日志文件
+      this.writeLogToFile(logLevel, 'Console', message)
+        .catch(err => this.originalConsole.error('写入控制台日志失败:', err));
     } catch (error) {
       // 使用原始console避免递归
       this.originalConsole.error('处理控制台输出失败:', error);
@@ -134,40 +155,32 @@ export class LogService {
   }
 
   /**
-   * 初始化日志服务
+   * 清理过期日志
    */
-  public async initialize(): Promise<void> {
-    if (this.isInitialized) {
-      return;
-    }
-
+  private async cleanupOldLogs(): Promise<void> {
     try {
-      // 确保日志目录存在
-      await this.ensureLogDirectory();
+      const files = await RNFS.readDir(this.logDirectory);
+      const now = new Date();
+      const cutoffDate = new Date(now.getTime() - this.MAX_LOG_DAYS * 24 * 60 * 60 * 1000);
 
-      // 配置 FileLogger
-      try {
-        await FileLogger.configure({
-          captureConsole: true,           // 捕获所有控制台输出
-          dailyRolling: true,             // 每天创建新日志文件
-          maximumFileSize: 1024 * 1024,   // 1MB
-          maximumNumberOfFiles: 7,        // 保留7天的日志
-          logLevel: LogLevel.Debug,       // 日志级别
-          logsDirectory: 'cashbook_logs', // 日志存储目录名
-        });
-      } catch (configError) {
-        console.warn('FileLogger 配置失败:', configError);
+      for (const file of files) {
+        if (file.isFile() && file.name.endsWith('.log')) {
+          try {
+            const stat = await RNFS.stat(file.path);
+            const fileDate = new Date(stat.mtime);
+
+            // 如果文件修改时间早于截止日期，删除它
+            if (fileDate < cutoffDate) {
+              await RNFS.unlink(file.path);
+              this.originalConsole.log(`已删除过期日志文件: ${file.name}`);
+            }
+          } catch (statError) {
+            this.originalConsole.error(`获取文件状态失败: ${file.name}`, statError);
+          }
+        }
       }
-
-      // 设置控制台捕获
-      this.setupConsoleCapture();
-
-      this.isInitialized = true;
-
-      // 使用直接写入方式记录初始化成功日志
-      await this.writeLogToFile('INFO', 'LogService', '日志服务初始化成功');
     } catch (error) {
-      console.error('LogService 初始化失败:', error);
+      this.originalConsole.error('清理过期日志失败:', error);
     }
   }
 
@@ -177,15 +190,14 @@ export class LogService {
    * @param message 日志信息
    */
   public async debug(tag: string, message: string | object): Promise<void> {
-    const formattedMessage = this.formatMessage(tag, message);
     try {
-      FileLogger.debug(formattedMessage);
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+      await this.writeLogToFile('DEBUG', tag, message);
     } catch (error) {
-      console.warn('FileLogger.debug 失败:', error);
+      this.originalConsole.error('记录调试日志失败:', error);
     }
-
-    // 使用自定义方法直接写入日志文件
-    await this.writeLogToFile('DEBUG', tag, message);
   }
 
   /**
@@ -194,15 +206,14 @@ export class LogService {
    * @param message 日志信息
    */
   public async info(tag: string, message: string | object): Promise<void> {
-    const formattedMessage = this.formatMessage(tag, message);
     try {
-      FileLogger.info(formattedMessage);
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+      await this.writeLogToFile('INFO', tag, message);
     } catch (error) {
-      console.warn('FileLogger.info 失败:', error);
+      this.originalConsole.error('记录信息日志失败:', error);
     }
-
-    // 使用自定义方法直接写入日志文件
-    await this.writeLogToFile('INFO', tag, message);
   }
 
   /**
@@ -211,15 +222,14 @@ export class LogService {
    * @param message 日志信息
    */
   public async warn(tag: string, message: string | object): Promise<void> {
-    const formattedMessage = this.formatMessage(tag, message);
     try {
-      FileLogger.warn(formattedMessage);
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+      await this.writeLogToFile('WARN', tag, message);
     } catch (error) {
-      console.warn('FileLogger.warn 失败:', error);
+      this.originalConsole.error('记录警告日志失败:', error);
     }
-
-    // 使用自定义方法直接写入日志文件
-    await this.writeLogToFile('WARN', tag, message);
   }
 
   /**
@@ -229,23 +239,14 @@ export class LogService {
    * @param error 错误对象
    */
   public async error(tag: string, message: string, error?: any): Promise<void> {
-    let formattedMessage = this.formatMessage(tag, message);
-
-    if (error) {
-      formattedMessage += ` | Error: ${error instanceof Error ? error.message : JSON.stringify(error)}`;
-      if (error instanceof Error && error.stack) {
-        formattedMessage += ` | Stack: ${error.stack}`;
-      }
-    }
-
     try {
-      FileLogger.error(formattedMessage);
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+      await this.writeLogToFile('ERROR', tag, message, error);
     } catch (logError) {
-      console.warn('FileLogger.error 失败:', logError);
+      this.originalConsole.error('记录错误日志失败:', logError);
     }
-
-    // 使用自定义方法直接写入日志文件
-    await this.writeLogToFile('ERROR', tag, message, error);
   }
 
   /**
@@ -256,28 +257,24 @@ export class LogService {
    * @param error 可选的错误对象
    */
   private async writeLogToFile(
-    level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR',
+    level: string,
     tag: string,
     message: string | object,
     error?: any
   ): Promise<void> {
     try {
       // 确保日志目录存在
-      const dirExists = await this.ensureLogDirectory();
-      if (!dirExists) {
-        console.error('日志目录不存在，无法写入日志');
-        return;
-      }
+      await this.ensureLogDirectoryExists();
 
       // 格式化日期作为文件名
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
       const timeStr = now.toTimeString().split(' ')[0]; // HH:MM:SS
-      const fileName = `app-log-${dateStr}.txt`;
-      const filePath = `${this.logDirectoryPath}/${fileName}`;
+      const fileName = `app-${dateStr}.log`;
+      const filePath = `${this.logDirectory}/${fileName}`;
 
       // 格式化日志内容
-      let logContent = `[${level}] [${dateStr} ${timeStr}] `;
+      let logContent = `[${dateStr} ${timeStr}] [${level}] `;
       logContent += this.formatMessage(tag, message);
 
       if (error) {
@@ -325,31 +322,18 @@ export class LogService {
    */
   public async getLogFilePaths(): Promise<string[]> {
     try {
-      // 尝试使用 FileLogger 获取路径
-      const paths = await FileLogger.getLogFilePaths();
-      return paths;
-    } catch (error) {
-      console.warn('FileLogger.getLogFilePaths 失败，使用自定义方法:', error);
-
-      // 回退到自定义方法
-      return await this.getLogFilesFromFS();
-    }
-  }
-
-  /**
-   * 从文件系统直接获取日志文件
-   */
-  public async getLogFilesFromFS(): Promise<string[]> {
-    try {
-      const dirExists = await RNFS.exists(this.logDirectoryPath);
-      if (!dirExists) {
-        return [];
+      if (!this.isInitialized) {
+        await this.initialize();
       }
 
-      const files = await RNFS.readDir(this.logDirectoryPath);
-      return files.filter(file => file.isFile()).map(file => file.path);
+      // 确保日志目录存在
+      await this.ensureLogDirectoryExists();
+
+      // 直接从文件系统读取日志文件
+      const files = await RNFS.readDir(this.logDirectory);
+      return files.filter(file => file.isFile() && file.name.endsWith('.log')).map(file => file.path);
     } catch (error) {
-      console.error('从文件系统获取日志文件失败:', error);
+      this.originalConsole.error('获取日志文件路径失败:', error);
       return [];
     }
   }
@@ -359,55 +343,44 @@ export class LogService {
    */
   public async deleteAllLogs(): Promise<void> {
     try {
-      // 尝试使用 FileLogger API
-      await FileLogger.deleteLogFiles();
-    } catch (error) {
-      console.warn('FileLogger.deleteLogFiles 失败，使用自定义方法:', error);
-    }
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
 
-    // 无论上面是否成功，都尝试手动删除
-    try {
-      const dirExists = await RNFS.exists(this.logDirectoryPath);
-      if (dirExists) {
-        const files = await RNFS.readDir(this.logDirectoryPath);
-        for (const file of files) {
-          if (file.isFile()) {
-            await RNFS.unlink(file.path);
-          }
+      // 手动删除日志文件
+      const files = await RNFS.readDir(this.logDirectory);
+      for (const file of files) {
+        if (file.isFile() && file.name.endsWith('.log')) {
+          await RNFS.unlink(file.path);
         }
       }
-    } catch (deleteError) {
-      console.error('手动删除日志文件失败:', deleteError);
-      throw deleteError;
+
+      // 写入一条新的日志，确保日志系统继续工作
+      await this.info('LogService', '日志已清理');
+    } catch (error) {
+      this.originalConsole.error('删除日志文件失败:', error);
+      throw error;
     }
   }
 
   /**
-   * 通过邮件发送日志文件
-   * @param options 邮件选项
+   * 确保日志目录存在
+   * 此方法为向后兼容保留
    */
-  public async sendLogsByEmail(options: {
-    to?: string;
-    subject?: string;
-    body?: string;
-    compress?: boolean;
-  } = {}): Promise<void> {
-    const defaultOptions = {
-      to: '',
-      subject: 'Cashbook App 日志文件',
-      body: '请在此邮件中查看应用日志文件，用于故障排查。',
-      compress: true,
-    };
-
+  public async ensureLogDirectory(): Promise<boolean> {
     try {
-      return await FileLogger.sendLogFilesByEmail({
-        ...defaultOptions,
-        ...options,
-      });
+      await this.ensureLogDirectoryExists();
+      return true;
     } catch (error) {
-      console.error('发送日志邮件失败:', error);
-      throw error;
+      return false;
     }
+  }
+
+  /**
+   * 获取日志目录路径
+   */
+  public getLogDirectoryPath(): string {
+    return this.logDirectory;
   }
 
   /**
