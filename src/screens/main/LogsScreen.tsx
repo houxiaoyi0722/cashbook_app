@@ -11,14 +11,13 @@ import {
   Platform,
   Modal,
   ScrollView,
+  Switch,
 } from 'react-native';
 import { Button, Card, Divider, Icon } from '@rneui/themed';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MainStackParamList } from '../../navigation/types';
 import { logger } from '../../services/LogService';
 import RNFS from 'react-native-fs';
+import serverConfigManager from '../../services/serverConfig';
 
 type LogFile = {
   path: string;
@@ -27,10 +26,7 @@ type LogFile = {
   date: string;
 };
 
-type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
-
 const LogsScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProp>();
   const [logFiles, setLogFiles] = useState<LogFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -40,6 +36,8 @@ const LogsScreen: React.FC = () => {
   const [selectedLogContent, setSelectedLogContent] = useState<string | null>(null);
   const [logModalVisible, setLogModalVisible] = useState(false);
   const [selectedLogName, setSelectedLogName] = useState<string>('');
+  const [loggingEnabled, setLoggingEnabled] = useState<boolean>(false);
+  const [serverName, setServerName] = useState<string>('');
 
   // 获取日志文件信息
   const fetchLogFiles = async () => {
@@ -227,9 +225,57 @@ const LogsScreen: React.FC = () => {
     fetchLogFiles();
   };
 
-  // 组件挂载时获取日志文件列表
+  // 加载日志开关状态
+  const loadLoggingState = async () => {
+    try {
+      // 获取当前服务器配置
+      const serverConfig = await serverConfigManager.getCurrentServer();
+      if (serverConfig) {
+        setServerName(serverConfig.name);
+        // 如果服务器配置中有日志开关设置，使用它
+        if (serverConfig.loggingEnabled !== undefined) {
+          setLoggingEnabled(serverConfig.loggingEnabled);
+          return;
+        }
+      }
+
+      // 否则使用日志服务中的状态
+      setLoggingEnabled((logger as any).isLoggingEnabled?.() || false);
+    } catch (error) {
+      console.error('加载日志开关状态失败:', error);
+      setLoggingEnabled(false);
+    }
+  };
+
+  // 切换日志开关
+  const toggleLoggingEnabled = async (value: boolean) => {
+    try {
+      setLoading(true);
+
+      // 更新日志服务中的开关状态
+      await (logger as any).setLoggingEnabled?.(value);
+
+      // 更新UI状态
+      setLoggingEnabled(value);
+
+      // 显示提示
+      Alert.alert(
+        '提示',
+        value ? '日志记录已启用' : '日志记录已禁用',
+        [{ text: '确定' }]
+      );
+    } catch (error: any) {
+      console.error('设置日志开关状态失败:', error);
+      Alert.alert('错误', `设置日志开关状态失败: ${error?.message || '未知错误'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 组件挂载时获取日志文件列表和日志开关状态
   useEffect(() => {
     fetchLogFiles();
+    loadLoggingState();
 
     // 记录页面访问日志
     try {
@@ -289,6 +335,29 @@ const LogsScreen: React.FC = () => {
             <Icon name="bug-report" type="material" size={24} color="#1976d2" />
           </TouchableOpacity>
         </View>
+
+        {/* 日志开关卡片 */}
+        <Card containerStyle={styles.switchCard}>
+          <View style={styles.switchContainer}>
+            <View style={styles.switchTextContainer}>
+              <Text style={styles.switchTitle}>日志记录</Text>
+              <Text style={styles.switchDescription}>
+                {loggingEnabled ? '已启用' : '已禁用'}
+                {serverName ? ` (${serverName})` : ''}
+              </Text>
+            </View>
+            <Switch
+              value={loggingEnabled}
+              onValueChange={toggleLoggingEnabled}
+              trackColor={{ false: '#d1d1d1', true: '#81b0ff' }}
+              thumbColor={loggingEnabled ? '#1976d2' : '#f4f3f4'}
+              disabled={loading}
+            />
+          </View>
+          <Text style={styles.switchHint}>
+            启用后将记录应用运行日志，可能会占用额外存储空间
+          </Text>
+        </Card>
 
         <Card containerStyle={styles.summaryCard}>
           <View style={styles.summaryRow}>
@@ -552,6 +621,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  switchCard: {
+    margin: 12,
+    borderRadius: 10,
+    padding: 15,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  switchTextContainer: {
+    flex: 1,
+  },
+  switchTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  switchDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  switchHint: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });
 

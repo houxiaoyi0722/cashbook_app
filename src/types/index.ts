@@ -5,6 +5,7 @@ export interface ServerConfig {
   url: string;
   username: string;
   password: string;
+  loggingEnabled?: boolean; // 日志记录开关，默认为 false
 }
 
 // 用户信息类型

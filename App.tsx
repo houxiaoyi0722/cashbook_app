@@ -26,12 +26,17 @@ const App = () => {
 
         // 初始化日志服务
         try {
-          // 初始化日志服务 (这将设置控制台捕获)
+          // 初始化日志服务 (这将根据服务器配置设置日志记录开关)
           await logger.initialize();
-          console.log('日志服务初始化成功，控制台日志将被捕获');
 
-          // 记录一条应用启动日志
-          await logger.info('App', '应用启动成功');
+          // 获取当前日志记录状态
+          const isLoggingEnabled = (logger as any).isLoggingEnabled?.();
+          console.log(`日志服务初始化成功，日志记录状态: ${isLoggingEnabled ? '已启用' : '已禁用'}`);
+
+          // 如果日志记录已启用，记录一条应用启动日志
+          if (isLoggingEnabled) {
+            await logger.info('App', '应用启动成功，日志记录已启用');
+          }
         } catch (logError) {
           console.error('日志服务初始化失败:', logError);
         }
@@ -55,7 +60,10 @@ const App = () => {
     return () => {
       // 记录应用退出日志
       try {
-        logger.info('App', '应用退出');
+        // 只有在日志记录已启用的情况下才记录退出日志
+        if ((logger as any).isLoggingEnabled?.()) {
+          logger.info('App', '应用退出');
+        }
       } catch (error) {
         console.warn('记录应用退出日志失败:', error);
       }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { Text, Input, Button } from '@rneui/themed';
+import { View, StyleSheet, ScrollView, Alert, ActivityIndicator, Switch, Text as RNText } from 'react-native';
+import { Input, Button } from '@rneui/themed';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MainStackParamList } from '../../navigation/types';
@@ -24,6 +24,7 @@ const ServerFormScreen: React.FC = () => {
   const [password, setPassword] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [loggingEnabled, setLoggingEnabled] = useState(false);
 
   // 加载服务器配置
   useEffect(() => {
@@ -38,6 +39,7 @@ const ServerFormScreen: React.FC = () => {
             setBaseUrl(config.url);
             setUsername(config.username || '');
             setPassword(config.password || '');
+            setLoggingEnabled(config.loggingEnabled || false);
           }
         } catch (error) {
           console.error('加载服务器配置失败', error);
@@ -86,6 +88,7 @@ const ServerFormScreen: React.FC = () => {
         url: baseUrl.trim(),
         username: username.trim(),
         password: password.trim(),
+        loggingEnabled: loggingEnabled,
       };
 
       try {
@@ -112,7 +115,7 @@ const ServerFormScreen: React.FC = () => {
       console.error('保存服务器配置失败', error);
       Alert.alert('错误', '保存服务器配置失败');
     }
-  }, [name, baseUrl, username, password, serverId, saveServerConfig, navigation]);
+  }, [name, baseUrl, username, password, serverId, loggingEnabled, saveServerConfig, navigation]);
 
   if (formLoading || isLoading) {
     return (
@@ -164,15 +167,31 @@ const ServerFormScreen: React.FC = () => {
             onChangeText={setPassword}
             disabled={isLoading}
             leftIcon={{ type: 'material', name: 'lock', color: '#1976d2' }}
-            rightIcon={{ 
-              type: 'material', 
-              name: showPassword ? 'visibility-off' : 'visibility', 
+            rightIcon={{
+              type: 'material',
+              name: showPassword ? 'visibility-off' : 'visibility',
               color: '#1976d2',
               onPress: () => setShowPassword(!showPassword)
             }}
             errorMessage={password.trim() ? '' : '密码不能为空'}
             secureTextEntry={!showPassword}
           />
+
+          <View style={styles.switchContainer}>
+            <View style={styles.switchTextContainer}>
+              <RNText style={styles.switchLabel}>启用日志记录</RNText>
+              <RNText style={styles.switchDescription}>
+                启用后将记录应用运行日志，可能会占用额外存储空间
+              </RNText>
+            </View>
+            <Switch
+              value={loggingEnabled}
+              onValueChange={setLoggingEnabled}
+              trackColor={{ false: '#d1d1d1', true: '#81b0ff' }}
+              thumbColor={loggingEnabled ? '#1976d2' : '#f4f3f4'}
+              disabled={isLoading}
+            />
+          </View>
 
       <Button
         title={serverId ? '保存修改' : '添加服务器'}
@@ -206,6 +225,27 @@ const styles = StyleSheet.create({
   saveButton: {
     backgroundColor: '#1976d2',
     marginTop: 16,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    marginBottom: 20,
+    marginTop: 10,
+  },
+  switchTextContainer: {
+    flex: 1,
+  },
+  switchLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  switchDescription: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
   },
 });
 

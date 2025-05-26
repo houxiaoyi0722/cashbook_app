@@ -4,6 +4,7 @@ import authManager from '../services/auth';
 import serverConfigManager from '../services/serverConfig';
 import api from '../services/api';
 import {eventBus} from "../navigation";
+import { logger } from '../services/LogService';
 
 // 认证上下文类型
 interface AuthContextType {
@@ -116,6 +117,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // 获取当前服务器配置
       const currentServer = await serverConfigManager.getCurrentServer();
       setServerConfig(currentServer);
+
+      // 设置日志开关状态
+      if ((logger as any).setLoggingEnabled) {
+        await (logger as any).setLoggingEnabled(currentServer?.loggingEnabled || false);
+      }
+
       // 刷新服务器配置列表
       const configs = await serverConfigManager.getAllConfigs();
       setServerConfigs(configs);
@@ -166,6 +173,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // 初始化API
       api.init(currentServer);
+
+      // 设置日志开关状态
+      if ((logger as any).setLoggingEnabled) {
+        await (logger as any).setLoggingEnabled(currentServer.loggingEnabled || false);
+      }
+
       // 自动登录
       const user = await authManager.login(currentServer.username, currentServer.password);
       setUserInfo(user);

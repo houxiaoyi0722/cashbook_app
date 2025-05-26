@@ -1,5 +1,10 @@
 import RNFS from 'react-native-fs';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import serverConfigManager from './serverConfig';
+
+// 日志开关存储键
+const LOGGING_ENABLED_KEY = 'logging_enabled';
 
 /**
  * 日志服务 - 自定义实现，提供简单的日志记录接口
@@ -11,6 +16,7 @@ export class LogService {
   private originalConsole: any = {};
   private readonly MAX_LOG_DAYS: number = 7; // 日志保留天数
   private readonly MAX_FILE_SIZE: number = 1024 * 1024; // 最大文件大小 (1MB)
+  private loggingEnabled: boolean = false; // 日志记录开关状态
 
   private constructor() {
     // 保存原始console方法引用
@@ -47,24 +53,95 @@ export class LogService {
     }
 
     try {
+      // 加载日志开关状态
+      await this.loadLoggingState();
+
       // 确保日志目录存在
       await this.ensureLogDirectoryExists();
 
       // 清理过期日志
       await this.cleanupOldLogs();
 
-      // 重写控制台方法以捕获日志
-      this.setupConsoleCapture();
-
-      // 写入初始化成功日志
-      await this.info('LogService', '日志服务初始化成功');
-      this.originalConsole.log('日志服务初始化成功');
+      // 如果日志开关已启用，重写控制台方法以捕获日志
+      if (this.loggingEnabled) {
+        this.setupConsoleCapture();
+        // 写入初始化成功日志
+        await this.info('LogService', '日志服务初始化成功，日志记录已启用');
+      } else {
+        this.originalConsole.log('日志服务初始化成功，日志记录已禁用');
+      }
 
       this.isInitialized = true;
     } catch (error) {
       this.originalConsole.error('LogService 初始化失败:', error);
       throw error;
     }
+  }
+
+  /**
+   * 加载日志开关状态
+   */
+  private async loadLoggingState(): Promise<void> {
+    try {
+      // 首先尝试从服务器配置获取日志开关状态
+      const serverConfig = await serverConfigManager.getCurrentServer();
+      if (serverConfig && serverConfig.loggingEnabled !== undefined) {
+        this.loggingEnabled = serverConfig.loggingEnabled;
+        return;
+      }
+
+      // 如果服务器配置中没有设置，则从本地存储获取
+      const storedValue = await AsyncStorage.getItem(LOGGING_ENABLED_KEY);
+      this.loggingEnabled = storedValue === 'true';
+    } catch (error) {
+      this.originalConsole.error('加载日志开关状态失败:', error);
+      this.loggingEnabled = false; // 默认关闭
+    }
+  }
+
+  /**
+   * 设置日志开关状态
+   * @param enabled 是否启用日志记录
+   */
+  public async setLoggingEnabled(enabled: boolean): Promise<void> {
+    try {
+      // 保存到本地存储
+      await AsyncStorage.setItem(LOGGING_ENABLED_KEY, String(enabled));
+
+      // 如果当前有服务器配置，也更新服务器配置
+      const serverConfig = await serverConfigManager.getCurrentServer();
+      if (serverConfig) {
+        serverConfig.loggingEnabled = enabled;
+        await serverConfigManager.saveConfig(serverConfig);
+      }
+
+      // 更新内部状态
+      const previousState = this.loggingEnabled;
+      this.loggingEnabled = enabled;
+
+      // 如果状态发生变化
+      if (previousState !== enabled) {
+        if (enabled) {
+          // 启用日志记录
+          this.setupConsoleCapture();
+          await this.info('LogService', '日志记录已启用');
+        } else {
+          // 禁用日志记录
+          this.restoreConsole();
+          this.originalConsole.log('日志记录已禁用');
+        }
+      }
+    } catch (error) {
+      this.originalConsole.error('设置日志开关状态失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取日志开关状态
+   */
+  public isLoggingEnabled(): boolean {
+    return this.loggingEnabled;
   }
 
   /**
@@ -124,6 +201,11 @@ export class LogService {
    * 捕获控制台输出并写入日志
    */
   private captureConsoleOutput(level: string, args: any[]): void {
+    // 如果日志记录已禁用，直接返回
+    if (!this.loggingEnabled) {
+      return;
+    }
+
     try {
       // 将参数转换为字符串
       const message = args.map(arg => {
@@ -191,6 +273,11 @@ export class LogService {
    * @param message 日志信息
    */
   public async debug(tag: string, message: string | object): Promise<void> {
+    // 如果日志记录已禁用，直接返回
+    if (!this.loggingEnabled) {
+      return;
+    }
+
     try {
       if (!this.isInitialized) {
         await this.initialize();
@@ -207,6 +294,11 @@ export class LogService {
    * @param message 日志信息
    */
   public async info(tag: string, message: string | object): Promise<void> {
+    // 如果日志记录已禁用，直接返回
+    if (!this.loggingEnabled) {
+      return;
+    }
+
     try {
       if (!this.isInitialized) {
         await this.initialize();
@@ -223,6 +315,11 @@ export class LogService {
    * @param message 日志信息
    */
   public async warn(tag: string, message: string | object): Promise<void> {
+    // 如果日志记录已禁用，直接返回
+    if (!this.loggingEnabled) {
+      return;
+    }
+
     try {
       if (!this.isInitialized) {
         await this.initialize();
@@ -240,6 +337,11 @@ export class LogService {
    * @param error 错误对象
    */
   public async error(tag: string, message: string, error?: any): Promise<void> {
+    // 如果日志记录已禁用，直接返回
+    if (!this.loggingEnabled) {
+      return;
+    }
+
     try {
       if (!this.isInitialized) {
         await this.initialize();
@@ -271,7 +373,7 @@ export class LogService {
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
       const timeStr = now.toTimeString().split(' ')[0]; // HH:MM:SS
-      
+
       // 格式化日志内容
       let logContent = `[${dateStr} ${timeStr}] [${level}] `;
       logContent += this.formatMessage(tag, message);
@@ -288,9 +390,9 @@ export class LogService {
       // 获取当前日期的日志文件
       const baseFileName = `app-${dateStr}`;
       const files = await RNFS.readDir(this.logDirectory);
-      const todayLogFiles = files.filter(file => 
-        file.isFile() && 
-        file.name.startsWith(baseFileName) && 
+      const todayLogFiles = files.filter(file =>
+        file.isFile() &&
+        file.name.startsWith(baseFileName) &&
         file.name.endsWith('.log')
       );
 
@@ -298,14 +400,14 @@ export class LogService {
       todayLogFiles.sort((a, b) => a.name.localeCompare(b.name));
 
       let targetFilePath: string;
-      
+
       // 如果没有当天的日志文件，创建第一个
       if (todayLogFiles.length === 0) {
         targetFilePath = `${this.logDirectory}/${baseFileName}.log`;
       } else {
         // 检查最新的日志文件大小
         const latestFile = todayLogFiles[todayLogFiles.length - 1];
-        
+
         // 如果文件大小接近或超过1MB，创建新文件
         if (latestFile.size >= this.MAX_FILE_SIZE) {
           // 创建新的文件名，格式为 app-YYYY-MM-DD-n.log，其中n是序号
@@ -333,7 +435,7 @@ export class LogService {
         const fileInfo = await RNFS.stat(targetFilePath);
         // 如果写入后文件大小超过限制，创建新文件并将这条日志写入新文件
         if (fileInfo.size > this.MAX_FILE_SIZE) {
-          const fileIndex = todayLogFiles.length;
+          const fileIndex = todayLogFiles.length - 1;
           const newFilePath = `${this.logDirectory}/${baseFileName}-${fileIndex}.log`;
           await RNFS.writeFile(newFilePath, logContent, 'utf8');
         }
@@ -359,28 +461,6 @@ export class LogService {
   }
 
   /**
-   * 获取所有日志文件路径
-   * @returns 日志文件路径数组
-   */
-  public async getLogFilePaths(): Promise<string[]> {
-    try {
-      if (!this.isInitialized) {
-        await this.initialize();
-      }
-
-      // 确保日志目录存在
-      await this.ensureLogDirectoryExists();
-
-      // 直接从文件系统读取日志文件
-      const files = await RNFS.readDir(this.logDirectory);
-      return files.filter(file => file.isFile() && file.name.endsWith('.log')).map(file => file.path);
-    } catch (error) {
-      this.originalConsole.error('获取日志文件路径失败:', error);
-      return [];
-    }
-  }
-
-  /**
    * 删除所有日志文件
    */
   public async deleteAllLogs(): Promise<void> {
@@ -402,19 +482,6 @@ export class LogService {
     } catch (error) {
       this.originalConsole.error('删除日志文件失败:', error);
       throw error;
-    }
-  }
-
-  /**
-   * 确保日志目录存在
-   * 此方法为向后兼容保留
-   */
-  public async ensureLogDirectory(): Promise<boolean> {
-    try {
-      await this.ensureLogDirectoryExists();
-      return true;
-    } catch (error) {
-      return false;
     }
   }
 
