@@ -17,6 +17,7 @@ import SettingsScreen from '../screens/main/SettingsScreen';
 import BookListScreen from '../screens/main/BookListScreen';
 import BookFormScreen from '../screens/main/BookFormScreen';
 import FlowFormScreen from '../screens/main/FlowFormScreen';
+import LogsScreen from '../screens/main/LogsScreen';
 
 // 上下文提供者
 import {AuthProvider} from '../context/AuthContext';
@@ -198,6 +199,11 @@ const AppNavigator = () => {
               options={({ route }) => ({
                 title: route.params?.currentFlow ? '编辑流水' : '添加流水',
               })}
+            />
+            <Stack.Screen
+              name="Logs"
+              component={LogsScreen}
+              options={{ title: '日志' }}
             />
           </Stack.Navigator>
         </BookProvider>

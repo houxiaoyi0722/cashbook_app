@@ -19,6 +19,7 @@ export type MainStackParamList = {
     serverId?: string;
   };
   Login: undefined;
+  Logs: undefined;
 };
 
 export type MainTabParamList = {
