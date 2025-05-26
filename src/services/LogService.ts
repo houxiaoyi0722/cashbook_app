@@ -10,6 +10,7 @@ export class LogService {
   private logDirectory: string;
   private originalConsole: any = {};
   private readonly MAX_LOG_DAYS: number = 7; // 日志保留天数
+  private readonly MAX_FILE_SIZE: number = 1024 * 1024; // 最大文件大小 (1MB)
 
   private constructor() {
     // 保存原始console方法引用
@@ -270,9 +271,7 @@ export class LogService {
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
       const timeStr = now.toTimeString().split(' ')[0]; // HH:MM:SS
-      const fileName = `app-${dateStr}.log`;
-      const filePath = `${this.logDirectory}/${fileName}`;
-
+      
       // 格式化日志内容
       let logContent = `[${dateStr} ${timeStr}] [${level}] `;
       logContent += this.formatMessage(tag, message);
@@ -286,15 +285,58 @@ export class LogService {
 
       logContent += '\n';
 
+      // 获取当前日期的日志文件
+      const baseFileName = `app-${dateStr}`;
+      const files = await RNFS.readDir(this.logDirectory);
+      const todayLogFiles = files.filter(file => 
+        file.isFile() && 
+        file.name.startsWith(baseFileName) && 
+        file.name.endsWith('.log')
+      );
+
+      // 按照文件名排序（包含序号的文件名）
+      todayLogFiles.sort((a, b) => a.name.localeCompare(b.name));
+
+      let targetFilePath: string;
+      
+      // 如果没有当天的日志文件，创建第一个
+      if (todayLogFiles.length === 0) {
+        targetFilePath = `${this.logDirectory}/${baseFileName}.log`;
+      } else {
+        // 检查最新的日志文件大小
+        const latestFile = todayLogFiles[todayLogFiles.length - 1];
+        
+        // 如果文件大小接近或超过1MB，创建新文件
+        if (latestFile.size >= this.MAX_FILE_SIZE) {
+          // 创建新的文件名，格式为 app-YYYY-MM-DD-n.log，其中n是序号
+          const fileIndex = todayLogFiles.length;
+          targetFilePath = `${this.logDirectory}/${baseFileName}-${fileIndex}.log`;
+        } else {
+          // 使用现有文件
+          targetFilePath = latestFile.path;
+        }
+      }
+
       // 检查文件是否存在
-      const fileExists = await RNFS.exists(filePath);
+      const fileExists = await RNFS.exists(targetFilePath);
 
       if (fileExists) {
         // 追加到现有文件
-        await RNFS.appendFile(filePath, logContent, 'utf8');
+        await RNFS.appendFile(targetFilePath, logContent, 'utf8');
       } else {
         // 创建新文件
-        await RNFS.writeFile(filePath, logContent, 'utf8');
+        await RNFS.writeFile(targetFilePath, logContent, 'utf8');
+      }
+
+      // 检查写入后的文件大小
+      if (fileExists) {
+        const fileInfo = await RNFS.stat(targetFilePath);
+        // 如果写入后文件大小超过限制，创建新文件并将这条日志写入新文件
+        if (fileInfo.size > this.MAX_FILE_SIZE) {
+          const fileIndex = todayLogFiles.length;
+          const newFilePath = `${this.logDirectory}/${baseFileName}-${fileIndex}.log`;
+          await RNFS.writeFile(newFilePath, logContent, 'utf8');
+        }
       }
     } catch (writeError) {
       // 使用原始console避免递归

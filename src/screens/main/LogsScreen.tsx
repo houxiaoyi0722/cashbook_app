@@ -278,7 +278,7 @@ const LogsScreen: React.FC = () => {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.deleteButton}
-            onPress={() => handleClearLogs}
+            onPress={handleClearLogs}
           >
             <Icon name="delete" type="material" size={24} color="#1976d2" />
           </TouchableOpacity>
