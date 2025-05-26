@@ -1499,15 +1499,17 @@ const StatisticsScreen: React.FC = () => {
 
   if (!currentBook) {
     return (
-      <View style={styles.container}>
-        <BookSelector />
-        <Card containerStyle={styles.emptyCard}>
-          <Card.Title>未选择账本</Card.Title>
-          <Text style={styles.emptyText}>
-            请先选择或创建一个账本
-          </Text>
-        </Card>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.container}>
+          <BookSelector />
+          <Card containerStyle={styles.emptyCard}>
+            <Card.Title>未选择账本</Card.Title>
+            <Text style={styles.emptyText}>
+              请先选择或创建一个账本
+            </Text>
+          </Card>
+        </View>
+      </SafeAreaView>
     );
   }
 

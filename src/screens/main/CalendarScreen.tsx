@@ -1295,6 +1295,8 @@ const CalendarScreen: React.FC = () => {
 
   if (!currentBook) {
     return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
         <View style={styles.container}>
           <BookSelector />
           <Card containerStyle={styles.emptyCard}>
@@ -1304,6 +1306,7 @@ const CalendarScreen: React.FC = () => {
             </Text>
           </Card>
         </View>
+      </SafeAreaView>
     );
   }
 
