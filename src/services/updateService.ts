@@ -91,5 +91,5 @@ export const checkForUpdates = async (): Promise<void> => {
 };
 
 export default {
-  checkForUpdates
+  checkForUpdates,
 };

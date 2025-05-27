@@ -11,7 +11,6 @@ declare const global: any;
 export const setupErrorHandlers = () => {
   // 处理未捕获的 JS 异常
   const originalErrorHandler = ErrorUtils.getGlobalHandler();
-  console.log(1111)
   ErrorUtils.setGlobalHandler((error, isFatal) => {
     // 记录到日志文件
     logger.error('GlobalError', '未捕获的 JS 异常', {

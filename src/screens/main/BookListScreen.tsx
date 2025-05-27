@@ -7,7 +7,7 @@ import { useBook } from '../../context/BookContext';
 import { MainStackParamList } from '../../navigation/types';
 import { Book } from '../../types';
 import { api } from '../../services/api';
-import {useBookkeeping} from "../../context/BookkeepingContext.tsx";
+import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -94,7 +94,7 @@ const BookListScreen: React.FC = () => {
     try {
       setLocalLoading(true);
       // 调用导入共享账本的 API
-      await api.book.inshare({ key: shareKeyInput.trim() })
+      await api.book.inshare({ key: shareKeyInput.trim() });
       await fetchBooks();
       Alert.alert('成功', '共享账本已导入');
       setShareKeyInput('');

@@ -26,7 +26,7 @@ const BookFormScreen: React.FC = () => {
   // 获取账本详情
   useEffect(() => {
     const fetchBookDetail = async () => {
-      if (!bookId) return;
+      if (!bookId) {return;}
 
       try {
         setIsFetching(true);
@@ -60,7 +60,7 @@ const BookFormScreen: React.FC = () => {
 
   // 处理保存
   const handleSave = async () => {
-    if (!validateForm()) return;
+    if (!validateForm()) {return;}
 
     try {
       setIsLoading(true);
@@ -91,7 +91,7 @@ const BookFormScreen: React.FC = () => {
       // 创建账本
       let book = books.find(item => item.bookId == bookId);
       book = await shareBook(book?.id);
-      setShareKey(book.shareKey!)
+      setShareKey(book.shareKey!);
       setIsShared(true);
     } catch (error) {
       console.error('生成共享码失败', error);
@@ -150,7 +150,7 @@ const BookFormScreen: React.FC = () => {
                 type: 'material',
                 name: 'content-copy', // 复制图标
                 color: '#1976d2',
-                onPress: () => handleCopyShareKey()
+                onPress: () => handleCopyShareKey(),
               }}
             />
           )}

@@ -1,4 +1,4 @@
-import {Flow} from "../types";
+import {Flow} from '../types';
 
 export type MainStackParamList = {
   MainTabs: undefined;

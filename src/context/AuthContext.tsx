@@ -3,7 +3,7 @@ import { UserInfo, ServerConfig } from '../types';
 import authManager from '../services/auth';
 import serverConfigManager from '../services/serverConfig';
 import api from '../services/api';
-import {eventBus} from "../navigation";
+import {eventBus} from '../navigation';
 import { logger } from '../services/LogService';
 
 // 认证上下文类型

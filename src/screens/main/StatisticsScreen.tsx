@@ -20,6 +20,8 @@ import BookSelector from '../../components/BookSelector';
 import {AnalyticsItem, Flow, MonthAnalysis} from '../../types';
 import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import { formatMoney, formatIncomeAmount, formatExpenseAmount } from '../../utils/formatters';
+import ErrorBoundary from '../../components/ErrorBoundary';
 
 import * as echarts from 'echarts/core';
 import {BarChart, PieChart} from 'echarts/charts';
@@ -793,21 +795,21 @@ const StatisticsScreen: React.FC = () => {
           <View style={styles.overviewItem}>
             <Text style={styles.overviewLabel}>收入</Text>
             <Text style={[styles.overviewValue, { color: '#4caf50' }]}>
-              {monthAnalysis.inSum}
+              {formatMoney(monthAnalysis.inSum)}
             </Text>
           </View>
 
           <View style={styles.overviewItem}>
             <Text style={styles.overviewLabel}>支出</Text>
             <Text style={[styles.overviewValue, { color: '#f44336' }]}>
-              {monthAnalysis.outSum}
+              {formatMoney(monthAnalysis.outSum)}
             </Text>
           </View>
 
           <View style={styles.overviewItem}>
             <Text style={styles.overviewLabel}>不计收支</Text>
             <Text style={styles.overviewValue}>
-              {monthAnalysis.zeroSum}
+              {formatMoney(monthAnalysis.zeroSum)}
             </Text>
           </View>
         </View>
@@ -824,7 +826,7 @@ const StatisticsScreen: React.FC = () => {
               {monthAnalysis.maxIn?.name || '无'}
             </Text>
             <Text style={[styles.maxItemValue, { color: '#4caf50' }]}>
-              {monthAnalysis.maxIn && monthAnalysis.maxIn.money ? `+${monthAnalysis.maxIn.money.toFixed(2)}` : '0.00'}
+              {formatIncomeAmount(monthAnalysis.maxIn?.money)}
             </Text>
           </TouchableOpacity>
         </View>
@@ -839,7 +841,7 @@ const StatisticsScreen: React.FC = () => {
               {monthAnalysis.maxOut?.name || '无'}
             </Text>
             <Text style={[styles.maxItemValue, { color: '#f44336' }]}>
-              {monthAnalysis.maxOut && monthAnalysis.maxOut.money ? `-${monthAnalysis.maxOut.money.toFixed(2)}` : '0.00'}
+              {formatExpenseAmount(monthAnalysis.maxOut?.money)}
             </Text>
           </TouchableOpacity>
         </View>
@@ -854,7 +856,7 @@ const StatisticsScreen: React.FC = () => {
               {monthAnalysis.maxZero?.name || '无'}
             </Text>
             <Text style={styles.maxItemValue}>
-              {monthAnalysis.maxZero ? monthAnalysis.maxZero.money.toFixed(2) : '0.00'}
+              {formatMoney(monthAnalysis.maxZero?.money)}
             </Text>
           </TouchableOpacity>
         </View>
@@ -889,7 +891,7 @@ const StatisticsScreen: React.FC = () => {
                   { color: monthBalanceValue >= 0 ? '#4caf50' : '#f44336' },
                 ]}
               >
-                {monthBalanceValue >= 0 ? '+' : ''}{monthBalance}
+                {monthBalanceValue >= 0 ? '+' : ''}{formatMoney(monthBalance)}
               </Text>
               <Icon
                 name={monthBalanceValue >= 0 ? 'trending-up' : 'trending-down'}
@@ -912,7 +914,7 @@ const StatisticsScreen: React.FC = () => {
                   { color: yearBalanceValue >= 0 ? '#4caf50' : '#f44336' },
                 ]}
               >
-                {yearBalanceValue >= 0 ? '+' : ''}{yearBalance}
+                {yearBalanceValue >= 0 ? '+' : ''}{formatMoney(yearBalance)}
               </Text>
               <Icon
                 name={yearBalanceValue >= 0 ? 'trending-up' : 'trending-down'}
@@ -963,7 +965,7 @@ const StatisticsScreen: React.FC = () => {
               <Icon name="trending-up" type="material" size={16} color="#4caf50" />
               <Text style={styles.yearBalanceLabel}>年度总收入</Text>
               <Text style={[styles.yearBalanceValue, { color: '#4caf50' }]}>
-                {yearIncomeTotal}
+                {formatMoney(yearIncomeTotal)}
               </Text>
             </View>
 
@@ -971,7 +973,7 @@ const StatisticsScreen: React.FC = () => {
               <Icon name="trending-down" type="material" size={16} color="#f44336" />
               <Text style={styles.yearBalanceLabel}>年度总支出</Text>
               <Text style={[styles.yearBalanceValue, { color: '#f44336' }]}>
-                {yearExpenseTotal}
+                {formatMoney(yearExpenseTotal)}
               </Text>
             </View>
 
@@ -992,7 +994,7 @@ const StatisticsScreen: React.FC = () => {
                   },
                 ]}
               >
-                {yearBalanceValue >= 0 ? '+' : ''}{yearBalance}
+                {yearBalanceValue >= 0 ? '+' : ''}{formatMoney(yearBalance)}
               </Text>
             </View>
           </View>
@@ -1515,70 +1517,88 @@ const StatisticsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.container}>
-      <BookSelector />
-        {renderMonthSelector()}
-        <Tab
+      <ErrorBoundary>
+        <View style={styles.container}>
+          <BookSelector />
+          {renderMonthSelector()}
+          <Tab
             value={tabIndex}
             onChange={setTabIndex}
             indicatorStyle={{ backgroundColor: '#1976d2' }}
-        >
-          <Tab.Item
+          >
+            <Tab.Item
               title="概览"
               titleStyle={styles.tabTitle}
               containerStyle={styles.tabContainer}
-          />
-          <Tab.Item
+            />
+            <Tab.Item
               title="分析"
               titleStyle={styles.tabTitle}
               containerStyle={styles.tabContainer}
-          />
-        </Tab>
+            />
+          </Tab>
 
-        <TabView value={tabIndex} onChange={setTabIndex} animationType="spring">
-          <TabView.Item style={styles.tabViewItem}>
-            {isLoading ? (
+          <TabView value={tabIndex} onChange={setTabIndex} animationType="spring">
+            <TabView.Item style={styles.tabViewItem}>
+              {isLoading ? (
                 <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
-            ) : (
+              ) : (
                 <ScrollView refreshControl={
                   <RefreshControl
-                      refreshing={refreshing}
-                      onRefresh={onRefresh}
-                      colors={['#1976d2']}
-                      tintColor="#1976d2"
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    colors={['#1976d2']}
+                    tintColor="#1976d2"
                   />
                 }>
-                  {renderMonthOverview()}
-                  {renderBalanceOverview()}
-                  {renderMonthTrend()}
+                  <ErrorBoundary>
+                    {renderMonthOverview()}
+                  </ErrorBoundary>
+                  <ErrorBoundary>
+                    {renderBalanceOverview()}
+                  </ErrorBoundary>
+                  <ErrorBoundary>
+                    {renderMonthTrend()}
+                  </ErrorBoundary>
                 </ScrollView>
-            )}
-          </TabView.Item>
+              )}
+            </TabView.Item>
 
-          <TabView.Item style={styles.tabViewItem}>
-            {isLoading ? (
+            <TabView.Item style={styles.tabViewItem}>
+              {isLoading ? (
                 <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
-            ) : (
+              ) : (
                 <ScrollView refreshControl={
                   <RefreshControl
-                      refreshing={refreshing}
-                      onRefresh={onRefresh}
-                      colors={['#1976d2']}
-                      tintColor="#1976d2"
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    colors={['#1976d2']}
+                    tintColor="#1976d2"
                   />
                 }>
-                  {renderFlowTypeSelector()}
-                  {renderIndustryTypeAnalysis()}
-                  {renderPayTypeAnalysis()}
-                  {renderAttributionAnalysis()}
+                  <ErrorBoundary>
+                    {renderFlowTypeSelector()}
+                  </ErrorBoundary>
+                  <ErrorBoundary>
+                    {renderIndustryTypeAnalysis()}
+                  </ErrorBoundary>
+                  <ErrorBoundary>
+                    {renderPayTypeAnalysis()}
+                  </ErrorBoundary>
+                  <ErrorBoundary>
+                    {renderAttributionAnalysis()}
+                  </ErrorBoundary>
                 </ScrollView>
-            )}
-          </TabView.Item>
-        </TabView>
+              )}
+            </TabView.Item>
+          </TabView>
 
-      {/* 流水详情弹窗 */}
-      {renderFlowDetailsModal()}
-    </View>
+          {/* 流水详情弹窗 */}
+          <ErrorBoundary>
+            {renderFlowDetailsModal()}
+          </ErrorBoundary>
+        </View>
+      </ErrorBoundary>
     </SafeAreaView>
   );
 };

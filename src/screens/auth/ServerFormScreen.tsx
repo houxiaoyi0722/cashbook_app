@@ -7,7 +7,7 @@ import { MainStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 import { ServerConfig } from '../../types';
 import serverConfigManager from '../../services/serverConfig';
-import api from "../../services/api.ts";
+import api from '../../services/api.ts';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type ServerFormRouteProp = RouteProp<MainStackParamList, 'ServerForm'>;
@@ -171,7 +171,7 @@ const ServerFormScreen: React.FC = () => {
               type: 'material',
               name: showPassword ? 'visibility-off' : 'visibility',
               color: '#1976d2',
-              onPress: () => setShowPassword(!showPassword)
+              onPress: () => setShowPassword(!showPassword),
             }}
             errorMessage={password.trim() ? '' : '密码不能为空'}
             secureTextEntry={!showPassword}

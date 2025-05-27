@@ -6,7 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MainStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 import { ServerConfig } from '../../types';
-import serverConfigManager from "../../services/serverConfig.ts";
+import serverConfigManager from '../../services/serverConfig.ts';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 

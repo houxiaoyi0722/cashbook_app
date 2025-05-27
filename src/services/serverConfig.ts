@@ -66,7 +66,7 @@ class ServerConfigManager {
   async getCurrentServer(): Promise<ServerConfig | null> {
     try {
       const currentServerId = await AsyncStorage.getItem(CURRENT_SERVER_KEY);
-      if (!currentServerId) return null;
+      if (!currentServerId) {return null;}
 
       const configs = await this.getAllConfigs();
       return configs.find(c => c.id === currentServerId) || null;

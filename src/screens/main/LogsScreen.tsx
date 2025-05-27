@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: "flex-end",
+    justifyContent: 'flex-end',
     paddingHorizontal: 16,
     paddingVertical: 10,
     backgroundColor: 'white',

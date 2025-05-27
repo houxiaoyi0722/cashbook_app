@@ -2,7 +2,7 @@ import React, {createContext, useContext, useState, useCallback, useEffect} from
 import { Book, Flow, DailyData, CalendarMark, AnalyticsItem } from '../types';
 import api from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import serverConfigManager from "../services/serverConfig.ts";
+import serverConfigManager from '../services/serverConfig.ts';
 import {eventBus} from '../navigation';
 
 
@@ -67,7 +67,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // 获取日历数据
   const fetchCalendarData = useCallback(async () => {
-    if (!currentBook) return { dailyData: {}, calendarMarks: {} };
+    if (!currentBook) {return { dailyData: {}, calendarMarks: {} };}
 
     try {
       // 使用 analytics.daily 替代 calendar API
@@ -108,7 +108,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // 获取某天的流水记录
   const fetchDayFlows = useCallback(async (date: string): Promise<Flow[]> => {
-    if (!currentBook) return [];
+    if (!currentBook) {return [];}
 
     try {
       setIsLoading(true);
@@ -134,7 +134,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // 添加流水记录
   const addFlow = useCallback(async (flow: Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>): Promise<Flow> => {
-    if (!currentBook) throw new Error('未选择账本');
+    if (!currentBook) {throw new Error('未选择账本');}
 
     const response = await api.flow.create({
       ...flow,
