@@ -112,15 +112,11 @@ const FlowFormScreen: React.FC = () => {
   // 根据流水类型设置默认的行业类型和支付方式
   useEffect(() => {
     const init = async () => {
-      const mergedPayTypes = [...new Set([...defaultPayTypes, ...remotePayType])];
+      const mergedPayTypes = [...new Set([payType,...defaultPayTypes, ...remotePayType])];
       setPayTypes(mergedPayTypes);
 
-      const mergedAttributions = [...new Set([userInfo?.name!, ...remoteAttributions])];
+      const mergedAttributions = [...new Set([attribution,userInfo?.name!, ...remoteAttributions])];
       setAttributions(mergedAttributions);
-
-      if (!payType || !mergedPayTypes.includes(payType)) {
-        setPayType(defaultPayTypes[0]);
-      }
     };
     init();
   }, [flowType]);
@@ -129,11 +125,8 @@ const FlowFormScreen: React.FC = () => {
     const init = async () => {
       let defaultIndustryType = defaultIndustryTypes[flowType];
       let apiResponse = await api.flow.industryType(currentBook?.bookId!,flowType);
-      const merged = [...new Set([...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
+      const merged = [...new Set([industryType,...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
       setIndustryTypes(merged);
-      if (!industryType || !merged.includes(industryType)) {
-        setIndustryType(defaultIndustryTypes[flowType][0]);
-      }
     };
     init();
   }, [flowType]);
