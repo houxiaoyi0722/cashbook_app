@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useBook } from '../../context/BookContext';
 import { MainStackParamList } from '../../navigation/types';
 import Clipboard from '@react-native-clipboard/clipboard';
+import { useTheme, getColors } from '../../context/ThemeContext';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'BookForm'>;
@@ -14,6 +15,8 @@ const BookFormScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { bookId } = route.params || {};
+  const { isDarkMode } = useTheme();
+  const colors = getColors(isDarkMode);
 
   const { createBook, shareBook, updateBook, books} = useBook();
 
@@ -116,17 +119,17 @@ const BookFormScreen: React.FC = () => {
 
   if (isFetching) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView>
-        <Card containerStyle={styles.card}>
-          <Card.Title>{bookId ? '编辑账本' : '创建账本'}</Card.Title>
+        <Card containerStyle={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Card.Title style={{ color: colors.text }}>{bookId ? '编辑账本' : '创建账本'}</Card.Title>
 
           <Input
             label="账本名称"
@@ -134,8 +137,12 @@ const BookFormScreen: React.FC = () => {
             value={name}
             onChangeText={setName}
             disabled={isLoading}
-            leftIcon={{ type: 'material', name: 'book', color: '#1976d2' }}
+            labelStyle={{ color: colors.text }}
+            inputStyle={{ color: colors.text }}
+            placeholderTextColor={colors.secondaryText}
+            leftIcon={{ type: 'material', name: 'book', color: colors.primary }}
             errorMessage={name.trim() ? '' : '账本名称不能为空'}
+            errorStyle={{ color: colors.error }}
           />
 
           {isShared && (
@@ -145,11 +152,13 @@ const BookFormScreen: React.FC = () => {
               value={shareKey}
               onChangeText={setShareKey}
               disabled
-              leftIcon={{ type: 'material', name: 'share', color: '#1976d2' }}
+              labelStyle={{ color: colors.text }}
+              inputStyle={{ color: colors.text }}
+              leftIcon={{ type: 'material', name: 'share', color: colors.primary }}
               rightIcon={{
                 type: 'material',
                 name: 'content-copy', // 复制图标
-                color: '#1976d2',
+                color: colors.primary,
                 onPress: () => handleCopyShareKey(),
               }}
             />
@@ -159,10 +168,12 @@ const BookFormScreen: React.FC = () => {
             <Button
               title="生成共享码"
               type="outline"
-              icon={{ type: 'material', name: 'share', color: '#1976d2', size: 20 }}
+              icon={{ type: 'material', name: 'share', color: colors.primary, size: 20 }}
               onPress={handleShareBook}
               containerStyle={styles.shareButton}
               disabled={isLoading}
+              titleStyle={{ color: colors.primary }}
+              buttonStyle={{ borderColor: colors.primary }}
             />
           )}
 
@@ -173,6 +184,8 @@ const BookFormScreen: React.FC = () => {
               containerStyle={styles.button}
               onPress={() => navigation.goBack()}
               disabled={isLoading}
+              titleStyle={{ color: colors.primary }}
+              buttonStyle={{ borderColor: colors.primary }}
             />
 
             <Button
@@ -180,6 +193,8 @@ const BookFormScreen: React.FC = () => {
               containerStyle={styles.button}
               onPress={handleSave}
               disabled={isLoading}
+              titleStyle={{ color: 'white' }}
+              buttonStyle={{ backgroundColor: colors.primary }}
             />
           </View>
         </Card>
@@ -191,7 +206,6 @@ const BookFormScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   card: {
     margin: 10,

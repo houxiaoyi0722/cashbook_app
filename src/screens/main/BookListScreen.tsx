@@ -7,13 +7,16 @@ import { useBook } from '../../context/BookContext';
 import { MainStackParamList } from '../../navigation/types';
 import { Book } from '../../types';
 import { api } from '../../services/api';
-import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
+import { useBookkeeping } from '../../context/BookkeepingContext.tsx';
+import { useTheme, getColors } from '../../context/ThemeContext';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 const BookListScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { books, fetchBooks, deleteBook, isLoading } = useBook();
+  const { isDarkMode } = useTheme();
+  const colors = getColors(isDarkMode);
 
   const [error, setError] = useState<string | null>(null);
   const [localLoading, setLocalLoading] = useState(true);
@@ -121,22 +124,28 @@ const BookListScreen: React.FC = () => {
         containerStyle={[
           styles.bookItem,
           isSelected && styles.selectedBookItem,
+          { backgroundColor: isSelected ? colors.primary + '20' : colors.card, borderColor: colors.border }
         ]}
         onPress={() => handleSelectBook(item)}
       >
         <Icon
           name="book"
           type="material"
-          color={isSelected ? '#1976d2' : '#757575'}
+          color={isSelected ? colors.primary : colors.secondaryText}
         />
         <ListItem.Content>
-          <ListItem.Title style={isSelected ? styles.selectedBookTitle : undefined}>
+          <ListItem.Title style={[
+            isSelected && styles.selectedBookTitle, 
+            { color: colors.text }
+          ]}>
             {item.bookName}
           </ListItem.Title>
           {item.shareKey && (
-            <ListItem.Subtitle>{item.shareKey}</ListItem.Subtitle>
+            <ListItem.Subtitle style={{ color: colors.secondaryText }}>
+              {item.shareKey}
+            </ListItem.Subtitle>
           )}
-          <Text style={styles.bookDate}>
+          <Text style={[styles.bookDate, { color: colors.secondaryText }]}>
             创建于 {new Date(item.createDate).toLocaleDateString()}
           </Text>
         </ListItem.Content>
@@ -148,7 +157,7 @@ const BookListScreen: React.FC = () => {
               <Icon
                 name="edit"
                 type="material"
-                color="#1976d2"
+                color={colors.primary}
                 size={20}
               />
             }
@@ -160,7 +169,7 @@ const BookListScreen: React.FC = () => {
               <Icon
                 name="delete"
                 type="material"
-                color="#f44336"
+                color={colors.error}
                 size={20}
               />
             }
@@ -169,13 +178,13 @@ const BookListScreen: React.FC = () => {
         </View>
       </ListItem>
     );
-  }, [currentBook, handleSelectBook, handleEditBook, handleDeleteBook]);
+  }, [currentBook, handleSelectBook, handleEditBook, handleDeleteBook, colors]);
 
   // 渲染空列表
   const renderEmptyList = useCallback(() => (
-    <Card containerStyle={styles.emptyCard}>
-      <Card.Title>暂无账本</Card.Title>
-      <Text style={styles.emptyText}>
+    <Card containerStyle={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Card.Title style={{ color: colors.text }}>暂无账本</Card.Title>
+      <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
         点击右下角的"+"按钮创建一个新账本
       </Text>
       <Button
@@ -188,17 +197,17 @@ const BookListScreen: React.FC = () => {
             size={20}
           />
         }
-        buttonStyle={styles.createButton}
+        buttonStyle={[styles.createButton, { backgroundColor: colors.primary }]}
         onPress={handleAddBook}
       />
     </Card>
-  ), [handleAddBook]);
+  ), [handleAddBook, colors]);
 
   if (error) {
     return (
-      <View style={styles.container}>
-        <Card containerStyle={styles.emptyCard}>
-          <Text style={styles.emptyText}>加载失败: {error}</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Card containerStyle={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.emptyText, { color: colors.secondaryText }]}>加载失败: {error}</Text>
           <Button
             title="重试"
             onPress={() => {
@@ -206,6 +215,7 @@ const BookListScreen: React.FC = () => {
               fetchBooks().finally(() => setLocalLoading(false));
             }}
             containerStyle={styles.createButton}
+            buttonStyle={{ backgroundColor: colors.primary }}
           />
         </Card>
       </View>
@@ -214,17 +224,17 @@ const BookListScreen: React.FC = () => {
 
   if (localLoading || isLoading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator style={styles.loader} size="large" color="#1976d2" />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ActivityIndicator style={styles.loader} size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Card containerStyle={styles.headerCard}>
-        <Card.Title>我的账本</Card.Title>
-        <Text style={styles.headerText}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Card containerStyle={[styles.headerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Card.Title style={{ color: colors.text }}>我的账本</Card.Title>
+        <Text style={[styles.headerText, { color: colors.secondaryText }]}>
           选择一个账本开始记账，或创建一个新账本
         </Text>
 
@@ -235,11 +245,13 @@ const BookListScreen: React.FC = () => {
             value={shareKeyInput}
             onChangeText={setShareKeyInput}
             containerStyle={styles.importInput}
+            inputStyle={{ color: colors.text }}
+            placeholderTextColor={colors.secondaryText}
             rightIcon={
               <Icon
                 name="arrow-forward"
                 type="material"
-                color="#1976d2"
+                color={colors.primary}
                 onPress={handleImportSharedBook}
               />
             }
@@ -251,20 +263,13 @@ const BookListScreen: React.FC = () => {
         data={books}
         renderItem={renderBookItem}
         keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={styles.bookList}
         ListEmptyComponent={renderEmptyList}
       />
 
       <FAB
-        icon={
-          <Icon
-            name="add"
-            type="material"
-            color="white"
-            size={24}
-          />
-        }
-        color="#1976d2"
+        icon={{ name: 'add', color: 'white' }}
+        color={colors.primary}
         placement="right"
         onPress={handleAddBook}
       />
@@ -334,6 +339,9 @@ const styles = StyleSheet.create({
   },
   importInput: {
     paddingHorizontal: 0,
+  },
+  bookList: {
+    padding: 10,
   },
 });
 

@@ -1,6 +1,7 @@
 import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { logger } from '../services/LogService';
+import { getColors } from '../context/ThemeContext';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -8,6 +9,7 @@ interface ErrorBoundaryProps {
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
   containerStyle?: object;
   showFullScreen?: boolean;
+  isDarkMode?: boolean;
 }
 
 interface ErrorBoundaryState {
@@ -59,6 +61,9 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   };
 
   render(): ReactNode {
+    const { isDarkMode = false } = this.props;
+    const colors = getColors(isDarkMode);
+
     if (this.state.hasError) {
       // 自定义备用 UI
       if (this.props.fallback) {
@@ -73,16 +78,16 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       // 默认错误 UI
       if (this.props.showFullScreen) {
         return (
-          <View style={styles.fullScreenContainer}>
-            <View style={styles.errorCard}>
-              <Text style={styles.title}>哎呀，出错了</Text>
-              <Text style={styles.message}>
+          <View style={[styles.fullScreenContainer, { backgroundColor: colors.background }]}>
+            <View style={[styles.errorCard, { backgroundColor: colors.card }]}>
+              <Text style={[styles.title, { color: colors.error }]}>哎呀，出错了</Text>
+              <Text style={[styles.message, { color: colors.text }]}>
                 抱歉，页面加载失败。请尝试重新加载。
               </Text>
-              <Text style={styles.errorDetails}>
+              <Text style={[styles.errorDetails, { color: colors.secondaryText, backgroundColor: colors.input }]}>
                 错误信息: {errorMessage}
               </Text>
-              <TouchableOpacity style={styles.button} onPress={this.handleRetry}>
+              <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]} onPress={this.handleRetry}>
                 <Text style={styles.buttonText}>重试</Text>
               </TouchableOpacity>
             </View>
@@ -91,15 +96,15 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       }
 
       return (
-        <View style={[styles.container, this.props.containerStyle]}>
-          <Text style={styles.title}>哎呀，出错了</Text>
-          <Text style={styles.message}>
+        <View style={[styles.container, this.props.containerStyle, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.title, { color: colors.error }]}>哎呀，出错了</Text>
+          <Text style={[styles.message, { color: colors.text }]}>
             抱歉，这部分内容加载失败。请稍后重试。
           </Text>
-          <Text style={styles.errorDetails}>
+          <Text style={[styles.errorDetails, { color: colors.secondaryText, backgroundColor: colors.input }]}>
             {errorMessage}
           </Text>
-          <TouchableOpacity style={styles.button} onPress={this.handleRetry}>
+          <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]} onPress={this.handleRetry}>
             <Text style={styles.buttonText}>重试</Text>
           </TouchableOpacity>
         </View>

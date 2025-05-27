@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {ActivityIndicator, Alert, ScrollView, StyleSheet, View} from 'react-native';
-import {Card, Dialog, Icon, Input, ListItem, Overlay, Text} from '@rneui/themed';
+import {Card, Dialog, Icon, Input, ListItem, Overlay, Switch, Text} from '@rneui/themed';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useAuth} from '../../context/AuthContext';
@@ -10,6 +10,7 @@ import updateService from '../../services/updateService';
 import api from '../../services/api.ts';
 import {eventBus} from '../../navigation';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {useTheme, getColors} from '../../context/ThemeContext';
 
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
@@ -17,6 +18,8 @@ type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { userInfo, logout } = useAuth();
+  const { isDarkMode, toggleDarkMode } = useTheme();
+  const colors = getColors(isDarkMode);
 
   const [isChangePasswordVisible, setIsChangePasswordVisible] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
@@ -153,7 +156,7 @@ const SettingsScreen: React.FC = () => {
 
   // 渲染用户信息
   const renderUserInfo = () => (
-    <Card containerStyle={styles.card}>
+    <Card containerStyle={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
       <View style={styles.userInfoContainer}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
@@ -161,8 +164,8 @@ const SettingsScreen: React.FC = () => {
           </Text>
         </View>
         <View style={styles.userDetails}>
-          <Text style={styles.userName}>{userInfo?.name || '未登录'}</Text>
-          <Text style={styles.userEmail}>{userInfo?.email || ''}</Text>
+          <Text style={[styles.userName, {color: colors.text}]}>{userInfo?.name || '未登录'}</Text>
+          <Text style={[styles.userEmail, {color: colors.secondaryText}]}>{userInfo?.email || ''}</Text>
         </View>
       </View>
     </Card>
@@ -170,79 +173,126 @@ const SettingsScreen: React.FC = () => {
 
   // 渲染账户设置
   const renderAccountSettings = () => (
-    <Card containerStyle={styles.card}>
-      <Card.Title>账户设置</Card.Title>
+    <Card containerStyle={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+      <Card.Title style={{color: colors.text}}>账户设置</Card.Title>
 
-      <ListItem onPress={() => setIsChangePasswordVisible(true)} bottomDivider key="change-password">
-        <Icon name="lock" type="material" color="#1976d2" />
+      <ListItem 
+        onPress={() => setIsChangePasswordVisible(true)} 
+        bottomDivider 
+        key="change-password"
+        containerStyle={{backgroundColor: colors.card}}
+      >
+        <Icon name="lock" type="material" color={colors.primary} />
         <ListItem.Content>
-          <ListItem.Title>修改密码</ListItem.Title>
+          <ListItem.Title style={{color: colors.text}}>修改密码</ListItem.Title>
         </ListItem.Content>
-        <ListItem.Chevron />
+        <ListItem.Chevron color={colors.secondaryText} />
       </ListItem>
 
-      <ListItem onPress={handleSwitchServer} bottomDivider key="switch-server">
-        <Icon name="swap-horiz" type="material" color="#1976d2" />
+      <ListItem 
+        onPress={handleSwitchServer} 
+        bottomDivider 
+        key="switch-server"
+        containerStyle={{backgroundColor: colors.card}}
+      >
+        <Icon name="swap-horiz" type="material" color={colors.primary} />
         <ListItem.Content>
-          <ListItem.Title>切换服务器</ListItem.Title>
+          <ListItem.Title style={{color: colors.text}}>切换服务器</ListItem.Title>
         </ListItem.Content>
-        <ListItem.Chevron />
+        <ListItem.Chevron color={colors.secondaryText} />
       </ListItem>
 
       <ListItem
         onPress={() => navigation.navigate('Logs')}
         bottomDivider
         key="logs"
+        containerStyle={{backgroundColor: colors.card}}
       >
-        <Icon name="description" type="material" color="#1976d2" />
+        <Icon name="description" type="material" color={colors.primary} />
         <ListItem.Content>
-          <ListItem.Title>日志管理</ListItem.Title>
+          <ListItem.Title style={{color: colors.text}}>日志管理</ListItem.Title>
         </ListItem.Content>
-        <ListItem.Chevron />
+        <ListItem.Chevron color={colors.secondaryText} />
       </ListItem>
 
-      <ListItem onPress={handleLogout} key="logout">
-        <Icon name="logout" type="material" color="#f44336" />
+      <ListItem 
+        bottomDivider 
+        key="dark-mode"
+        containerStyle={{backgroundColor: colors.card}}
+      >
+        <Icon name={isDarkMode ? "nightlight" : "wb-sunny"} type="material" color={colors.primary} />
         <ListItem.Content>
-          <ListItem.Title style={{ color: '#f44336' }}>退出登录</ListItem.Title>
+          <ListItem.Title style={{color: colors.text}}>深色模式</ListItem.Title>
         </ListItem.Content>
-        <ListItem.Chevron />
+        <Switch
+          value={isDarkMode}
+          onValueChange={toggleDarkMode}
+          color={colors.primary}
+        />
+      </ListItem>
+
+      <ListItem 
+        onPress={handleLogout} 
+        key="logout"
+        containerStyle={{backgroundColor: colors.card}}
+      >
+        <Icon name="logout" type="material" color={colors.error} />
+        <ListItem.Content>
+          <ListItem.Title style={{ color: colors.error }}>退出登录</ListItem.Title>
+        </ListItem.Content>
+        <ListItem.Chevron color={colors.secondaryText} />
       </ListItem>
     </Card>
   );
 
   // 渲染关于信息
   const renderAboutInfo = () => (
-    <Card containerStyle={styles.card}>
-      <Card.Title>关于</Card.Title>
+    <Card containerStyle={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+      <Card.Title style={{color: colors.text}}>关于</Card.Title>
 
-      <ListItem bottomDivider key="version">
-        <Icon name="info" type="material" color="#1976d2" />
+      <ListItem 
+        bottomDivider 
+        key="version"
+        containerStyle={{backgroundColor: colors.card}}
+      >
+        <Icon name="info" type="material" color={colors.primary} />
         <ListItem.Content>
-          <ListItem.Title>版本</ListItem.Title>
-          <ListItem.Subtitle>{version || '1.0.0'}</ListItem.Subtitle>
+          <ListItem.Title style={{color: colors.text}}>版本</ListItem.Title>
+          <ListItem.Subtitle style={{color: colors.secondaryText}}>{version || '1.0.0'}</ListItem.Subtitle>
         </ListItem.Content>
       </ListItem>
 
-      <ListItem key="developer">
-        <Icon name="code" type="material" color="#1976d2" />
+      <ListItem 
+        key="developer"
+        containerStyle={{backgroundColor: colors.card}}
+        bottomDivider
+      >
+        <Icon name="code" type="material" color={colors.primary} />
         <ListItem.Content>
-          <ListItem.Title>开发者</ListItem.Title>
-          <ListItem.Subtitle>sang</ListItem.Subtitle>
+          <ListItem.Title style={{color: colors.text}}>开发者</ListItem.Title>
+          <ListItem.Subtitle style={{color: colors.secondaryText}}>sang</ListItem.Subtitle>
         </ListItem.Content>
       </ListItem>
 
-      <ListItem key="server-version">
-        <Icon name="dns" type="material" color="#1976d2" />
+      <ListItem 
+        key="server-version"
+        containerStyle={{backgroundColor: colors.card}}
+        bottomDivider
+      >
+        <Icon name="dns" type="material" color={colors.primary} />
         <ListItem.Content>
-          <ListItem.Title>服务器版本</ListItem.Title>
-          <ListItem.Subtitle>{serverVersion || '未知'}</ListItem.Subtitle>
+          <ListItem.Title style={{color: colors.text}}>服务器版本</ListItem.Title>
+          <ListItem.Subtitle style={{color: colors.secondaryText}}>{serverVersion || '未知'}</ListItem.Subtitle>
         </ListItem.Content>
       </ListItem>
-      <ListItem key="check-update" onPress={() => updateService.checkForUpdates()}>
-        <Icon name="system-update" type="material" color="#1976d2" />
+      <ListItem 
+        key="check-update" 
+        onPress={() => updateService.checkForUpdates()}
+        containerStyle={{backgroundColor: colors.card}}
+      >
+        <Icon name="system-update" type="material" color={colors.primary} />
         <ListItem.Content>
-          <ListItem.Title>检查更新</ListItem.Title>
+          <ListItem.Title style={{color: colors.text}}>检查更新</ListItem.Title>
         </ListItem.Content>
       </ListItem>
     </Card>
@@ -250,87 +300,95 @@ const SettingsScreen: React.FC = () => {
 
   // 渲染修改密码对话框
   const renderChangePasswordDialog = () => (
-    <Dialog
+    <Overlay
       isVisible={isChangePasswordVisible}
       onBackdropPress={() => !isLoading && setIsChangePasswordVisible(false)}
-      overlayStyle={styles.dialog}
+      overlayStyle={[styles.dialog, { backgroundColor: colors.dialog }]}
     >
-      <Dialog.Title title="修改密码" />
-
+      <Text style={[styles.dialogTitle, { color: colors.text }]}>修改密码</Text>
+      
       <Input
         placeholder="原密码"
         secureTextEntry={!oldPasswordVisible}
-        leftIcon={{ type: 'material', name: 'lock' }}
+        leftIcon={{ type: 'material', name: 'lock', color: colors.icon }}
         rightIcon={{
           type: 'material',
           name: oldPasswordVisible ? 'visibility' : 'visibility-off',
           onPress: () => setOldPasswordVisible(!oldPasswordVisible),
-          color: '#86939e',
+          color: colors.hint,
         }}
         value={oldPassword}
         onChangeText={setOldPassword}
         disabled={isLoading}
+        inputStyle={{color: colors.inputText}}
+        placeholderTextColor={colors.hint}
       />
 
       <Input
         placeholder="新密码"
         secureTextEntry={!newPasswordVisible}
-        leftIcon={{ type: 'material', name: 'lock-outline' }}
+        leftIcon={{ type: 'material', name: 'lock-outline', color: colors.icon }}
         rightIcon={{
           type: 'material',
           name: newPasswordVisible ? 'visibility' : 'visibility-off',
           onPress: () => setNewPasswordVisible(!newPasswordVisible),
-          color: '#86939e',
+          color: colors.hint,
         }}
         value={newPassword}
         onChangeText={setNewPassword}
         disabled={isLoading}
+        inputStyle={{color: colors.inputText}}
+        placeholderTextColor={colors.hint}
       />
 
       <Input
         placeholder="确认新密码"
         secureTextEntry={!confirmPasswordVisible}
-        leftIcon={{ type: 'material', name: 'lock-outline' }}
+        leftIcon={{ type: 'material', name: 'lock-outline', color: colors.icon }}
         rightIcon={{
           type: 'material',
           name: confirmPasswordVisible ? 'visibility' : 'visibility-off',
           onPress: () => setConfirmPasswordVisible(!confirmPasswordVisible),
-          color: '#86939e',
+          color: colors.hint,
         }}
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         disabled={isLoading}
+        inputStyle={{color: colors.inputText}}
+        placeholderTextColor={colors.hint}
       />
 
-      <Dialog.Actions>
+      <View style={styles.dialogActions}>
         <Dialog.Button
           title="取消"
           onPress={() => setIsChangePasswordVisible(false)}
           disabled={isLoading}
+          titleStyle={{color: colors.primary}}
         />
         <Dialog.Button
           title={isLoading ? '提交中...' : '提交'}
           onPress={handleChangePassword}
           disabled={isLoading}
+          titleStyle={{color: colors.primary}}
         />
-      </Dialog.Actions>
-    </Dialog>
+      </View>
+    </Overlay>
   );
 
   // 渲染全局加载遮罩
   const renderLoadingOverlay = () => (
     <Overlay
       isVisible={isGlobalLoading}
-      overlayStyle={styles.loadingOverlay}
+      overlayStyle={[styles.loadingOverlay, {backgroundColor: colors.dialog}]}
     >
-      <ActivityIndicator size="large" color="#1976d2" />
-      <Text style={styles.loadingText}>{loadingMessage}</Text>
+      <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={[styles.loadingText, {color: colors.primary}]}>{loadingMessage}</Text>
     </Overlay>
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.container}>
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top']}>
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
         <ScrollView>
           {renderUserInfo()}
           {renderAccountSettings()}
@@ -347,7 +405,6 @@ const SettingsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   card: {
     margin: 10,
@@ -385,6 +442,21 @@ const styles = StyleSheet.create({
   dialog: {
     borderRadius: 10,
     padding: 20,
+    width: '90%',
+  },
+  dialogTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  dialogActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 15,
+  },
+  inputContainer: {
+    marginBottom: 10,
   },
   loadingOverlay: {
     width: 200,
@@ -392,12 +464,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'white',
+  },
+  loadingIndicator: {
+    marginBottom: 10,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#1976d2',
   },
 });
 

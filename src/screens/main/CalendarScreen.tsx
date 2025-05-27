@@ -28,6 +28,7 @@ import {Swipeable} from 'react-native-gesture-handler';
 import ImageViewer from 'react-native-image-zoom-viewer';
 import ImageCacheService from '../../services/ImageCacheService';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {useTheme, getColors} from '../../context/ThemeContext';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -43,6 +44,8 @@ LocaleConfig.defaultLocale = 'zh';
 const CalendarScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { currentBook, fetchCalendarData, fetchDayFlows } = useBookkeeping();
+  const { isDarkMode } = useTheme();
+  const colors = getColors(isDarkMode);
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [dailyData, setDailyData] = useState<DailyData>({});
@@ -93,6 +96,28 @@ const CalendarScreen: React.FC = () => {
   const [showInvoiceViewer, setShowInvoiceViewer] = useState(false);
   const [uplaoding, setUploading] = useState(false);
 
+  // 渲染日历主题
+  const calendarTheme = {
+    backgroundColor: colors.card,
+    calendarBackground: colors.card,
+    textSectionTitleColor: colors.primary,
+    textSectionTitleDisabledColor: colors.secondaryText,
+    selectedDayBackgroundColor: colors.primary,
+    selectedDayTextColor: '#ffffff',
+    todayTextColor: colors.primary,
+    dayTextColor: colors.text,
+    textDisabledColor: colors.secondaryText,
+    dotColor: colors.primary,
+    selectedDotColor: '#ffffff',
+    arrowColor: colors.primary,
+    disabledArrowColor: colors.secondaryText,
+    monthTextColor: colors.text,
+    indicatorColor: colors.primary,
+    textDayFontWeight: '300' as '300',
+    textMonthFontWeight: 'bold' as 'bold',
+    textDayHeaderFontWeight: '300' as '300',
+  };
+
   // 获取日历数据
   const fetchCalendarFlows = useCallback(async () => {
     if (!currentBook || !currentMonth) {return;}
@@ -117,7 +142,7 @@ const CalendarScreen: React.FC = () => {
           selected: true,
           customStyles: {
             container: {
-              backgroundColor: '#1976d2',
+              backgroundColor: colors.primary,
             },
             text: {
               color: 'white',
@@ -138,7 +163,7 @@ const CalendarScreen: React.FC = () => {
       console.error('获取流水失败', error instanceof Error ? error.message : String(error));
       Alert.alert('错误', '获取流水失败');
     }
-  }, [currentBook, currentMonth, fetchCalendarData, selectedDate]);
+  }, [currentBook, currentMonth, fetchCalendarData, selectedDate, colors]);
 
   // 获取某天的流水详情
   const fetchDayDetail = useCallback(async (date: string) => {
@@ -200,7 +225,67 @@ const CalendarScreen: React.FC = () => {
     return () => { isMounted = false; };
   }, [currentBook]);
 
-  // 修改 handleDayPress 函数，添加月份切换逻辑
+  // 自定义日期单元格渲染函数
+  const renderCustomDay = useCallback((day: any, state: any) => {
+    // 获取当天的收支数据
+    const dayTotals = dailyData[day.dateString] || { inSum: 0, outSum: 0, zeroSum: 0 };
+    const hasData = dayTotals.inSum > 0 || dayTotals.outSum > 0;
+
+    // 检查是否是选中日期
+    const isSelected = day.dateString === selectedDate;
+
+    // 计算文本颜色
+    let textColor;
+    if (isSelected) {
+      textColor = 'white';
+    } else if (state === 'today') {
+      textColor = colors.primary;
+    } else if (state === 'disabled') {
+      textColor = colors.secondaryText;
+    } else {
+      textColor = colors.text;
+    }
+
+    return (
+      <View style={{
+        alignItems: 'center',
+        backgroundColor: isSelected ? colors.primary : 'transparent',
+        borderRadius: 16,
+        padding: 2,
+        width: 32,
+        height: 32,
+        justifyContent: 'center',
+      }}>
+        {/* 日期数字 */}
+        <Text
+          style={{
+            color: textColor,
+            fontWeight: state === 'today' ? 'bold' : 'normal',
+          }}
+        >
+          {day.day}
+        </Text>
+
+        {/* 收支信息 - 仅在非选中状态显示 */}
+        {hasData && !isSelected && (
+          <View style={styles.dayTotalsContainer}>
+            {dayTotals.inSum > 0 && (
+              <Text style={[styles.dayIncomeText, { color: colors.success }]}>
+                +{dayTotals.inSum.toFixed(0)}
+              </Text>
+            )}
+            {dayTotals.outSum > 0 && (
+              <Text style={[styles.dayExpenseText, { color: colors.error }]}>
+                -{dayTotals.outSum.toFixed(0)}
+              </Text>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  }, [selectedDate, dailyData, colors]);
+
+  // 修改 handleDayPress 函数，适配暗黑模式的颜色
   const handleDayPress = useCallback(async (day: any) => {
     // 检查是否点击了其他月份的日期
     const clickedMonth = dayjs(day.dateString).format('YYYY-MM');
@@ -224,10 +309,10 @@ const CalendarScreen: React.FC = () => {
         selected: false,
         customStyles: {
           container: {
-            backgroundColor: '#ffffff',
+            backgroundColor: 'transparent',
           },
           text: {
-            color: selectedDate === dayjs().format('YYYY-MM-DD') ? '#1976d2' : '#111111',
+            color: selectedDate === dayjs().format('YYYY-MM-DD') ? colors.primary : colors.text,
           },
         },
       };
@@ -240,7 +325,7 @@ const CalendarScreen: React.FC = () => {
         selected: true,
         customStyles: {
           container: {
-            backgroundColor: '#1976d2',
+            backgroundColor: colors.primary,
           },
           text: {
             color: 'white',
@@ -252,7 +337,7 @@ const CalendarScreen: React.FC = () => {
         selected: true,
         customStyles: {
           container: {
-            backgroundColor: '#1976d2',
+            backgroundColor: colors.primary,
           },
           text: {
             color: 'white',
@@ -261,13 +346,13 @@ const CalendarScreen: React.FC = () => {
       };
     }
 
-    // 更新状态
-    setCalendarMarks(newMarks);
+    // 更新选中日期和标记
     setSelectedDate(day.dateString);
+    setCalendarMarks(newMarks);
 
     // 获取选中日期的流水详情
     await fetchDayDetail(day.dateString);
-  }, [selectedDate, calendarMarks, fetchDayDetail, currentMonth]);
+  }, [selectedDate, calendarMarks, currentMonth, fetchDayDetail, colors]);
 
   // 修改 handleMonthChange 函数，确保月份变化时更新数据
   const handleMonthChange = useCallback((month: any) => {
@@ -296,10 +381,10 @@ const CalendarScreen: React.FC = () => {
     const dayTotals = dailyData[selectedDate] || { inSum: 0, outSum: 0, zeroSum: 0 };
 
     return (
-      <Card containerStyle={styles.dayCard}>
+      <Card containerStyle={[styles.dayCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
         <View style={styles.dayCardContent}>
           <View style={styles.flowListHeader}>
-            <Text style={styles.flowListTitle}>流水明细</Text>
+            <Text style={[styles.flowListTitle,{color: colors.text}]}>流水明细</Text>
             {/* 收支信息缩略展示 */}
             <View style={styles.flowSummary}>
               <Text style={styles.flowSummaryText}>
@@ -336,13 +421,13 @@ const CalendarScreen: React.FC = () => {
               data={dayFlows}
               keyExtractor={(item) => item.id.toString()}
               renderItem={({ item }) => (
-                <View style={styles.flowItem}>
+                <View style={[styles.flowItem, {backgroundColor: colors.card}]}>
                   <View style={styles.flowItemHeader}>
-                    <Text style={styles.flowItemName}>{item.name}</Text>
+                    <Text style={[styles.flowItemName,{color: colors.text}]}>{item.name}</Text>
                     <Text
                       style={[
                         styles.flowItemMoney,
-                        { color: item.flowType === '支出' ? '#f44336' : item.flowType === '收入' ? '#4caf50' : '#111111' },
+                        { color: item.flowType === '支出' ? '#f44336' : item.flowType === '收入' ? '#4caf50' : colors.text },
                       ]}
                     >
                       {item.flowType === '支出' ? '-' : item.flowType === '收入' ? '+' : ''}
@@ -369,7 +454,7 @@ const CalendarScreen: React.FC = () => {
                 </View>
               )}
               renderHiddenItem={({ item }) => (
-                <View style={styles.rowBack}>
+                <View style={[styles.rowBack, {backgroundColor: colors.card}]}>
                   <TouchableOpacity
                       style={[styles.backRightBtn, styles.backCameraBtnLeft]}
                       onPress={() => handleInvoiceUpload(item)}
@@ -413,7 +498,7 @@ const CalendarScreen: React.FC = () => {
                       );
                     }}
                   >
-                    <Icon name="delete" type="material" color="white" size={20} />
+                    <Icon name="delete" type="material" color={colors.write} size={18} />
                   </TouchableOpacity>
                 </View>
               )}
@@ -460,10 +545,10 @@ const CalendarScreen: React.FC = () => {
     <Overlay
       isVisible={showYearMonthSelector}
       onBackdropPress={() => setShowYearMonthSelector(false)}
-      overlayStyle={styles.yearMonthOverlay}
+      overlayStyle={[styles.yearMonthOverlay, {backgroundColor: colors.dialog}]}
     >
       <View style={styles.yearMonthHeader}>
-        <Text style={styles.yearMonthTitle}>选择年月</Text>
+        <Text style={[styles.yearMonthTitle,{color: colors.text}]}>选择年月</Text>
         <TouchableOpacity onPress={() => setShowYearMonthSelector(false)}>
           <Icon name="close" type="material" size={24} />
         </TouchableOpacity>
@@ -472,7 +557,7 @@ const CalendarScreen: React.FC = () => {
       <View style={styles.yearMonthSelectorContainer}>
         {/* 年份选择 - 使用滚动选择器 */}
         <View style={styles.pickerContainer}>
-          <Text style={styles.pickerLabel}>年份</Text>
+          <Text style={[styles.pickerLabel,{color: colors.text}]}>年份</Text>
           <View style={styles.pickerWrapper}>
             <Picker
               selectedValue={selectedYear}
@@ -488,7 +573,7 @@ const CalendarScreen: React.FC = () => {
 
         {/* 月份选择 - 使用滚动选择器 */}
         <View style={styles.pickerContainer}>
-          <Text style={styles.pickerLabel}>月份</Text>
+          <Text style={[styles.pickerLabel,{color: colors.text}]}>月份</Text>
           <View style={styles.pickerWrapper}>
             <Picker
               selectedValue={selectedMonth}
@@ -524,56 +609,6 @@ const CalendarScreen: React.FC = () => {
       setRefreshing(false);
     }
   }, [fetchCalendarFlows]);
-
-  // 自定义日期单元格渲染函数
-  const renderCustomDay = useCallback((day: any, state: any) => {
-    // 获取当天的收支数据
-    const dayTotals = dailyData[day.dateString] || { inSum: 0, outSum: 0, zeroSum: 0 };
-    const hasData = dayTotals.inSum > 0 || dayTotals.outSum > 0;
-
-    // 检查是否是选中日期
-    const isSelected = day.dateString === selectedDate;
-
-    return (
-      <View style={{
-        alignItems: 'center',
-        backgroundColor: isSelected ? '#1976d2' : 'transparent',
-        borderRadius: 16,
-        padding: 2,
-        width: 32,
-        height: 32,
-        justifyContent: 'center',
-      }}>
-        {/* 日期数字 */}
-        <Text
-          style={{
-            color: isSelected ? 'white' :
-                  state === 'today' ? '#1976d2' :
-                  state === 'disabled' ? '#949494' : '#111111',
-            fontWeight: state === 'today' ? 'bold' : 'normal',
-          }}
-        >
-          {day.day}
-        </Text>
-
-        {/* 收支信息 - 仅在非选中状态显示 */}
-        {hasData && !isSelected && (
-          <View style={styles.dayTotalsContainer}>
-            {dayTotals.inSum > 0 && (
-              <Text style={[styles.dayIncomeText, { color: '#4caf50' }]}>
-                +{dayTotals.inSum.toFixed(0)}
-              </Text>
-            )}
-            {dayTotals.outSum > 0 && (
-              <Text style={[styles.dayExpenseText, { color: '#f44336' }]}>
-                -{dayTotals.outSum.toFixed(0)}
-              </Text>
-            )}
-          </View>
-        )}
-      </View>
-    );
-  }, [selectedDate, dailyData]);
 
   // 修改切换筛选条件的函数，解决状态更新延迟问题
   const toggleCriteria = useCallback((key: string) => {
@@ -628,14 +663,14 @@ const CalendarScreen: React.FC = () => {
       <Overlay
         isVisible={showDuplicateModal}
         onBackdropPress={() => setShowDuplicateModal(false)}
-        overlayStyle={styles.duplicateOverlay}
+        overlayStyle={[styles.duplicateOverlay, {backgroundColor: colors.dialog}]}
       >
         <View style={styles.duplicateContainer}>
           <View style={styles.duplicateHeader}>
-            <Text style={styles.duplicateTitle}>重复数据查询</Text>
-            <Text style={styles.duplicateTitleComment}>日期和金额为默认条件</Text>
+            <Text style={[styles.duplicateTitle, {color: colors.text}]}>重复数据查询</Text>
+            <Text style={[styles.duplicateTitleComment, {color: colors.secondaryText}]}>日期和金额为默认条件</Text>
             <TouchableOpacity onPress={() => setShowDuplicateModal(false)}>
-              <Icon name="close" type="material" size={24} />
+              <Icon name="close" type="material" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
 
@@ -711,24 +746,25 @@ const CalendarScreen: React.FC = () => {
           {/* 精简的内容区域 */}
           <ScrollView style={styles.duplicateContent}>
             {duplicateLoading ? (
-              <ActivityIndicator size="large" color="#1976d2" style={{ marginTop: 20 }} />
+              <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
             ) : duplicateGroups.length === 0 ? (
-              <Text style={styles.duplicateEmptyText}>没有找到重复数据</Text>
+              <Text style={[styles.duplicateEmptyText, {color: colors.secondaryText}]}>没有找到重复数据</Text>
             ) : (
               duplicateGroups.map((group, groupIndex) => (
-                <View key={`group-${groupIndex}`} style={styles.duplicateGroup}>
-                  <Text style={styles.duplicateGroupTitle}>重复组 {groupIndex + 1}</Text>
+                <View key={`group-${groupIndex}`} style={[styles.duplicateGroup,{backgroundColor: colors.card}]}>
+                  <Text style={[styles.duplicateGroupTitle, {color: colors.text}]}>重复组 {groupIndex + 1}</Text>
 
                   {group.map((flow: any, flowIndex: number) => (
-                    <View key={`flow-${flow.id}`} style={styles.duplicateItem}>
+                    <View key={`flow-${flow.id}`} style={[styles.duplicateItem,{backgroundColor: colors.card}]}>
                       {/* 精简的流水信息展示 */}
                       <View style={styles.duplicateItemHeader}>
-                        <Text style={styles.duplicateItemTitle} numberOfLines={1}>
+                        <Text style={[styles.duplicateItemTitle, {color: colors.text}]} numberOfLines={1}>
                           {flow.name || '无名称'}
                         </Text>
                         <Text style={[
                           styles.duplicateItemMoney,
                           {color: flow.flowType === '支出' ? '#f44336' : flow.flowType === '收入' ? '#4caf50' : '#111111'},
+                          {color: colors.text},
                         ]}>
                           {flow.flowType === '支出' ? '-' : flow.flowType === '收入' ? '+' : ''}
                           {flow.money.toFixed(2)}
@@ -738,32 +774,32 @@ const CalendarScreen: React.FC = () => {
                           style={styles.duplicateItemDelete}
                           onPress={() => handleDeleteDuplicateFlow(flow)}
                         >
-                          <Icon name="delete" type="material" color="#F44336" size={18} />
+                          <Icon name="delete" type="material" color={colors.error} size={18} />
                         </TouchableOpacity>
                       </View>
 
                       {/* 精简的详细信息 */}
                       <View style={styles.duplicateItemCompactDetails}>
-                        <Text style={styles.duplicateItemCompactDetail}>
-                          <Text style={styles.duplicateItemCompactLabel}>日期:</Text> {flow.day}
+                        <Text style={[styles.duplicateItemCompactDetail, {color: colors.text}]}>
+                          <Text style={[styles.duplicateItemCompactLabel, {color: colors.text}]}>日期:</Text> {flow.day}
                         </Text>
-                        <Text style={styles.duplicateItemCompactDetail}>
-                          <Text style={styles.duplicateItemCompactLabel}>类型:</Text> {flow.flowType}
+                        <Text style={[styles.duplicateItemCompactDetail, {color: colors.text}]}>
+                          <Text style={[styles.duplicateItemCompactLabel, {color: colors.text}]}>类型:</Text> {flow.flowType}
                         </Text>
-                        <Text style={styles.duplicateItemCompactDetail}>
-                          <Text style={styles.duplicateItemCompactLabel}>分类:</Text> {flow.industryType}
+                        <Text style={[styles.duplicateItemCompactDetail, {color: colors.text}]}>
+                          <Text style={[styles.duplicateItemCompactLabel, {color: colors.text}]}>分类:</Text> {flow.industryType}
                         </Text>
-                        <Text style={styles.duplicateItemCompactDetail}>
-                          <Text style={styles.duplicateItemCompactLabel}>支付:</Text> {flow.payType}
+                        <Text style={[styles.duplicateItemCompactDetail, {color: colors.text}]}>
+                          <Text style={[styles.duplicateItemCompactLabel, {color: colors.text}]}>支付:</Text> {flow.payType}
                         </Text>
                         {flow.description && (
-                          <Text style={styles.duplicateItemCompactDetail} numberOfLines={1}>
-                            <Text style={styles.duplicateItemCompactLabel}>备注:</Text> {flow.description}
+                          <Text style={[styles.duplicateItemCompactDetail, {color: colors.text}]}>
+                            <Text style={[styles.duplicateItemCompactLabel, {color: colors.text}]}>备注:</Text> {flow.description}
                           </Text>
                         )}
                         {flow.attribution && (
-                          <Text style={styles.duplicateItemCompactDetail}>
-                            <Text style={styles.duplicateItemCompactLabel}>归属:</Text> {flow.attribution}
+                          <Text style={[styles.duplicateItemCompactDetail, {color: colors.text}]}>
+                            <Text style={[styles.duplicateItemCompactLabel, {color: colors.text}]}>归属:</Text> {flow.attribution}
                           </Text>
                         )}
                       </View>
@@ -962,43 +998,44 @@ const CalendarScreen: React.FC = () => {
       <Overlay
         isVisible={showBalanceModal}
         onBackdropPress={() => setShowBalanceModal(false)}
-        overlayStyle={styles.balanceOverlay}
+        overlayStyle={[styles.balanceOverlay, {backgroundColor: colors.dialog}]}
       >
         <View style={styles.balanceContainer}>
           <View style={styles.balanceHeader}>
-            <Text style={styles.balanceTitle}>平账管理</Text>
+            <Text style={[styles.balanceTitle, {color: colors.text}]}>平账管理</Text>
 
             {balanceCandidates.length > 0 && (
               <TouchableOpacity
-                style={styles.balanceIgnoreAllButton}
+                style={[styles.balanceIgnoreAllButton, {backgroundColor: colors.input}]}
                 onPress={handleIgnoreAllBalanceItems}
               >
-                <Text style={styles.balanceIgnoreAllText}>忽略全部</Text>
+                <Text style={[styles.balanceIgnoreAllText, {color: colors.text}]}>忽略全部</Text>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity onPress={() => setShowBalanceModal(false)}>
-              <Icon name="close" type="material" size={24} />
+              <Icon name="close" type="material" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.balanceContent}>
             {balanceLoading ? (
-              <ActivityIndicator size="large" color="#1976d2" style={{ marginTop: 20 }} />
+              <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
             ) : balanceCandidates.length === 0 ? (
-              <Text style={styles.balanceEmptyText}>没有找到需要平账的记录</Text>
+              <Text style={[styles.balanceEmptyText, {color: colors.text}]}>没有找到需要平账的记录</Text>
             ) : (
               balanceCandidates.map((item, index) => (
-                <View key={`balance-${index}`} style={styles.balanceGroup}>
+                <View key={`balance-${index}`} style={[styles.balanceGroup,{backgroundColor: colors.card}]}>
                   {/* 支出项 */}
                   <View style={styles.balanceOutItem}>
                     <View style={styles.duplicateItemHeader}>
-                      <Text style={styles.duplicateItemTitle} numberOfLines={1}>
+                      <Text style={[styles.duplicateItemTitle]} numberOfLines={1}>
                         {item.out.name || '无名称'}
                       </Text>
                       <Text style={[
                         styles.duplicateItemMoney,
                         {color: '#f44336'},
+                        {color: colors.text},
                       ]}>
                         -{item.out.money.toFixed(2)}
                       </Text>
@@ -1074,17 +1111,17 @@ const CalendarScreen: React.FC = () => {
                   {/* 按钮区域 */}
                   <View style={styles.balanceActionContainer}>
                     <TouchableOpacity
-                        style={styles.balanceIgnoreButton}
+                        style={[styles.balanceIgnoreButton, {backgroundColor: colors.input}]}
                         onPress={() => handleIgnoreBalanceItem(item.out.id)}
                     >
-                      <Text style={styles.balanceIgnoreText}>忽略</Text>
+                      <Text style={[styles.balanceIgnoreText, {color: colors.text}]}>忽略</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.balanceConfirmButton}
+                        style={[styles.balanceConfirmButton, {backgroundColor: colors.primary}]}
                         onPress={() => handleConfirmBalance(item.out.id, [item.in.id])}
                     >
-                      <Text style={styles.balanceConfirmText}>平账</Text>
+                      <Text style={[styles.balanceConfirmText, {color: 'white'}]}>平账</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1267,7 +1304,7 @@ const CalendarScreen: React.FC = () => {
           saveToLocalByLongPress={false}
           loadingRender={() => (
             <View style={styles.imageLoadingContainer}>
-              <ActivityIndicator size="large" color="#1976d2" />
+              <ActivityIndicator size="large" color={colors.primary} />
               <Text style={styles.imageLoadingText}>图片加载中...</Text>
             </View>
           )}
@@ -1285,7 +1322,7 @@ const CalendarScreen: React.FC = () => {
         </TouchableOpacity>
         {uplaoding && (
           <View style={styles.uploadingOverlay}>
-            <ActivityIndicator size="large" color="#1976d2" />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.uploadingText}>处理中...</Text>
           </View>
         )}
@@ -1295,13 +1332,13 @@ const CalendarScreen: React.FC = () => {
 
   if (!currentBook) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container,{backgroundColor: colors.background}]} edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
-        <View style={styles.container}>
+        <View style={[styles.container,{backgroundColor: colors.card}]}>
           <BookSelector />
-          <Card containerStyle={styles.emptyCard}>
-            <Card.Title>未选择账本</Card.Title>
-            <Text style={styles.emptyText}>
+          <Card containerStyle={[styles.emptyCard,{backgroundColor: colors.card, borderColor: colors.border}]}>
+            <Card.Title style={{ color: colors.text }}>未选择账本</Card.Title>
+            <Text style={[styles.emptyText,{color: colors.text}]}>
               请先选择或创建一个账本
             </Text>
           </Card>
@@ -1311,15 +1348,15 @@ const CalendarScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
       <View style={styles.container}>
         <BookSelector />
 
-        <View style={styles.headerActions}>
+        <View style={[styles.headerActions,{backgroundColor: colors.background, borderBottomColor: colors.border}]}>
           <View style={{ flex: 1 }} />
           <TouchableOpacity
-            style={styles.actionButton}
+            style={[styles.actionButton, {backgroundColor: colors.background, borderColor: colors.border}]}
             onPress={() => {
               setShowBalanceModal(true);
               fetchBalanceCandidates();
@@ -1330,7 +1367,7 @@ const CalendarScreen: React.FC = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.actionButton}
+            style={[styles.actionButton, {backgroundColor: colors.background, borderColor: colors.border}]}
             onPress={() => {
               setShowDuplicateModal(true);
               fetchDuplicateFlows();
@@ -1352,7 +1389,7 @@ const CalendarScreen: React.FC = () => {
             />
           }
         >
-          <Card containerStyle={styles.calendarCard}>
+          <Card containerStyle={[styles.calendarCard,{backgroundColor: colors.card,borderColor: colors.border}]}>
             <Calendar
                 current={currentMonth}
                 key={currentMonth}
@@ -1362,13 +1399,7 @@ const CalendarScreen: React.FC = () => {
                 onMonthChange={handleMonthChange}
                 markingType="custom"
                 markedDates={calendarMarks}
-                theme={{
-                  todayTextColor: '#1976d2',
-                  arrowColor: '#1976d2',
-                  monthTextColor: '#1976d2',
-                  selectedDayBackgroundColor: '#1976d2',
-                  selectedDayTextColor: 'white',
-                }}
+                theme={calendarTheme}
                 monthFormat={'yyyy年 MM月'}
                 renderHeader={(date) => (
                     <TouchableOpacity onPress={handleMonthHeaderPress} style={styles.calendarHeader}>
@@ -1390,7 +1421,7 @@ const CalendarScreen: React.FC = () => {
             />
 
             {/* 将月度汇总直接放在日历卡片内部 */}
-            <View style={styles.monthSummaryContent}>
+            <View style={[styles.monthSummaryContent, {backgroundColor: colors.card}]}>
               <View style={styles.monthSummaryRow}>
                 <View style={styles.monthSummaryItem}>
                   <Text style={styles.monthSummaryLabel}>总收入</Text>
@@ -1416,7 +1447,7 @@ const CalendarScreen: React.FC = () => {
 
                 <View style={styles.monthSummaryItem}>
                   <Text style={styles.monthSummaryLabel}>不计收支</Text>
-                  <Text style={[styles.monthSummaryValue, { color: '#070707' }]}>
+                  <Text style={[styles.monthSummaryValue, { color: colors.text }]}>
                     {/* 计算不计收支 */}
                     {Object.entries(dailyData)
                         .filter(([date]) => date.startsWith(currentMonth))
@@ -1445,7 +1476,6 @@ const CalendarScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   scrollView: {
     padding: 0,
@@ -1728,8 +1758,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 2,
     backgroundColor: '#f5f5f5',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomWidth: 1
   },
   actionButton: {
     flexDirection: 'row',
@@ -1739,7 +1768,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
     marginLeft: 8,
   },
   actionButtonText: {
@@ -1820,12 +1848,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
     padding: 8,
-  },
-  duplicateGroupTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#1976d2',
   },
   duplicateItem: {
     backgroundColor: '#ffffff',
@@ -2113,6 +2135,31 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: 'white',
     fontSize: 16,
+  },
+  duplicateGroupTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  cancelYearMonthButton: {
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  confirmYearMonthButton: {
+    backgroundColor: '#1976d2',
+    borderRadius: 5,
+    marginTop: 10,
+  },
+  yearMonthButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#f5f5f5',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
   },
 });
 

@@ -8,11 +8,13 @@ import dayjs from 'dayjs';
 import {useBookkeeping} from '../../context/BookkeepingContext';
 import BookSelector from '../../components/BookSelector';
 import {SafeAreaView} from 'react-native-safe-area-context';
-
+import {useTheme, getColors} from '../../context/ThemeContext';
 
 const BudgetScreen = () => {
 	// 基础状态
 	const {currentBook} = useBookkeeping();
+	const {isDarkMode} = useTheme();
+	const colors = getColors(isDarkMode);
 	const [loading, setLoading] = useState(false);
 	const [currentMonth, setCurrentMonth] = useState(dayjs().format('YYYY-MM'));
 	const [showBudgetModal, setShowBudgetModal] = useState(false);
@@ -273,11 +275,11 @@ const BudgetScreen = () => {
 
 
 	return (
-		<SafeAreaView style={styles.container} edges={['top']}>
-			<View style={styles.container}>
+		<SafeAreaView style={[styles.container,{backgroundColor: colors.background}]} edges={['top']}>
+			<View style={[styles.container,{backgroundColor: colors.background}]}>
 				<BookSelector/>
 				{/* 月份选择器 */}
-				<View style={styles.monthSelector}>
+				<View style={[styles.monthSelector,{backgroundColor: colors.card, borderBottomColor: colors.border}]}>
 					<TouchableOpacity
 						onPress={() => setCurrentMonth(dayjs(currentMonth).subtract(1, 'month').format('YYYY-MM'))}
 						style={styles.monthButton}
@@ -298,7 +300,7 @@ const BudgetScreen = () => {
 				</View>
 
 				{/* 预算卡片 */}
-				<Card containerStyle={styles.card}>
+				<Card containerStyle={[styles.card,{backgroundColor: colors.card, borderColor: colors.border}]}>
 					<View style={styles.cardTitleContainer}>
 						<Card.Title style={styles.cardTitle}>
 							<Icon name="account-balance-wallet" type="material" color="#1976d2" size={20}/>
@@ -314,17 +316,17 @@ const BudgetScreen = () => {
 
 					<View style={styles.budgetInfoContainer}>
 						<View style={styles.budgetInfo}>
-							<Text style={styles.budgetLabel}>预算金额</Text>
-							<Text style={styles.budgetValue}>{budget?.budget?.toFixed(2) || '0.00'}</Text>
+							<Text style={[styles.budgetLabel,{color: colors.text}]}>预算金额</Text>
+							<Text style={[styles.budgetValue,{color: colors.secondaryText}]}>{budget?.budget?.toFixed(2) || '0.00'}</Text>
 						</View>
 
 						<View style={styles.budgetInfo}>
-							<Text style={styles.budgetLabel}>非固定支出</Text>
+							<Text style={[styles.budgetLabel,{color: colors.text}]}>非固定支出</Text>
 							<Text style={[styles.budgetValue, {color: '#f44336'}]}>{budget?.used?.toFixed(2) || '0.00'}</Text>
 						</View>
 
 						<View style={styles.budgetInfo}>
-							<Text style={styles.budgetLabel}>剩余预算</Text>
+							<Text style={[styles.budgetLabel,{color: colors.text}]}>剩余预算</Text>
 							<Text style={[styles.budgetValue, {color: '#4caf50'}]}>
 								{budget ? (budget.budget - totalUsed).toFixed(2) : '0.00'}
 							</Text>
@@ -342,12 +344,12 @@ const BudgetScreen = () => {
 								]}
 							/>
 						</View>
-						<Text style={styles.progressText}>{usedPercentage}%</Text>
+						<Text style={[styles.progressText,{color: colors.text}]}>{usedPercentage}%</Text>
 					</View>
 				</Card>
 
 				{/* 固定支出卡片 */}
-				<Card containerStyle={styles.card}>
+				<Card containerStyle={[styles.card,{backgroundColor: colors.card, borderColor: colors.border}]}>
 					<View style={styles.cardTitleContainer}>
 						<Card.Title style={styles.cardTitle}>
 							<Icon name="repeat" type="material" color="#1976d2" size={20}/>
@@ -359,8 +361,8 @@ const BudgetScreen = () => {
 					</View>
 
 					<View style={styles.fixedExpenseSummary}>
-						<Text style={styles.fixedExpenseTitle}>固定支出总额</Text>
-						<Text style={styles.fixedExpenseAmount}>{totalFixedExpense.toFixed(2)}</Text>
+						<Text style={[styles.fixedExpenseTitle,{color: colors.text}]}>固定支出总额</Text>
+						<Text style={[styles.fixedExpenseAmount,{color: colors.text}]}>{totalFixedExpense.toFixed(2)}</Text>
 					</View>
 
 					<Divider style={styles.divider}/>
@@ -369,10 +371,10 @@ const BudgetScreen = () => {
 					{fixedFlows.length > 0 ? (
 						<ScrollView style={styles.fixedFlowList}>
 							{fixedFlows.map((item, index) => (
-								<ListItem key={item.id || index} bottomDivider>
+								<ListItem key={item.id || index} bottomDivider containerStyle={{backgroundColor: colors.card}}>
 									<ListItem.Content>
-										<ListItem.Title style={styles.fixedFlowTitle}>{item.name}</ListItem.Title>
-										<ListItem.Subtitle>归属人: {item.attribution}</ListItem.Subtitle>
+										<ListItem.Title style={[styles.fixedFlowTitle,{color: colors.text}]}>{item.name}</ListItem.Title>
+										<ListItem.Subtitle style={{color: colors.text}}>归属人: {item.attribution}</ListItem.Subtitle>
 									</ListItem.Content>
 									<Text style={styles.fixedFlowAmount}>{item.money.toFixed(2)}</Text>
 									<View style={styles.fixedFlowActions}>
@@ -400,15 +402,17 @@ const BudgetScreen = () => {
 				<Overlay
 					isVisible={showBudgetModal}
 					onBackdropPress={() => setShowBudgetModal(false)}
-					overlayStyle={styles.overlay}
+					overlayStyle={[styles.overlay,{backgroundColor: colors.card}]}
 				>
-					<View>
+					<View style={{backgroundColor: colors.card}}>
 						<Text style={styles.overlayTitle}>设置预算</Text>
 						<Input
 							label="预算金额"
 							placeholder="请输入预算金额"
 							value={newBudget}
 							onChangeText={setNewBudget}
+							labelStyle={{ color: colors.text }}
+							inputStyle={{ color: colors.text }}
 							keyboardType="numeric"
 							leftIcon={
 								<Icon
@@ -441,7 +445,7 @@ const BudgetScreen = () => {
 				<Overlay
 					isVisible={fixedFlowModalVisible}
 					onBackdropPress={() => setFixedFlowModalVisible(false)}
-					overlayStyle={styles.overlay}
+					overlayStyle={[styles.overlay, {backgroundColor: colors.card}]}
 				>
 					<View>
 						<Text style={styles.overlayTitle}>
@@ -452,6 +456,8 @@ const BudgetScreen = () => {
 							label="支出名称"
 							placeholder="请输入支出名称"
 							value={ffName}
+							labelStyle={{ color: colors.text }}
+							inputStyle={{ color: colors.text }}
 							onChangeText={setFfName}
 							leftIcon={
 								<Icon
@@ -467,6 +473,8 @@ const BudgetScreen = () => {
 							label="支出金额"
 							placeholder="请输入支出金额"
 							value={ffAmount}
+							labelStyle={{ color: colors.text }}
+							inputStyle={{ color: colors.text }}
 							onChangeText={setFfAmount}
 							keyboardType="numeric"
 							leftIcon={
@@ -483,6 +491,8 @@ const BudgetScreen = () => {
 							label="归属人"
 							placeholder="请输入归属人"
 							value={ffAttribution}
+							labelStyle={{ color: colors.text }}
+							inputStyle={{ color: colors.text }}
 							onChangeText={setFfAttribution}
 							leftIcon={
 								<Icon
@@ -501,6 +511,8 @@ const BudgetScreen = () => {
 									<Input
 										value={ffStartMonth.format('YYYY-MM')}
 										editable={false}
+										labelStyle={{ color: colors.text }}
+										inputStyle={{ color: colors.text }}
 										leftIcon={
 											<Icon
 												type="material"
@@ -519,6 +531,8 @@ const BudgetScreen = () => {
 									<Input
 										value={ffEndMonth.format('YYYY-MM')}
 										editable={false}
+										labelStyle={{ color: colors.text }}
+										inputStyle={{ color: colors.text }}
 										leftIcon={
 											<Icon
 												type="material"
@@ -559,17 +573,20 @@ const BudgetScreen = () => {
 				<YearMonthPicker
 					visible={showStartYearMonthPicker}
 					value={ffStartMonth}
+					isDarkMode={isDarkMode}
 					onChange={onChangeStartDate}
 					onClose={() => setShowStartYearMonthPicker(false)}
 				/>
 				<YearMonthPicker
 					visible={showEndYearMonthPicker}
 					value={ffEndMonth}
+					isDarkMode={isDarkMode}
 					onChange={onChangeEndDate}
 					onClose={() => setShowEndYearMonthPicker(false)}
 				/>
 				<YearMonthPicker
 					visible={showMonthPicker}
+					isDarkMode={isDarkMode}
 					value={dayjs(currentMonth)}
 					onChange={(date) => {
 						setCurrentMonth(date.format('YYYY-MM'));
@@ -608,8 +625,7 @@ const styles = StyleSheet.create({
 		justifyContent: 'center',
 		alignItems: 'center',
 		backgroundColor: 'white',
-		borderBottomWidth: 1,
-		borderBottomColor: '#e0e0e0',
+		borderBottomWidth: 1
 	},
 	monthButton: {
 		padding: 8,

@@ -5,6 +5,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {Icon} from '@rneui/themed';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'react-native';
+import { useTheme, getColors } from '../context/ThemeContext';
 
 // 认证相关屏幕
 import ServerListScreen from '../screens/auth/ServerListScreen';
@@ -35,19 +36,26 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 // 主标签导航
 const MainTabs = () => {
+  const { isDarkMode } = useTheme();
+  const colors = getColors(isDarkMode);
+
   return (
     <>
       <StatusBar
-        barStyle="dark-content"
-        backgroundColor="#f5f5f5"
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
+        backgroundColor={colors.statusBar}
         translucent={false}
       />
       <Tab.Navigator
         screenOptions={{
-          tabBarActiveTintColor: '#1976d2',
-          tabBarInactiveTintColor: '#757575',
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.secondaryText,
           tabBarLabelStyle: {
             fontSize: 12,
+          },
+          tabBarStyle: {
+            backgroundColor: colors.card,
+            borderTopColor: colors.border,
           },
           headerShown: false,
         }}
@@ -101,6 +109,8 @@ const MainTabs = () => {
 const AppNavigator = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [initialRoute, setInitialRoute] = useState<keyof MainStackParamList>('ServerList');
+  const { isDarkMode } = useTheme();
+  const colors = getColors(isDarkMode);
 
   // 检查初始路由
   useEffect(() => {
@@ -147,7 +157,7 @@ const AppNavigator = () => {
             initialRouteName={initialRoute}
             screenOptions={{
               headerStyle: {
-                backgroundColor: '#1976d2',
+                backgroundColor: colors.primary,
               },
               headerTintColor: '#fff',
               headerTitleStyle: {
@@ -158,7 +168,7 @@ const AppNavigator = () => {
               headerShadowVisible: false,
               // 设置内容样式
               contentStyle: {
-                backgroundColor: '#f5f5f5',
+                backgroundColor: colors.background,
               },
             }}
           >

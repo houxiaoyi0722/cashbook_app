@@ -13,6 +13,7 @@ import * as ImagePicker from 'react-native-image-picker';
 import ImageViewer from 'react-native-image-zoom-viewer';
 import dayjs from 'dayjs';
 import ImageCacheService from '../../services/ImageCacheService';
+import { useTheme, getColors } from '../../context/ThemeContext';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowForm'>;
@@ -38,6 +39,8 @@ const FlowFormScreen: React.FC = () => {
   const { currentFlow, date } = route.params || {};
   const { currentBook, remotePayType, remoteAttributions } = useBookkeeping();
   const {userInfo} = useAuth();
+  const { isDarkMode } = useTheme();
+  const colors = getColors(isDarkMode);
 
   const [name, setName] = useState('');
   const [money, setMoney] = useState('');
@@ -393,15 +396,15 @@ const FlowFormScreen: React.FC = () => {
   const renderInvoiceImages = () => {
     return (
       <View style={styles.invoiceContainer}>
-        <Text style={styles.label}>小票图片</Text>
+        <Text style={[styles.label, { color: colors.text }]}>小票图片</Text>
         <View style={styles.invoiceListContainer}>
           <TouchableOpacity
-            style={styles.addInvoiceButton}
+            style={[styles.addInvoiceButton, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={handleInvoiceUpload}
             disabled={isLoading || uploadingImage}
           >
-            <Icon name="add-a-photo" type="material" color="#1976d2" size={24} />
-            <Text style={styles.addButtonText}>上传小票</Text>
+            <Icon name="add-a-photo" type="material" color={colors.primary} size={24} />
+            <Text style={[styles.addButtonText, { color: colors.primary }]}>上传小票</Text>
           </TouchableOpacity>
 
           <FlatList
@@ -413,7 +416,7 @@ const FlowFormScreen: React.FC = () => {
                 style={styles.invoiceImageContainer}
                 onPress={() => viewInvoiceImage(item)}
               >
-                <View style={styles.invoiceImageWrapper}>
+                <View style={[styles.invoiceImageWrapper, { borderColor: colors.border }]}>
                   <Image
                     source={{
                       uri: ImageCacheService.getImageUrl(item),
@@ -425,7 +428,7 @@ const FlowFormScreen: React.FC = () => {
                     <ActivityIndicator
                       style={styles.thumbnailLoading}
                       size="small"
-                      color="#1976d2"
+                      color={colors.primary}
                     />
                   )}
                 </View>
@@ -444,7 +447,7 @@ const FlowFormScreen: React.FC = () => {
     <Overlay
       isVisible={showImageViewer && !!selectedImage}
       onBackdropPress={() => setShowImageViewer(false)}
-      overlayStyle={styles.imageViewerOverlay}
+      overlayStyle={[styles.imageViewerOverlay, { backgroundColor: colors.background }]}
     >
       <View style={styles.imageViewerContainer}>
         {selectedImage && (
@@ -456,11 +459,11 @@ const FlowFormScreen: React.FC = () => {
             onSwipeDown={() => setShowImageViewer(false)}
             enableImageZoom={true}
             saveToLocalByLongPress={false}
-            backgroundColor="white"
+            backgroundColor={colors.background}
             loadingRender={() => (
               <View style={styles.imageLoadingContainer}>
-                <ActivityIndicator size="large" color="#1976d2" />
-                <Text style={styles.imageLoadingText}>图片加载中...</Text>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.imageLoadingText, { color: colors.text }]}>图片加载中...</Text>
               </View>
             )}
           />
@@ -473,7 +476,7 @@ const FlowFormScreen: React.FC = () => {
           />
           <Button
             icon={<Icon name="delete" type="material" color="white" size={24} />}
-            buttonStyle={styles.deleteButton}
+            buttonStyle={[styles.deleteButton, { backgroundColor: colors.error }]}
             onPress={deleteInvoiceImage}
           />
         </View>
@@ -484,9 +487,9 @@ const FlowFormScreen: React.FC = () => {
   if (isFetching) {
     return (
       <>
-        <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
-        <View style={styles.container}>
-          <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
+        <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.statusBar} />
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+          <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
         </View>
       </>
     );
@@ -494,17 +497,18 @@ const FlowFormScreen: React.FC = () => {
 
   return (
     <>
-      <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
-      <View style={styles.container}>
+      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.statusBar} />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <ScrollView>
-          <Card containerStyle={styles.card}>
-            <Card.Title>{currentFlow ? '编辑流水' : '创建流水'}</Card.Title>
+          <Card containerStyle={[styles.card,{backgroundColor: colors.card, borderColor: colors.border}]}>
+            <Card.Title style={{color: colors.text}}>{currentFlow ? '编辑流水' : '创建流水'}</Card.Title>
 
             <ButtonGroup
               buttons={flowTypeButtons}
               selectedIndex={flowTypes.indexOf(flowType)}
               onPress={(index) => setFlowType(flowTypes[index])}
-              containerStyle={styles.buttonGroup}
+              containerStyle={[styles.buttonGroup,{backgroundColor: colors.card, borderColor: colors.border}]}
+              textStyle={{color: colors.text}}
               selectedButtonStyle={{ backgroundColor: '#1976d2' }}
               disabled={isLoading}
             />
@@ -513,11 +517,12 @@ const FlowFormScreen: React.FC = () => {
               label="交易方名称"
               placeholder="请输入交易方名称"
               value={name}
+              labelStyle={{ color: colors.text }}
+              inputStyle={{ fontSize: 14, lineHeight: 18, paddingVertical: 4, color: colors.text }}
               onChangeText={setName}
               disabled={isLoading}
               leftIcon={{ type: 'material', name: 'shopping-cart', color: '#1976d2' }}
               errorMessage={name.trim() ? '' : '交易方名称不能为空'}
-              inputStyle={{ fontSize: 14, lineHeight: 18, paddingVertical: 4 }}
             />
 
             <Input
@@ -529,7 +534,8 @@ const FlowFormScreen: React.FC = () => {
               disabled={isLoading}
               leftIcon={{ type: 'material', name: 'account-balance-wallet', color: '#1976d2' }}
               errorMessage={money && !isNaN(Number(money)) && Number(money) > 0 ? '' : '请输入有效的金额'}
-              inputStyle={{ fontSize: 14, lineHeight: 18, paddingVertical: 4 }}
+              labelStyle={{ color: colors.text }}
+              inputStyle={{ fontSize: 14, lineHeight: 18, paddingVertical: 4, color: colors.text }}
             />
 
             <Text style={styles.label}>交易类型</Text>
@@ -631,6 +637,7 @@ const FlowFormScreen: React.FC = () => {
                 mode="date"
                 display="default"
                 onChange={handleDateChange}
+                maximumDate={new Date()}
               />
             )}
 
@@ -643,7 +650,8 @@ const FlowFormScreen: React.FC = () => {
               leftIcon={{ type: 'material', name: 'description', color: '#1976d2' }}
               multiline
               numberOfLines={3}
-              inputStyle={{ fontSize: 14, textAlignVertical: 'top', paddingTop: 8 }}
+              labelStyle={{ color: colors.text }}
+              inputStyle={{ fontSize: 14, textAlignVertical: 'top', paddingTop: 8, color: colors.text }}
             />
 
             {/* 小票上传区域 */}
@@ -660,6 +668,8 @@ const FlowFormScreen: React.FC = () => {
                 containerStyle={styles.button}
                 onPress={() => navigation.goBack()}
                 disabled={isLoading}
+                titleStyle={{ color: colors.primary }}
+                buttonStyle={{ borderColor: colors.primary }}
               />
 
               <Button
@@ -667,6 +677,8 @@ const FlowFormScreen: React.FC = () => {
                 containerStyle={styles.button}
                 onPress={handleSave}
                 disabled={isLoading}
+                titleStyle={{ color: 'white' }}
+                buttonStyle={{ backgroundColor: colors.primary }}
               />
             </View>
           </Card>

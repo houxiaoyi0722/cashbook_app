@@ -22,6 +22,7 @@ import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import { formatMoney, formatIncomeAmount, formatExpenseAmount } from '../../utils/formatters';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { useTheme, getColors } from '../../context/ThemeContext';
 
 import * as echarts from 'echarts/core';
 import {BarChart, PieChart} from 'echarts/charts';
@@ -42,8 +43,9 @@ echarts.use([
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
-const getChartColor = (index: number) => {
-  const colors = [
+// 添加一个函数来获取基于主题的图表颜色
+const getChartColorForTheme = (index: number, isDarkMode: boolean) => {
+  const lightModeColors = [
     '#FF6384', '#36A2EB', '#4BC0C0',
     '#9966FF', '#F46A9B', '#f05326',
     '#FF9F40', '#8AC249', '#EA5545',
@@ -54,6 +56,18 @@ const getChartColor = (index: number) => {
     '#45a776',
   ];
 
+  const darkModeColors = [
+    '#FF7094', '#46B2FB', '#5BD0D0',
+    '#A976FF', '#F47AAB', '#f06336',
+    '#FFAF50', '#9AD259', '#FA6555',
+    '#FDC743', '#37BEFF', '#ea2f28',
+    '#C34DD6', '#c6c52f', '#f8db8f',
+    '#802876', '#f48a85', '#19ADC2',
+    '#73C2FE', '#86EAA1', '#A3D565',
+    '#55B786',
+  ];
+
+  const colors = isDarkMode ? darkModeColors : lightModeColors;
   return colors[index % colors.length];
 };
 
@@ -110,6 +124,8 @@ const EchartsComponent = ({
 const StatisticsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { currentBook } = useBookkeeping();
+  const { isDarkMode } = useTheme();
+  const colors = getColors(isDarkMode);
 
   const [tabIndex, setTabIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -262,7 +278,7 @@ const StatisticsScreen: React.FC = () => {
           .map((item: any, index: number) => ({
             name: item.type,
             value: parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)), // 根据类型选择不同的值
-            color: getChartColor(index),
+            color: getChartColorForTheme(index, isDarkMode),
             legendFontColor: '#7F7F7F',
             legendFontSize: 12,
           }))
@@ -276,7 +292,7 @@ const StatisticsScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentBook, currentMonth, selectedFlowType]);
+  }, [currentBook, currentMonth, selectedFlowType, isDarkMode]);
 
   // 获取支付方式数据
   const fetchPayTypeData = useCallback(async () => {
@@ -301,7 +317,7 @@ const StatisticsScreen: React.FC = () => {
           .map((item: any, index: number) => ({
             name: item.type,
             value: parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)), // 根据类型选择不同的值
-            color: getChartColor(index + 5),
+            color: getChartColorForTheme(index + 5, isDarkMode),
             legendFontColor: '#7F7F7F',
             legendFontSize: 12,
           }))
@@ -315,7 +331,7 @@ const StatisticsScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentBook, currentMonth, selectedFlowType]);
+  }, [currentBook, currentMonth, selectedFlowType, isDarkMode]);
 
   // 获取流水归属数据
   const fetchAttributionData = useCallback(async () => {
@@ -339,7 +355,7 @@ const StatisticsScreen: React.FC = () => {
         const formattedData = response.d.map((item: any, index: number) => ({
           name: item.type || '未分类',
           value: parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)),
-          color: getChartColor(index + 10),
+          color: getChartColorForTheme(index + 10, isDarkMode),
           percentage: ((parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)) /
                        response.d.reduce((sum: number) => sum + parseFloat(selectedFlowType === '收入' ? item.inSum.toFixed(2) : selectedFlowType === '支出' ? item.outSum.toFixed(2) : item.zeroSum.toFixed(2)), 0)) * 100).toFixed(2),
         }));
@@ -352,7 +368,7 @@ const StatisticsScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentBook, currentMonth, selectedFlowType]);
+  }, [currentBook, currentMonth, selectedFlowType, isDarkMode]);
 
   // 当前账本变化时，重新获取数据
   useEffect(() => {
@@ -397,6 +413,7 @@ const StatisticsScreen: React.FC = () => {
 
   // 处理查看流水详情
   const handleViewFlowDetail = (flowId: Flow) => {
+    console.log('flowId',flowId);
     navigation.navigate('FlowForm', { currentFlow: flowId });
   };
 
@@ -423,42 +440,43 @@ const StatisticsScreen: React.FC = () => {
     return (
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.monthSelector}
+          style={[styles.monthSelector, { borderColor: colors.border }]}
           onPress={() => setShowMonthPicker(true)}
         >
-          <Icon name="calendar-today" type="material" size={20} color="#1976d2" />
-          <Text style={styles.monthSelectorText}>{currentMonth}</Text>
+          <Icon name="calendar-today" type="material" size={20} color={colors.primary} />
+          <Text style={[styles.monthSelectorText, { color: colors.primary }]}>{currentMonth}</Text>
         </TouchableOpacity>
         <Overlay
             isVisible={showMonthPicker}
             onBackdropPress={() => setShowMonthPicker(false)}
-            overlayStyle={styles.monthPickerOverlay}
+            overlayStyle={[styles.monthPickerOverlay, { backgroundColor: colors.dialog }]}
         >
           <View style={styles.monthPickerHeader}>
-            <Text style={styles.monthPickerTitle}>选择月份</Text>
+            <Text style={[styles.monthPickerTitle, { color: colors.text }]}>选择月份</Text>
             <TouchableOpacity onPress={() => setShowMonthPicker(false)}>
-              <Icon name="close" type="material" size={24} color="#757575" />
+              <Icon name="close" type="material" size={24} color={colors.secondaryText} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.yearGroupsContainer}>
             {Object.keys(previousMonths).sort((a, b) => b.localeCompare(a)).map((year) => (
               <View key={year} style={styles.yearGroup}>
-                <Text style={styles.yearTitle}>{year}年</Text>
+                <Text style={[styles.yearTitle, { color: colors.primary }]}>{year}年</Text>
                 <View style={styles.monthList}>
                   {previousMonths[year].map((month) => (
                     <TouchableOpacity
                       key={month}
                       style={[
                         styles.monthItem,
-                        month === currentMonth && styles.selectedMonthItem,
+                        month === currentMonth && [styles.selectedMonthItem, { backgroundColor: `${colors.primary}20` }],
                       ]}
                       onPress={() => handleMonthSelect(month)}
                     >
                       <Text
                         style={[
                           styles.monthItemText,
-                          month === currentMonth && styles.selectedMonthItemText,
+                          { color: colors.text },
+                          month === currentMonth && [styles.selectedMonthItemText, { color: colors.primary }],
                         ]}
                       >
                         {month.substring(5)}月
@@ -474,7 +492,7 @@ const StatisticsScreen: React.FC = () => {
     );
   };
 
-  // Replace the renderEchartsWithWebView function with this new implementation
+  // 修改 renderEcharts 函数
   const renderEcharts = (option: echarts.EChartsCoreOption, onItemClick?: (params: any) => void, height = 300) => {
     // 计算图表宽度，基于屏幕宽度
     const chartWidth = Math.min(350, Dimensions.get('window').width - 40);
@@ -482,7 +500,13 @@ const StatisticsScreen: React.FC = () => {
     return (
       <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}>
         <EchartsComponent
-          option={option}
+          option={{
+            ...option,
+            backgroundColor: colors.card, // 设置图表背景色与卡片背景一致
+            textStyle: {
+              color: colors.text,
+            },
+          }}
           onItemClick={onItemClick}
           width={chartWidth}
           height={height}
@@ -681,24 +705,28 @@ const StatisticsScreen: React.FC = () => {
 
   // 渲染流水详情项
   const renderFlowDetailItem = ({ item }: { item: Flow }) => (
-    <ListItem key={item.id} bottomDivider containerStyle={styles.detailItem}>
+    <ListItem key={item.id} bottomDivider containerStyle={[styles.detailItem, { backgroundColor: colors.card }]}>
       <Avatar
         rounded
         icon={{ name: 'receipt', type: 'material' }}
         containerStyle={{ backgroundColor: detailsColor + '40' }}
       />
       <ListItem.Content>
-        <ListItem.Title style={styles.detailItemTitle}>
+        <ListItem.Title style={[styles.detailItemTitle, { color: colors.text }]}>
           {item.name || `${item.industryType}`}{item.attribution ? ' - ' + item.attribution : ''}
         </ListItem.Title>
-        <ListItem.Subtitle style={styles.detailItemSubtitle}>
+        <ListItem.Subtitle style={[styles.detailItemSubtitle, { color: colors.secondaryText }]}>
           {dayjs(item.day).format('YYYY-MM-DD')} · {item.payType} · {item.industryType}
         </ListItem.Subtitle>
-        <ListItem.Subtitle style={styles.detailItemSubtitle}>
+        <ListItem.Subtitle style={[styles.detailItemSubtitle, { color: colors.secondaryText }]}>
           {item.description}
         </ListItem.Subtitle>
       </ListItem.Content>
-      <Text style={[styles.detailItemAmount, { color: item.flowType === '支出' ? '#f44336' : item.flowType === '收入' ? '#4caf50' : '#111111' }]}>
+      <Text style={[styles.detailItemAmount, {
+        color: item.flowType === '支出' ? colors.error :
+              item.flowType === '收入' ? colors.success :
+              colors.text
+      }]}>
         {item.flowType === '支出' ? '-' : item.flowType === '收入' ? '+' : ''}{item.money.toFixed(2)}
       </Text>
     </ListItem>
@@ -711,7 +739,7 @@ const StatisticsScreen: React.FC = () => {
     return (
       <View style={styles.loadMoreFooter}>
         <ActivityIndicator size="small" color={detailsColor} />
-        <Text style={styles.loadMoreText}>加载更多...</Text>
+        <Text style={[styles.loadMoreText, { color: colors.secondaryText }]}>加载更多...</Text>
       </View>
     );
   };
@@ -724,16 +752,16 @@ const StatisticsScreen: React.FC = () => {
       transparent={true}
       onRequestClose={handleCloseDetails}
     >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
+      <View style={[styles.modalContainer, { backgroundColor: `${colors.background}99` }]}>
+        <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{detailsTitle}</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{detailsTitle}</Text>
             <TouchableOpacity onPress={handleCloseDetails} style={styles.closeButton}>
-              <Icon name="close" type="material" size={24} color="#757575" />
+              <Icon name="close" type="material" size={24} color={colors.secondaryText} />
             </TouchableOpacity>
           </View>
 
-          <Divider style={styles.modalDivider} />
+          <Divider style={[styles.modalDivider, { backgroundColor: colors.divider }]} />
 
           {detailsLoading ? (
             <ActivityIndicator size="large" color={detailsColor} style={styles.detailsLoader} />
@@ -741,8 +769,8 @@ const StatisticsScreen: React.FC = () => {
             <>
               {detailsData.length === 0 ? (
                 <View style={styles.emptyDetails}>
-                  <Icon name="receipt-long" type="material" size={48} color="#e0e0e0" />
-                  <Text style={styles.emptyDetailsText}>暂无流水记录</Text>
+                  <Icon name="receipt-long" type="material" size={48} color={colors.divider} />
+                  <Text style={[styles.emptyDetailsText, { color: colors.secondaryText }]}>暂无流水记录</Text>
                 </View>
               ) : (
                 <FlatList
@@ -757,8 +785,8 @@ const StatisticsScreen: React.FC = () => {
                 />
               )}
 
-              <View style={styles.modalFooter}>
-                <Text style={styles.totalText}>
+              <View style={[styles.modalFooter, { backgroundColor: colors.input, borderTopColor: colors.border }]}>
+                <Text style={[styles.totalText, { color: colors.text }]}>
                   {totalItem} 笔交易，合计：
                   <Text style={{ color: detailsColor, fontWeight: 'bold' }}>
                     {selectedMoney}
@@ -781,81 +809,81 @@ const StatisticsScreen: React.FC = () => {
   const renderMonthOverview = () => {
     if (!monthAnalysis) {
       return (
-          <Card containerStyle={styles.card}>
-            <Card.Title>月度概览</Card.Title>
-            <Text style={styles.emptyText}>暂无数据</Text>
+          <Card containerStyle={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Card.Title style={{ color: colors.text }}>月度概览</Card.Title>
+            <Text style={[styles.emptyText, { color: colors.secondaryText }]}>暂无数据</Text>
           </Card>
       );
     }
     return (
-      <Card containerStyle={styles.card}>
-        <Card.Title>月度概览</Card.Title>
+      <Card containerStyle={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Card.Title style={{ color: colors.text }}>月度概览</Card.Title>
 
         <View style={styles.overviewRow}>
           <View style={styles.overviewItem}>
-            <Text style={styles.overviewLabel}>收入</Text>
-            <Text style={[styles.overviewValue, { color: '#4caf50' }]}>
+            <Text style={[styles.overviewLabel, { color: colors.secondaryText }]}>收入</Text>
+            <Text style={[styles.overviewValue, { color: colors.success }]}>
               {formatMoney(monthAnalysis.inSum)}
             </Text>
           </View>
 
           <View style={styles.overviewItem}>
-            <Text style={styles.overviewLabel}>支出</Text>
-            <Text style={[styles.overviewValue, { color: '#f44336' }]}>
+            <Text style={[styles.overviewLabel, { color: colors.secondaryText }]}>支出</Text>
+            <Text style={[styles.overviewValue, { color: colors.error }]}>
               {formatMoney(monthAnalysis.outSum)}
             </Text>
           </View>
 
           <View style={styles.overviewItem}>
-            <Text style={styles.overviewLabel}>不计收支</Text>
-            <Text style={styles.overviewValue}>
+            <Text style={[styles.overviewLabel, { color: colors.secondaryText }]}>不计收支</Text>
+            <Text style={[styles.overviewValue, { color: colors.text }]}>
               {formatMoney(monthAnalysis.zeroSum)}
             </Text>
           </View>
         </View>
 
-        <Divider style={styles.divider} />
+        <Divider style={[styles.divider, { backgroundColor: colors.divider }]} />
 
         <View style={styles.maxItemContainer}>
-          <Text style={styles.maxItemTitle}>最大收入</Text>
+          <Text style={[styles.maxItemTitle, { color: colors.secondaryText }]}>最大收入</Text>
           <TouchableOpacity
-            style={styles.maxItem}
+            style={[styles.maxItem, { backgroundColor: colors.input }]}
             onPress={() => monthAnalysis.maxIn && handleViewFlowDetail(monthAnalysis.maxIn)}
           >
-            <Text style={styles.maxItemName} numberOfLines={1}>
+            <Text style={[styles.maxItemName, { color: colors.text }]} numberOfLines={1}>
               {monthAnalysis.maxIn?.name || '无'}
             </Text>
-            <Text style={[styles.maxItemValue, { color: '#4caf50' }]}>
+            <Text style={[styles.maxItemValue, { color: colors.success }]}>
               {formatIncomeAmount(monthAnalysis.maxIn?.money)}
             </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.maxItemContainer}>
-          <Text style={styles.maxItemTitle}>最大支出</Text>
+          <Text style={[styles.maxItemTitle, { color: colors.secondaryText }]}>最大支出</Text>
           <TouchableOpacity
-            style={styles.maxItem}
+            style={[styles.maxItem, { backgroundColor: colors.input }]}
             onPress={() => monthAnalysis.maxOut && handleViewFlowDetail(monthAnalysis.maxOut)}
           >
-            <Text style={styles.maxItemName} numberOfLines={1}>
+            <Text style={[styles.maxItemName, { color: colors.text }]} numberOfLines={1}>
               {monthAnalysis.maxOut?.name || '无'}
             </Text>
-            <Text style={[styles.maxItemValue, { color: '#f44336' }]}>
+            <Text style={[styles.maxItemValue, { color: colors.error }]}>
               {formatExpenseAmount(monthAnalysis.maxOut?.money)}
             </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.maxItemContainer}>
-          <Text style={styles.maxItemTitle}>最大不计收支</Text>
+          <Text style={[styles.maxItemTitle, { color: colors.secondaryText }]}>最大不计收支</Text>
           <TouchableOpacity
-            style={styles.maxItem}
-            onPress={() => monthAnalysis.maxZero && handleViewFlowDetail(monthAnalysis.maxZero)}
+            style={[styles.maxItem, { backgroundColor: colors.input }]}
+            onPress={() => monthAnalysis.maxZero && monthAnalysis.maxZero.id && handleViewFlowDetail(monthAnalysis.maxZero)}
           >
-            <Text style={styles.maxItemName} numberOfLines={1}>
+            <Text style={[styles.maxItemName, { color: colors.text }]} numberOfLines={1}>
               {monthAnalysis.maxZero?.name || '无'}
             </Text>
-            <Text style={styles.maxItemValue}>
+            <Text style={[styles.maxItemValue, { color: colors.text }]}>
               {formatMoney(monthAnalysis.maxZero?.money)}
             </Text>
           </TouchableOpacity>
@@ -878,17 +906,17 @@ const StatisticsScreen: React.FC = () => {
     const expenseRatio = totalValue > 0 ? (expenseValue / totalValue) * 100 : 0;
 
     return (
-      <Card containerStyle={styles.compactCard}>
-        <Card.Title>现金流概览</Card.Title>
+      <Card containerStyle={[styles.compactCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Card.Title style={{ color: colors.text }}>现金流概览</Card.Title>
 
         <View style={styles.balanceContainer}>
           <View style={styles.balanceItem}>
-            <Text style={styles.balanceLabel}>当月盈余</Text>
+            <Text style={[styles.balanceLabel, { color: colors.secondaryText }]}>当月盈余</Text>
             <View style={styles.balanceValueContainer}>
               <Text
                 style={[
                   styles.balanceValue,
-                  { color: monthBalanceValue >= 0 ? '#4caf50' : '#f44336' },
+                  { color: monthBalanceValue >= 0 ? colors.success : colors.error },
                 ]}
               >
                 {monthBalanceValue >= 0 ? '+' : ''}{formatMoney(monthBalance)}
@@ -897,21 +925,21 @@ const StatisticsScreen: React.FC = () => {
                 name={monthBalanceValue >= 0 ? 'trending-up' : 'trending-down'}
                 type="material"
                 size={16}
-                color={monthBalanceValue >= 0 ? '#4caf50' : '#f44336'}
+                color={monthBalanceValue >= 0 ? colors.success : colors.error}
                 style={styles.balanceIcon}
               />
             </View>
           </View>
 
-          <View style={styles.balanceItemDivider} />
+          <View style={[styles.balanceItemDivider, { backgroundColor: colors.divider }]} />
 
           <View style={styles.balanceItem}>
-            <Text style={styles.balanceLabel}>{currentYear}年盈余</Text>
+            <Text style={[styles.balanceLabel, { color: colors.secondaryText }]}>{currentYear}年盈余</Text>
             <View style={styles.balanceValueContainer}>
               <Text
                 style={[
                   styles.balanceValue,
-                  { color: yearBalanceValue >= 0 ? '#4caf50' : '#f44336' },
+                  { color: yearBalanceValue >= 0 ? colors.success : colors.error },
                 ]}
               >
                 {yearBalanceValue >= 0 ? '+' : ''}{formatMoney(yearBalance)}
@@ -920,7 +948,7 @@ const StatisticsScreen: React.FC = () => {
                 name={yearBalanceValue >= 0 ? 'trending-up' : 'trending-down'}
                 type="material"
                 size={16}
-                color={yearBalanceValue >= 0 ? '#4caf50' : '#f44336'}
+                color={yearBalanceValue >= 0 ? colors.success : colors.error}
                 style={styles.balanceIcon}
               />
             </View>
@@ -928,51 +956,51 @@ const StatisticsScreen: React.FC = () => {
         </View>
 
         <View style={styles.yearBalanceContainer}>
-          <Text style={styles.yearBalanceTitle}>{currentYear}年度收支分析</Text>
+          <Text style={[styles.yearBalanceTitle, { color: colors.text }]}>{currentYear}年度收支分析</Text>
 
           {/* 收支比例条 */}
           <View style={styles.ratioBarContainer}>
-            <View style={styles.ratioBar}>
+            <View style={[styles.ratioBar, { backgroundColor: colors.input }]}>
               <View style={styles.ratioBarInner}>
                 <View
                   style={[
                     styles.ratioIncome,
-                    { flex: incomeRatio },
+                    { flex: incomeRatio, backgroundColor: colors.success },
                   ]}
                 />
                 <View
                   style={[
                     styles.ratioExpense,
-                    { flex: expenseRatio },
+                    { flex: expenseRatio, backgroundColor: colors.error },
                   ]}
                 />
               </View>
             </View>
             <View style={styles.ratioLegendContainer}>
               <View style={styles.ratioLegend}>
-                <View style={[styles.ratioLegendColor, { backgroundColor: '#4caf50' }]} />
-                <Text style={styles.ratioLegendText}>收入 {incomeRatio.toFixed(1)}%</Text>
+                <View style={[styles.ratioLegendColor, { backgroundColor: colors.success }]} />
+                <Text style={[styles.ratioLegendText, { color: colors.secondaryText }]}>收入 {incomeRatio.toFixed(1)}%</Text>
               </View>
               <View style={styles.ratioLegend}>
-                <View style={[styles.ratioLegendColor, { backgroundColor: '#f44336' }]} />
-                <Text style={styles.ratioLegendText}>支出 {expenseRatio.toFixed(1)}%</Text>
+                <View style={[styles.ratioLegendColor, { backgroundColor: colors.error }]} />
+                <Text style={[styles.ratioLegendText, { color: colors.secondaryText }]}>支出 {expenseRatio.toFixed(1)}%</Text>
               </View>
             </View>
           </View>
 
           <View style={styles.yearBalanceDetails}>
-            <View style={styles.yearBalanceRow}>
-              <Icon name="trending-up" type="material" size={16} color="#4caf50" />
-              <Text style={styles.yearBalanceLabel}>年度总收入</Text>
-              <Text style={[styles.yearBalanceValue, { color: '#4caf50' }]}>
+            <View style={[styles.yearBalanceRow, { borderBottomColor: colors.divider }]}>
+              <Icon name="trending-up" type="material" size={16} color={colors.success} />
+              <Text style={[styles.yearBalanceLabel, { color: colors.secondaryText }]}>年度总收入</Text>
+              <Text style={[styles.yearBalanceValue, { color: colors.success }]}>
                 {formatMoney(yearIncomeTotal)}
               </Text>
             </View>
 
-            <View style={styles.yearBalanceRow}>
-              <Icon name="trending-down" type="material" size={16} color="#f44336" />
-              <Text style={styles.yearBalanceLabel}>年度总支出</Text>
-              <Text style={[styles.yearBalanceValue, { color: '#f44336' }]}>
+            <View style={[styles.yearBalanceRow, { borderBottomColor: colors.divider }]}>
+              <Icon name="trending-down" type="material" size={16} color={colors.error} />
+              <Text style={[styles.yearBalanceLabel, { color: colors.secondaryText }]}>年度总支出</Text>
+              <Text style={[styles.yearBalanceValue, { color: colors.error }]}>
                 {formatMoney(yearExpenseTotal)}
               </Text>
             </View>
@@ -982,14 +1010,14 @@ const StatisticsScreen: React.FC = () => {
                 name={yearBalanceValue >= 0 ? 'account-balance' : 'warning'}
                 type="material"
                 size={16}
-                color={yearBalanceValue >= 0 ? '#4caf50' : '#f44336'}
+                color={yearBalanceValue >= 0 ? colors.success : colors.error}
               />
-              <Text style={styles.yearBalanceLabel}>年度结余</Text>
+              <Text style={[styles.yearBalanceLabel, { color: colors.secondaryText }]}>年度结余</Text>
               <Text
                 style={[
                   styles.yearBalanceValue,
                   {
-                    color: yearBalanceValue >= 0 ? '#4caf50' : '#f44336',
+                    color: yearBalanceValue >= 0 ? colors.success : colors.error,
                     fontWeight: 'bold',
                   },
                 ]}
@@ -1007,9 +1035,9 @@ const StatisticsScreen: React.FC = () => {
   const renderIndustryTypeAnalysis = () => {
     if (!industryTypeData || industryTypeData.length === 0) {
       return (
-        <Card containerStyle={styles.card}>
-          <Card.Title>{`类型分析 (${selectedFlowType})`}</Card.Title>
-          <Text style={styles.emptyText}>暂无数据</Text>
+        <Card containerStyle={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+          <Card.Title style={{ color: colors.text }} >{`类型分析 (${selectedFlowType})`}</Card.Title>
+          <Text style={[styles.emptyText,{ color: colors.text }]}>暂无数据</Text>
         </Card>
       );
     }
@@ -1035,7 +1063,7 @@ const StatisticsScreen: React.FC = () => {
         bottom: 10,
         left: 'center',
         data: sortedData.map(item => item.name),
-        textStyle: { fontSize: 10 },
+        textStyle: { fontSize: 10,color: colors.text },
         formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name,
         selected: {},
         itemWidth: 15,
@@ -1087,23 +1115,23 @@ const StatisticsScreen: React.FC = () => {
     };
 
     return (
-      <Card containerStyle={styles.card}>
-        <Card.Title>{`类型分析 (${selectedFlowType})`}</Card.Title>
+      <Card containerStyle={[styles.card,{backgroundColor: colors.card, borderColor: colors.border}]}>
+        <Card.Title style={{ color: colors.text }}>{`类型分析 (${selectedFlowType})`}</Card.Title>
 
-        <View style={styles.chartContainer}>
+        <View style={[styles.chartContainer]}>
           {renderEcharts(option, handleIndustryItemClick, chartHeight)}
         </View>
 
         {selectedIndustryItem && (
-          <View style={styles.selectedItemInfo}>
+          <View style={[styles.selectedItemInfo,{backgroundColor: colors.card}]}>
             <View style={styles.selectedItemHeader}>
-              <Text style={styles.selectedItemTitle}>{selectedIndustryItem}</Text>
+              <Text style={[styles.selectedItemTitle,{color: colors.text}]}>{selectedIndustryItem}</Text>
               <TouchableOpacity
                 style={[styles.viewDetailsButton, { backgroundColor: industryTypeData.find(item => item.name === selectedIndustryItem)?.color || '#1976d2' }]}
                 onPress={handleViewIndustryDetails}
               >
                 <Icon name="visibility" type="material" size={16} color="#fff" />
-                <Text style={styles.viewDetailsText}>查看详情</Text>
+                <Text style={[styles.viewDetailsText]}>查看详情</Text>
               </TouchableOpacity>
             </View>
             <Text style={styles.selectedItemValue}>
@@ -1119,8 +1147,8 @@ const StatisticsScreen: React.FC = () => {
   const renderPayTypeAnalysis = () => {
     if (!payTypeData || payTypeData.length === 0) {
       return (
-        <Card containerStyle={styles.card}>
-          <Card.Title>{`支付方式分析 (${selectedFlowType})`}</Card.Title>
+        <Card containerStyle={[styles.card,{backgroundColor: colors.card, borderColor: colors.border}]}>
+          <Card.Title style={{ color: colors.text }}>{`支付方式分析 (${selectedFlowType})`}</Card.Title>
           <Text style={styles.emptyText}>暂无数据</Text>
         </Card>
       );
@@ -1145,7 +1173,7 @@ const StatisticsScreen: React.FC = () => {
         bottom: 10,
         left: 'center',
         data: sortedData.map(item => item.name),
-        textStyle: { fontSize: 10 },
+        textStyle: { fontSize: 10,color: colors.text },
         formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name,
         selected: {},
         itemWidth: 15,
@@ -1190,7 +1218,7 @@ const StatisticsScreen: React.FC = () => {
     };
 
     return (
-      <Card containerStyle={styles.card}>
+      <Card containerStyle={[styles.card,{backgroundColor: colors.card, borderColor: colors.border}]}>
         <Card.Title>{`支付方式分析 (${selectedFlowType})`}</Card.Title>
 
         <View style={styles.chartContainer}>
@@ -1198,9 +1226,9 @@ const StatisticsScreen: React.FC = () => {
         </View>
 
         {selectedPayTypeItem && (
-          <View style={styles.selectedItemInfo}>
+          <View style={[styles.selectedItemInfo,{backgroundColor: colors.card}]}>
             <View style={styles.selectedItemHeader}>
-              <Text style={styles.selectedItemTitle}>{selectedPayTypeItem}</Text>
+              <Text style={[styles.selectedItemTitle,{color: colors.text}]}>{selectedPayTypeItem}</Text>
               <TouchableOpacity
                 style={[styles.viewDetailsButton, { backgroundColor: payTypeData.find(item => item.name === selectedPayTypeItem)?.color || '#1976d2' }]}
                 onPress={handleViewPayTypeDetails}
@@ -1224,9 +1252,9 @@ const StatisticsScreen: React.FC = () => {
 
     if (monthData.length === 0) {
       return (
-        <Card containerStyle={styles.card}>
-          <Card.Title>{year + '收支趋势'}</Card.Title>
-          <Text style={styles.emptyText}>暂无数据</Text>
+        <Card containerStyle={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+          <Card.Title style={{ color: colors.text }}>{year + '收支趋势'}</Card.Title>
+          <Text style={[styles.emptyText,{color: colors.text}]}>暂无数据</Text>
         </Card>
       );
     }
@@ -1252,8 +1280,9 @@ const StatisticsScreen: React.FC = () => {
       tooltip: {
         trigger: 'axis',
         position: 'top',
+        backgroundColor: colors.card,
         textStyle: {
-          color: '#000',
+          color: colors.text,
           fontSize: 12,
         },
       },
@@ -1263,7 +1292,7 @@ const StatisticsScreen: React.FC = () => {
         left: 'center',
         selectedMode: true,
         textStyle: {
-          color: '#333',
+          color: colors.text,
           fontSize: 12,
         },
         icon: 'rect',
@@ -1281,14 +1310,14 @@ const StatisticsScreen: React.FC = () => {
         type: 'category',
         data: labels,
         axisLabel: {
-          color: '#333',
+          color: colors.text,
           fontSize: 12,
         },
       },
       yAxis: {
         type: 'value',
         axisLabel: {
-          color: '#333',
+          color: colors.text,
           fontSize: 12,
         },
       },
@@ -1313,8 +1342,8 @@ const StatisticsScreen: React.FC = () => {
     };
 
     return (
-      <Card containerStyle={styles.card}>
-        <Card.Title>{year + '收支趋势'}</Card.Title>
+      <Card containerStyle={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+        <Card.Title style={{ color: colors.text }}>{year + '收支趋势'}</Card.Title>
 
         <View style={styles.chartContainer}>
           {renderEcharts(option, undefined)}
@@ -1327,8 +1356,8 @@ const StatisticsScreen: React.FC = () => {
   const renderAttributionAnalysis = () => {
     if (!attributionData || attributionData.length === 0) {
       return (
-        <Card containerStyle={styles.card}>
-          <Card.Title>{`流水归属分析 (${selectedFlowType})`}</Card.Title>
+        <Card containerStyle={[styles.card,{backgroundColor: colors.card, borderColor: colors.border}]}>
+          <Card.Title style={{ color: colors.text }}>{`流水归属分析 (${selectedFlowType})`}</Card.Title>
           <Text style={styles.emptyText}>暂无归属数据</Text>
         </Card>
       );
@@ -1357,7 +1386,7 @@ const StatisticsScreen: React.FC = () => {
         bottom: 10,
         left: 'center',
         data: attributionData.map(item => item.name),
-        textStyle: { fontSize: 10 },
+        textStyle: { fontSize: 10,color: colors.text },
         formatter: (name: string) => name.length > 6 ? name.slice(0, 6) + '...' : name,
         selected: {},
         itemWidth: 15,
@@ -1391,7 +1420,7 @@ const StatisticsScreen: React.FC = () => {
     };
 
     return (
-      <Card containerStyle={styles.card}>
+      <Card containerStyle={[styles.card,{backgroundColor: colors.card, borderColor: colors.border}]}>
         <Card.Title>{`流水归属分析 (${selectedFlowType})`}</Card.Title>
 
         <View style={styles.chartContainer}>
@@ -1399,9 +1428,9 @@ const StatisticsScreen: React.FC = () => {
         </View>
 
         {selectedAttributionItem && (
-          <View style={styles.selectedItemInfo}>
+          <View style={[styles.selectedItemInfo,{backgroundColor: colors.card}]}>
             <View style={styles.selectedItemHeader}>
-              <Text style={styles.selectedItemTitle}>{selectedAttributionItem}</Text>
+              <Text style={[styles.selectedItemTitle,{color: colors.text}]}>{selectedAttributionItem}</Text>
               <TouchableOpacity
                 style={[styles.viewDetailsButton, { backgroundColor: attributionData.find(item => item.name === selectedAttributionItem)?.color || '#1976d2' }]}
                 onPress={handleViewAttributionDetails}
@@ -1432,12 +1461,13 @@ const StatisticsScreen: React.FC = () => {
 
   // 优化流水类型选择器为分段控件，添加图标
   const renderFlowTypeSelector = () => (
-    <View style={styles.flowTypeSelectorContainer}>
-      <View style={styles.flowTypeButtonGroup}>
+    <View style={[styles.flowTypeSelectorContainer, { backgroundColor: colors.card }]}>
+      <View style={[styles.flowTypeButtonGroup, { borderColor: colors.border }]}>
         <TouchableOpacity
           style={[
             styles.flowTypeButton,
-            selectedFlowType === '支出' && styles.selectedFlowTypeButton,
+            { backgroundColor: colors.card },
+            selectedFlowType === '支出' && [styles.selectedFlowTypeButton, { backgroundColor: colors.primary }],
             { borderTopLeftRadius: 20, borderBottomLeftRadius: 20 },
           ]}
           onPress={() => handleFlowTypeChange('支出')}
@@ -1446,19 +1476,21 @@ const StatisticsScreen: React.FC = () => {
             name="trending-down"
             type="material"
             size={16}
-            color={selectedFlowType === '支出' ? 'white' : '#757575'}
+            color={selectedFlowType === '支出' ? 'white' : colors.secondaryText}
             style={styles.flowTypeIcon}
           />
           <Text style={[
             styles.flowTypeText,
-            selectedFlowType === '支出' && styles.selectedFlowTypeText,
+            { color: colors.secondaryText },
+            selectedFlowType === '支出' && [styles.selectedFlowTypeText, { color: 'white' }],
           ]}>支出</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.flowTypeButton,
-            selectedFlowType === '收入' && styles.selectedFlowTypeButton,
+            { backgroundColor: colors.card, borderRightColor: colors.border },
+            selectedFlowType === '收入' && [styles.selectedFlowTypeButton, { backgroundColor: colors.primary }],
           ]}
           onPress={() => handleFlowTypeChange('收入')}
         >
@@ -1466,19 +1498,21 @@ const StatisticsScreen: React.FC = () => {
             name="trending-up"
             type="material"
             size={16}
-            color={selectedFlowType === '收入' ? 'white' : '#757575'}
+            color={selectedFlowType === '收入' ? 'white' : colors.secondaryText}
             style={styles.flowTypeIcon}
           />
           <Text style={[
             styles.flowTypeText,
-            selectedFlowType === '收入' && styles.selectedFlowTypeText,
+            { color: colors.secondaryText },
+            selectedFlowType === '收入' && [styles.selectedFlowTypeText, { color: 'white' }],
           ]}>收入</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.flowTypeButton,
-            selectedFlowType === '不计收支' && styles.selectedFlowTypeButton,
+            { backgroundColor: colors.card, borderRightColor: colors.border },
+            selectedFlowType === '不计收支' && [styles.selectedFlowTypeButton, { backgroundColor: colors.primary }],
             { borderTopRightRadius: 20, borderBottomRightRadius: 20 },
           ]}
           onPress={() => handleFlowTypeChange('不计收支')}
@@ -1487,12 +1521,13 @@ const StatisticsScreen: React.FC = () => {
             name="remove"
             type="material"
             size={16}
-            color={selectedFlowType === '不计收支' ? 'white' : '#757575'}
+            color={selectedFlowType === '不计收支' ? 'white' : colors.secondaryText}
             style={styles.flowTypeIcon}
           />
           <Text style={[
             styles.flowTypeText,
-            selectedFlowType === '不计收支' && styles.selectedFlowTypeText,
+            { color: colors.secondaryText },
+            selectedFlowType === '不计收支' && [styles.selectedFlowTypeText, { color: 'white' }],
           ]}>不计收支</Text>
         </TouchableOpacity>
       </View>
@@ -1501,12 +1536,12 @@ const StatisticsScreen: React.FC = () => {
 
   if (!currentBook) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
           <BookSelector />
-          <Card containerStyle={styles.emptyCard}>
-            <Card.Title>未选择账本</Card.Title>
-            <Text style={styles.emptyText}>
+          <Card containerStyle={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Card.Title style={{ color: colors.text }}>未选择账本</Card.Title>
+            <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
               请先选择或创建一个账本
             </Text>
           </Card>
@@ -1516,48 +1551,48 @@ const StatisticsScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ErrorBoundary showFullScreen={true}>
-        <View style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <ErrorBoundary showFullScreen={true} isDarkMode={isDarkMode}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
           <BookSelector />
           {renderMonthSelector()}
           <Tab
             value={tabIndex}
             onChange={setTabIndex}
-            indicatorStyle={{ backgroundColor: '#1976d2' }}
+            indicatorStyle={{ backgroundColor: colors.primary }}
           >
             <Tab.Item
               title="概览"
-              titleStyle={styles.tabTitle}
-              containerStyle={styles.tabContainer}
+              titleStyle={[styles.tabTitle, { color: colors.primary }]}
+              containerStyle={[styles.tabContainer, { backgroundColor: colors.card }]}
             />
             <Tab.Item
               title="分析"
-              titleStyle={styles.tabTitle}
-              containerStyle={styles.tabContainer}
+              titleStyle={[styles.tabTitle, { color: colors.primary }]}
+              containerStyle={[styles.tabContainer, { backgroundColor: colors.card }]}
             />
           </Tab>
 
           <TabView value={tabIndex} onChange={setTabIndex} animationType="spring">
             <TabView.Item style={styles.tabViewItem}>
               {isLoading ? (
-                <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
+                <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
               ) : (
                 <ScrollView refreshControl={
                   <RefreshControl
                     refreshing={refreshing}
                     onRefresh={onRefresh}
-                    colors={['#1976d2']}
-                    tintColor="#1976d2"
+                    colors={[colors.primary]}
+                    tintColor={colors.primary}
                   />
                 }>
-                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}}>
+                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}} isDarkMode={isDarkMode}>
                     {renderMonthOverview()}
                   </ErrorBoundary>
-                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}}>
+                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}} isDarkMode={isDarkMode}>
                     {renderBalanceOverview()}
                   </ErrorBoundary>
-                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}}>
+                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}} isDarkMode={isDarkMode}>
                     {renderMonthTrend()}
                   </ErrorBoundary>
                 </ScrollView>
@@ -1566,26 +1601,26 @@ const StatisticsScreen: React.FC = () => {
 
             <TabView.Item style={styles.tabViewItem}>
               {isLoading ? (
-                <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
+                <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
               ) : (
                 <ScrollView refreshControl={
                   <RefreshControl
                     refreshing={refreshing}
                     onRefresh={onRefresh}
-                    colors={['#1976d2']}
-                    tintColor="#1976d2"
+                    colors={[colors.primary]}
+                    tintColor={colors.primary}
                   />
                 }>
-                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 10}}>
+                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 10}} isDarkMode={isDarkMode}>
                     {renderFlowTypeSelector()}
                   </ErrorBoundary>
-                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}}>
+                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}} isDarkMode={isDarkMode}>
                     {renderIndustryTypeAnalysis()}
                   </ErrorBoundary>
-                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}}>
+                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}} isDarkMode={isDarkMode}>
                     {renderPayTypeAnalysis()}
                   </ErrorBoundary>
-                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}}>
+                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}} isDarkMode={isDarkMode}>
                     {renderAttributionAnalysis()}
                   </ErrorBoundary>
                 </ScrollView>
@@ -1594,7 +1629,7 @@ const StatisticsScreen: React.FC = () => {
           </TabView>
 
           {/* 流水详情弹窗 */}
-          <ErrorBoundary>
+          <ErrorBoundary isDarkMode={isDarkMode}>
             {renderFlowDetailsModal()}
           </ErrorBoundary>
         </View>
@@ -1622,7 +1657,6 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     marginVertical: 10,
-    color: '#757575',
   },
   header: {
     flexDirection: 'row',
@@ -1780,7 +1814,6 @@ const styles = StyleSheet.create({
   selectedItemTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#333',
   },
   selectedItemValue: {
     fontSize: 14,

@@ -2,22 +2,25 @@ import React, { useState, useRef, useLayoutEffect } from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView } from 'react-native';
 import { Button } from '@rneui/themed';
 import dayjs from 'dayjs';
+import { getColors } from '../../context/ThemeContext';
 
 interface YearMonthPickerProps {
   value?: dayjs.Dayjs;
   onChange: (date: dayjs.Dayjs) => void;
   onClose: () => void;
   visible: boolean;
+  isDarkMode?: boolean;
 }
 
 const ITEM_HEIGHT = 50;
 const VISIBLE_ITEMS = 5;
 
-const YearMonthPicker: React.FC<YearMonthPickerProps> = ({ value, onChange, onClose, visible }) => {
+const YearMonthPicker: React.FC<YearMonthPickerProps> = ({ value, onChange, onClose, visible, isDarkMode = false }) => {
   const [tempYear, setTempYear] = useState(value?.year() || dayjs().year());
   const [tempMonth, setTempMonth] = useState(value?.month() || dayjs().month());
   const yearScrollViewRef = useRef<ScrollView>(null);
   const monthScrollViewRef = useRef<ScrollView>(null);
+  const colors = getColors(isDarkMode);
 
   useLayoutEffect(() => {
     if (visible) {
@@ -65,7 +68,7 @@ const YearMonthPicker: React.FC<YearMonthPickerProps> = ({ value, onChange, onCl
     for (let i = 1970; i <= 2100; i++) {
       years.push(
         <View key={i} style={styles.itemContainer}>
-          <Text style={styles.itemText}>{i}年</Text>
+          <Text style={[styles.itemText, { color: colors.text }]}>{i}年</Text>
         </View>
       );
     }
@@ -77,7 +80,7 @@ const YearMonthPicker: React.FC<YearMonthPickerProps> = ({ value, onChange, onCl
     for (let i = 0; i < 12; i++) {
       months.push(
         <View key={i} style={styles.itemContainer}>
-          <Text style={styles.itemText}>{i + 1}月</Text>
+          <Text style={[styles.itemText, { color: colors.text }]}>{i + 1}月</Text>
         </View>
       );
     }
@@ -92,8 +95,8 @@ const YearMonthPicker: React.FC<YearMonthPickerProps> = ({ value, onChange, onCl
       onRequestClose={handleCancel}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.title}>选择年月</Text>
+        <View style={[styles.modalContent, { backgroundColor: colors.dialog }]}>
+          <Text style={[styles.title, { color: colors.text }]}>选择年月</Text>
           <View style={styles.pickerContainer}>
             <View style={styles.pickerColumnContainer}>
               <ScrollView
@@ -108,7 +111,7 @@ const YearMonthPicker: React.FC<YearMonthPickerProps> = ({ value, onChange, onCl
                 {renderYears()}
                 <View style={styles.paddingView} />
               </ScrollView>
-              <View style={styles.selectionOverlay} pointerEvents="none" />
+              <View style={[styles.selectionOverlay, { borderColor: colors.primary }]} pointerEvents="none" />
             </View>
             <View style={styles.pickerColumnContainer}>
               <ScrollView
@@ -123,20 +126,21 @@ const YearMonthPicker: React.FC<YearMonthPickerProps> = ({ value, onChange, onCl
                 {renderMonths()}
                 <View style={styles.paddingView} />
               </ScrollView>
-              <View style={styles.selectionOverlay} pointerEvents="none" />
+              <View style={[styles.selectionOverlay, { borderColor: colors.primary }]} pointerEvents="none" />
             </View>
           </View>
           <View style={styles.buttonContainer}>
             <Button
               title="取消"
               onPress={handleCancel}
-              buttonStyle={styles.cancelButton}
+              buttonStyle={[styles.cancelButton, { backgroundColor: colors.input }]}
+              titleStyle={{ color: colors.text }}
               containerStyle={styles.buttonStyle}
             />
             <Button
               title="确定"
               onPress={handleConfirm}
-              buttonStyle={styles.confirmButton}
+              buttonStyle={[styles.confirmButton, { backgroundColor: colors.primary }]}
               containerStyle={styles.buttonStyle}
             />
           </View>
@@ -154,7 +158,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: 'white',
     borderRadius: 10,
     padding: 20,
     width: '80%',
@@ -194,7 +197,6 @@ const styles = StyleSheet.create({
     height: ITEM_HEIGHT,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: '#1976d2',
   },
   paddingView: {
     height: ITEM_HEIGHT * 2,
@@ -207,10 +209,8 @@ const styles = StyleSheet.create({
     width: '45%',
   },
   cancelButton: {
-    backgroundColor: '#9e9e9e',
   },
   confirmButton: {
-    backgroundColor: '#1976d2',
   },
 });
 

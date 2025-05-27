@@ -8,7 +8,7 @@
 import React, { useEffect } from 'react';
 import { StatusBar, Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ThemeProvider } from '@rneui/themed';
+import { ThemeProvider as RNEThemeProvider } from '@rneui/themed';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { logger } from './src/services/LogService';
 import { setupErrorHandlers } from './src/utils/errorHandler';
@@ -16,9 +16,14 @@ import AppNavigator from './src/navigation';
 import { AuthProvider } from './src/context/AuthContext';
 import { BookProvider } from './src/context/BookContext';
 import { BookkeepingProvider } from './src/context/BookkeepingContext';
+import { ThemeProvider, useTheme, getColors } from './src/context/ThemeContext';
 import ErrorBoundary from './src/components/ErrorBoundary';
 
-const App = () => {
+// 应用内容组件，用于访问主题
+const AppContent = () => {
+  const { isDarkMode } = useTheme();
+  const colors = getColors(isDarkMode);
+
   // 初始化日志服务和错误处理
   useEffect(() => {
     const initApp = async () => {
@@ -87,15 +92,15 @@ const App = () => {
   };
 
   return (
-    <ErrorBoundary showFullScreen={true} onError={handleAppError}>
+    <ErrorBoundary showFullScreen={true} onError={handleAppError} isDarkMode={isDarkMode}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <StatusBar
-            barStyle="dark-content"
-            backgroundColor="#f5f5f5"
+            barStyle={isDarkMode ? "light-content" : "dark-content"}
+            backgroundColor={colors.statusBar}
             translucent={false}
           />
-          <ThemeProvider>
+          <RNEThemeProvider>
             <AuthProvider>
               <BookProvider>
                 <BookkeepingProvider>
@@ -103,10 +108,18 @@ const App = () => {
                 </BookkeepingProvider>
               </BookProvider>
             </AuthProvider>
-          </ThemeProvider>
+          </RNEThemeProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
+  );
+};
+
+const App = () => {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 };
 

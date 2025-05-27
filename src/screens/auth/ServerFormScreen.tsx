@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ServerConfig } from '../../types';
 import serverConfigManager from '../../services/serverConfig';
 import api from '../../services/api.ts';
+import { useTheme, getColors } from '../../context/ThemeContext';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type ServerFormRouteProp = RouteProp<MainStackParamList, 'ServerForm'>;
@@ -17,6 +18,8 @@ const ServerFormScreen: React.FC = () => {
   const route = useRoute<ServerFormRouteProp>();
   const { serverId } = route.params || {};
   const { login, isLoading, saveServerConfig } = useAuth();
+  const { isDarkMode } = useTheme();
+  const colors = getColors(isDarkMode);
 
   const [name, setName] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
@@ -119,22 +122,26 @@ const ServerFormScreen: React.FC = () => {
 
   if (formLoading || isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1976d2" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.contentContainer}>
           <Input
             label="服务器名称"
             placeholder="请输入服务器名称"
             value={name}
             onChangeText={setName}
             disabled={isLoading}
-            leftIcon={{ type: 'material', name: 'label', color: '#1976d2' }}
+            labelStyle={{ color: colors.text }}
+            inputStyle={{ color: colors.text }}
+            placeholderTextColor={colors.secondaryText}
+            leftIcon={{ type: 'material', name: 'label', color: colors.primary }}
             errorMessage={name.trim() ? '' : '服务器名称不能为空'}
+            errorStyle={{ color: colors.error }}
           />
 
           <Input
@@ -143,8 +150,12 @@ const ServerFormScreen: React.FC = () => {
             value={baseUrl}
             onChangeText={setBaseUrl}
             disabled={isLoading}
-            leftIcon={{ type: 'material', name: 'link', color: '#1976d2' }}
+            labelStyle={{ color: colors.text }}
+            inputStyle={{ color: colors.text }}
+            placeholderTextColor={colors.secondaryText}
+            leftIcon={{ type: 'material', name: 'link', color: colors.primary }}
             errorMessage={baseUrl.trim() ? '' : '服务器地址不能为空'}
+            errorStyle={{ color: colors.error }}
             autoCapitalize="none"
             keyboardType="url"
           />
@@ -155,8 +166,12 @@ const ServerFormScreen: React.FC = () => {
             value={username}
             onChangeText={setUsername}
             disabled={isLoading}
-            leftIcon={{ type: 'material', name: 'person', color: '#1976d2' }}
+            labelStyle={{ color: colors.text }}
+            inputStyle={{ color: colors.text }}
+            placeholderTextColor={colors.secondaryText}
+            leftIcon={{ type: 'material', name: 'person', color: colors.primary }}
             errorMessage={username.trim() ? '' : '用户名不能为空'}
+            errorStyle={{ color: colors.error }}
             autoCapitalize="none"
           />
 
@@ -166,29 +181,33 @@ const ServerFormScreen: React.FC = () => {
             value={password}
             onChangeText={setPassword}
             disabled={isLoading}
-            leftIcon={{ type: 'material', name: 'lock', color: '#1976d2' }}
+            labelStyle={{ color: colors.text }}
+            inputStyle={{ color: colors.text }}
+            placeholderTextColor={colors.secondaryText}
+            leftIcon={{ type: 'material', name: 'lock', color: colors.primary }}
             rightIcon={{
               type: 'material',
               name: showPassword ? 'visibility-off' : 'visibility',
-              color: '#1976d2',
+              color: colors.primary,
               onPress: () => setShowPassword(!showPassword),
             }}
             errorMessage={password.trim() ? '' : '密码不能为空'}
+            errorStyle={{ color: colors.error }}
             secureTextEntry={!showPassword}
           />
 
           <View style={styles.switchContainer}>
             <View style={styles.switchTextContainer}>
-              <RNText style={styles.switchLabel}>启用日志记录</RNText>
-              <RNText style={styles.switchDescription}>
+              <RNText style={[styles.switchLabel, { color: colors.text }]}>启用日志记录</RNText>
+              <RNText style={[styles.switchDescription, { color: colors.secondaryText }]}>
                 启用后将记录应用运行日志，可能会占用额外存储空间
               </RNText>
             </View>
             <Switch
               value={loggingEnabled}
               onValueChange={setLoggingEnabled}
-              trackColor={{ false: '#d1d1d1', true: '#81b0ff' }}
-              thumbColor={loggingEnabled ? '#1976d2' : '#f4f3f4'}
+              trackColor={{ false: '#d1d1d1', true: colors.primary + '80' }}
+              thumbColor={loggingEnabled ? colors.primary : '#f4f3f4'}
               disabled={isLoading}
             />
           </View>
@@ -196,7 +215,7 @@ const ServerFormScreen: React.FC = () => {
       <Button
         title={serverId ? '保存修改' : '添加服务器'}
         onPress={handleSave}
-        buttonStyle={styles.saveButton}
+        buttonStyle={[styles.saveButton, { backgroundColor: colors.primary }]}
         loading={isLoading}
       />
     </ScrollView>
@@ -206,7 +225,6 @@ const ServerFormScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   contentContainer: {
     padding: 16,
@@ -223,7 +241,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   saveButton: {
-    backgroundColor: '#1976d2',
     marginTop: 16,
   },
   switchContainer: {
@@ -240,11 +257,9 @@ const styles = StyleSheet.create({
   switchLabel: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
   },
   switchDescription: {
     fontSize: 12,
-    color: '#888',
     marginTop: 4,
   },
 });

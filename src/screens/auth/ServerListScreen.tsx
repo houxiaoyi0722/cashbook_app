@@ -7,13 +7,16 @@ import { MainStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
 import { ServerConfig } from '../../types';
 import serverConfigManager from '../../services/serverConfig.ts';
+import { useTheme, getColors } from '../../context/ThemeContext';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 const ServerListScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { serverConfig, serverConfigs, deleteServerConfig, switchServer, isLoading , isLoggedIn, isLogOut} = useAuth();
+  const { serverConfig, serverConfigs, deleteServerConfig, switchServer, isLoading, isLoggedIn, isLogOut } = useAuth();
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
+  const { isDarkMode } = useTheme();
+  const colors = getColors(isDarkMode);
 
   // 初始化时设置当前选中的服务器
   useEffect(() => {
@@ -95,12 +98,16 @@ const ServerListScreen: React.FC = () => {
         style={[
           styles.customServerItem,
           isSelected && styles.selectedServerItem,
+          { 
+            backgroundColor: isSelected ? colors.primary + '20' : colors.card,
+            borderColor: colors.border 
+          }
         ]}
         onPress={() => handleSelectServer(item.id)}
       >
         <View style={styles.serverContent}>
-          <Text style={styles.serverName}>{item.name}</Text>
-          <Text style={styles.serverUrl}>{item.url}</Text>
+          <Text style={[styles.serverName, { color: colors.text }]}>{item.name}</Text>
+          <Text style={[styles.serverUrl, { color: colors.secondaryText }]}>{item.url}</Text>
         </View>
 
         <View style={styles.serverActions}>
@@ -108,7 +115,7 @@ const ServerListScreen: React.FC = () => {
             <Icon
               name="check-circle"
               type="material"
-              color="#4caf50"
+              color={colors.success}
               size={24}
               containerStyle={styles.selectedIcon}
             />
@@ -121,7 +128,7 @@ const ServerListScreen: React.FC = () => {
             }}
             style={styles.actionButton}
           >
-            <Icon name="edit" type="material" color="#2196f3" size={20} />
+            <Icon name="edit" type="material" color={colors.primary} size={20} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -131,23 +138,23 @@ const ServerListScreen: React.FC = () => {
             }}
             style={styles.actionButton}
           >
-            <Icon name="delete" type="material" color="#f44336" size={20} />
+            <Icon name="delete" type="material" color={colors.error} size={20} />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
-  }, [handleSelectServer, handleEditServer, handleDeleteServer, selectedServerId]);
+  }, [handleSelectServer, handleEditServer, handleDeleteServer, selectedServerId, colors]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {isLoading ? (
-        <ActivityIndicator size="large" color="#1976d2" style={styles.loading} />
+        <ActivityIndicator size="large" color={colors.primary} style={styles.loading} />
       ) : (
         <>
           {serverConfigs.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>暂无服务器配置</Text>
-              <Text style={styles.emptySubText}>请点击右下角按钮添加服务器</Text>
+              <Text style={[styles.emptyText, { color: colors.text }]}>暂无服务器配置</Text>
+              <Text style={[styles.emptySubText, { color: colors.secondaryText }]}>请点击右下角按钮添加服务器</Text>
             </View>
           ) : (
             <FlatList
@@ -159,7 +166,7 @@ const ServerListScreen: React.FC = () => {
           )}
 
           <TouchableOpacity
-            style={styles.customFab}
+            style={[styles.customFab, { backgroundColor: colors.primary }]}
             onPress={handleAddServer}
             activeOpacity={0.8}
           >
@@ -174,7 +181,6 @@ const ServerListScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   title: {
     margin: 16,
@@ -190,10 +196,13 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 8,
     borderRadius: 8,
-    backgroundColor: 'white',
+    borderWidth: 1,
   },
   selectedServerItem: {
-    backgroundColor: '#e3f2fd',
+    borderWidth: 1,
+  },
+  serverContent: {
+    flex: 1,
   },
   serverName: {
     fontWeight: 'bold',
@@ -201,7 +210,6 @@ const styles = StyleSheet.create({
   },
   serverUrl: {
     fontSize: 14,
-    color: '#757575',
   },
   serverActions: {
     flexDirection: 'row',
@@ -227,7 +235,6 @@ const styles = StyleSheet.create({
   },
   emptySubText: {
     fontSize: 14,
-    color: '#757575',
     textAlign: 'center',
   },
   customFab: {
@@ -237,7 +244,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#1976d2',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: 'transparent',
@@ -249,15 +255,10 @@ const styles = StyleSheet.create({
   fabText: {
     color: 'white',
     fontSize: 30,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    lineHeight: 50,
+    marginTop: -2,
   },
   loading: {
-    flex: 1,
-  },
-  serverContent: {
-    flex: 1,
+    marginTop: 20,
   },
 });
 

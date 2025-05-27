@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { logger } from '../../services/LogService';
 import RNFS from 'react-native-fs';
 import serverConfigManager from '../../services/serverConfig';
+import { useTheme, getColors } from '../../context/ThemeContext';
 
 type LogFile = {
   path: string;
@@ -27,6 +28,9 @@ type LogFile = {
 };
 
 const LogsScreen: React.FC = () => {
+  const { isDarkMode } = useTheme();
+  const colors = getColors(isDarkMode);
+  
   const [logFiles, setLogFiles] = useState<LogFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -281,21 +285,21 @@ const LogsScreen: React.FC = () => {
   // 渲染日志文件项
   const renderLogFileItem = ({ item }: { item: LogFile }) => (
     <TouchableOpacity onPress={() => handleViewLogFile(item.path, item.name)}>
-      <Card containerStyle={styles.fileCard}>
+      <Card containerStyle={[styles.fileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.fileHeader}>
-          <Icon name="description" type="material" size={20} color="#1976d2" />
-          <Text style={styles.fileName} numberOfLines={1}>
+          <Icon name="description" type="material" size={20} color={colors.primary} />
+          <Text style={[styles.fileName, { color: colors.text }]} numberOfLines={1}>
             {item.name}
           </Text>
         </View>
-        <Divider style={styles.divider} />
+        <Divider style={[styles.divider, { backgroundColor: colors.divider }]} />
         <View style={styles.fileInfo}>
-          <Text style={styles.fileInfoText}>
-            <Text style={styles.fileInfoLabel}>大小：</Text>
+          <Text style={[styles.fileInfoText, { color: colors.secondaryText }]}>
+            <Text style={[styles.fileInfoLabel, { color: colors.text }]}>大小：</Text>
             {item.size}
           </Text>
-          <Text style={styles.fileInfoText}>
-            <Text style={styles.fileInfoLabel}>修改时间：</Text>
+          <Text style={[styles.fileInfoText, { color: colors.secondaryText }]}>
+            <Text style={[styles.fileInfoLabel, { color: colors.text }]}>修改时间：</Text>
             {item.date}
           </Text>
         </View>
@@ -304,29 +308,29 @@ const LogsScreen: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.container}>
-        <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.card }]}>
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={handleClearLogs}
           >
-            <Icon name="delete" type="material" size={24} color="#1976d2" />
+            <Icon name="delete" type="material" size={24} color={colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.debugButton}
             onPress={handleShowDebugInfo}
           >
-            <Icon name="bug-report" type="material" size={24} color="#1976d2" />
+            <Icon name="bug-report" type="material" size={24} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
         {/* 日志开关卡片 */}
-        <Card containerStyle={styles.switchCard}>
+        <Card containerStyle={[styles.switchCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.switchContainer}>
             <View style={styles.switchTextContainer}>
-              <Text style={styles.switchTitle}>日志记录</Text>
-              <Text style={styles.switchDescription}>
+              <Text style={[styles.switchTitle, { color: colors.text }]}>日志记录</Text>
+              <Text style={[styles.switchDescription, { color: colors.secondaryText }]}>
                 {loggingEnabled ? '已启用' : '已禁用'}
                 {serverName ? ` (${serverName})` : ''}
               </Text>
@@ -334,51 +338,51 @@ const LogsScreen: React.FC = () => {
             <Switch
               value={loggingEnabled}
               onValueChange={toggleLoggingEnabled}
-              trackColor={{ false: '#d1d1d1', true: '#81b0ff' }}
-              thumbColor={loggingEnabled ? '#1976d2' : '#f4f3f4'}
+              trackColor={{ false: colors.divider, true: `${colors.primary}80` }}
+              thumbColor={loggingEnabled ? colors.primary : '#f4f3f4'}
               disabled={loading}
             />
           </View>
-          <Text style={styles.switchHint}>
+          <Text style={[styles.switchHint, { color: colors.hint }]}>
             启用后将记录应用运行日志，可能会占用额外存储空间
           </Text>
         </Card>
 
-        <Card containerStyle={styles.summaryCard}>
+        <Card containerStyle={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>日志文件数</Text>
-              <Text style={styles.summaryValue}>{logFiles.length}</Text>
+              <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>日志文件数</Text>
+              <Text style={[styles.summaryValue, { color: colors.primary }]}>{logFiles.length}</Text>
             </View>
-            <View style={styles.summaryDivider} />
+            <View style={[styles.summaryDivider, { backgroundColor: colors.divider }]} />
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>总大小</Text>
-              <Text style={styles.summaryValue}>{totalSize}</Text>
+              <Text style={[styles.summaryLabel, { color: colors.secondaryText }]}>总大小</Text>
+              <Text style={[styles.summaryValue, { color: colors.primary }]}>{totalSize}</Text>
             </View>
           </View>
         </Card>
 
-        <Text style={styles.sectionTitle}>日志文件列表</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>日志文件列表</Text>
 
         {loading && !refreshing ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#1976d2" />
-            <Text style={styles.loadingText}>加载中...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.secondaryText }]}>加载中...</Text>
           </View>
         ) : errorMessage ? (
           <View style={styles.errorContainer}>
-            <Icon name="error" type="material" size={48} color="#f44336" />
-            <Text style={styles.errorText}>{errorMessage}</Text>
+            <Icon name="error" type="material" size={48} color={colors.error} />
+            <Text style={[styles.errorText, { color: colors.error }]}>{errorMessage}</Text>
             <Button
               title="重试"
-              buttonStyle={styles.retryButton}
+              buttonStyle={[styles.retryButton, { backgroundColor: colors.primary }]}
               onPress={fetchLogFiles}
             />
           </View>
         ) : logFiles.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Icon name="description" type="material" size={48} color="#e0e0e0" />
-            <Text style={styles.emptyText}>暂无日志文件</Text>
+            <Icon name="description" type="material" size={48} color={colors.divider} />
+            <Text style={[styles.emptyText, { color: colors.secondaryText }]}>暂无日志文件</Text>
           </View>
         ) : (
           <FlatList
@@ -391,8 +395,8 @@ const LogsScreen: React.FC = () => {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                colors={['#1976d2']}
-                tintColor="#1976d2"
+                colors={[colors.primary]}
+                tintColor={colors.primary}
               />
             }
           />
@@ -405,18 +409,18 @@ const LogsScreen: React.FC = () => {
           transparent={false}
           onRequestClose={() => setLogModalVisible(false)}
         >
-          <SafeAreaView style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{selectedLogName}</Text>
+          <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+            <View style={[styles.modalHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{selectedLogName}</Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setLogModalVisible(false)}
               >
-                <Icon name="close" type="material" size={24} color="#333" />
+                <Icon name="close" type="material" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.logContentContainer}>
-              <Text style={styles.logContent}>{selectedLogContent}</Text>
+            <ScrollView style={[styles.logContentContainer, { backgroundColor: colors.card }]}>
+              <Text style={[styles.logContent, { color: colors.text }]}>{selectedLogContent}</Text>
             </ScrollView>
           </SafeAreaView>
         </Modal>
@@ -428,7 +432,6 @@ const LogsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   header: {
     flexDirection: 'row',
@@ -436,7 +439,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: 'white',
   },
   deleteButton: {
     padding: 4,
@@ -449,7 +451,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
   },
   placeholder: {
     width: 32,
@@ -469,18 +470,15 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: '#757575',
     marginBottom: 4,
   },
   summaryValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1976d2',
   },
   summaryDivider: {
     height: '100%',
     width: 1,
-    backgroundColor: '#e0e0e0',
   },
   actionsContainer: {
     flexDirection: 'row',
@@ -496,7 +494,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
     paddingHorizontal: 16,
     marginBottom: 8,
   },
@@ -527,12 +524,10 @@ const styles = StyleSheet.create({
   },
   fileInfoText: {
     fontSize: 13,
-    color: '#666',
     marginVertical: 2,
   },
   fileInfoLabel: {
     fontWeight: 'bold',
-    color: '#444',
   },
   loadingContainer: {
     flex: 1,
@@ -542,7 +537,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#757575',
   },
   errorContainer: {
     flex: 1,
@@ -553,12 +547,10 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#f44336',
     textAlign: 'center',
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: '#1976d2',
     paddingHorizontal: 20,
     borderRadius: 8,
   },
@@ -571,12 +563,10 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#757575',
   },
   // 日志内容模态框样式
   modalContainer: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -584,14 +574,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
     flex: 1,
   },
   closeButton: {
@@ -600,11 +587,9 @@ const styles = StyleSheet.create({
   logContentContainer: {
     flex: 1,
     padding: 16,
-    backgroundColor: 'white',
   },
   logContent: {
     fontSize: 14,
-    color: '#333',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   switchCard: {
@@ -623,16 +608,13 @@ const styles = StyleSheet.create({
   switchTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
   },
   switchDescription: {
     fontSize: 14,
-    color: '#666',
     marginTop: 4,
   },
   switchHint: {
     fontSize: 12,
-    color: '#888',
     marginTop: 8,
     fontStyle: 'italic',
   },
