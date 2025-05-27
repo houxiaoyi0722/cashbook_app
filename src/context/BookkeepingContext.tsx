@@ -43,6 +43,8 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         if (savedBook) {
           let parse = JSON.parse(savedBook);
           setCurrentBook(parse);
+        } else{
+          setCurrentBook(null);
         }
       } catch (error) {
         console.error('加载当前账本失败', error);

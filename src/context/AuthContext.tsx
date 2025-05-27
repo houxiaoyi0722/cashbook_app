@@ -62,6 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // 获取当前用户信息
             const user = await authManager.getCurrentUser();
             setUserInfo(user);
+            eventBus.emit('refreshCurrentBook');
           }
         }
       } catch (error) {
@@ -126,6 +127,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // 刷新服务器配置列表
       const configs = await serverConfigManager.getAllConfigs();
       setServerConfigs(configs);
+      eventBus.emit('refreshCurrentBook');
     } catch (error) {
       console.error('添加服务器配置失败', error);
       throw error;
