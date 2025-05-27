@@ -30,7 +30,7 @@ type LogFile = {
 const LogsScreen: React.FC = () => {
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
-  
+
   const [logFiles, setLogFiles] = useState<LogFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -173,7 +173,6 @@ const LogsScreen: React.FC = () => {
                 logger.info('LogsScreen', '成功清理所有日志文件');
               }, 500);
 
-              Alert.alert('成功', '已清理所有日志文件');
               fetchLogFiles();
             } catch (error: any) {
               console.error('清理日志文件失败:', error);
@@ -261,12 +260,6 @@ const LogsScreen: React.FC = () => {
       // 更新UI状态
       setLoggingEnabled(value);
 
-      // 显示提示
-      Alert.alert(
-        '提示',
-        value ? '日志记录已启用' : '日志记录已禁用',
-        [{ text: '确定' }]
-      );
     } catch (error: any) {
       console.error('设置日志开关状态失败:', error);
       Alert.alert('错误', `设置日志开关状态失败: ${error?.message || '未知错误'}`);

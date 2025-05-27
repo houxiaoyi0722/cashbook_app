@@ -114,11 +114,11 @@ export class LogService {
 
       // 更新内部状态
       const previousState = this.loggingEnabled;
-      this.loggingEnabled = enabled;
 
       // 如果状态发生变化
       if (previousState !== enabled) {
         if (enabled) {
+          this.loggingEnabled = enabled;
           // 启用日志记录
           this.setupConsoleCapture();
           await this.info('LogService', '日志记录已启用');
