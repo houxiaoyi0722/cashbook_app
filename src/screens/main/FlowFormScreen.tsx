@@ -104,32 +104,35 @@ const FlowFormScreen: React.FC = () => {
           console.error('缓存图片失败:', error);
         }
       }
-    };
 
-    fetchFlowDetail();
-  }, [currentFlow]);
-
-  // 根据流水类型设置默认的行业类型和支付方式
-  useEffect(() => {
-    const init = async () => {
-      const mergedPayTypes = [...new Set([payType,...defaultPayTypes, ...remotePayType])];
+      let mergedPayTypes;
+      if (currentFlow.payType) {
+        mergedPayTypes = [...new Set([currentFlow.payType,...defaultPayTypes, ...remotePayType])];
+      } else {
+        mergedPayTypes = [...new Set([...defaultPayTypes, ...remotePayType])];
+      }
       setPayTypes(mergedPayTypes);
 
-      const mergedAttributions = [...new Set([attribution,userInfo?.name!, ...remoteAttributions])];
+      let mergedAttributions;
+      if (currentFlow.attribution) {
+        mergedAttributions = [...new Set([currentFlow.attribution,userInfo?.name!, ...remoteAttributions])];
+      } else {
+        mergedAttributions = [...new Set([userInfo?.name!, ...remoteAttributions])];
+      }
       setAttributions(mergedAttributions);
-    };
-    init();
-  }, [flowType]);
 
-  useEffect(() => {
-    const init = async () => {
       let defaultIndustryType = defaultIndustryTypes[flowType];
       let apiResponse = await api.flow.industryType(currentBook?.bookId!,flowType);
-      const merged = [...new Set([industryType,...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
+      let merged;
+      if (currentFlow.industryType) {
+        merged = [...new Set([currentFlow.industryType,...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
+      } else {
+        merged = [...new Set([...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
+      }
       setIndustryTypes(merged);
     };
-    init();
-  }, [flowType]);
+    fetchFlowDetail();
+  }, [currentFlow]);
 
   // 当获取到认证令牌后，预加载图片
   useEffect(() => {
