@@ -66,6 +66,12 @@ const FlowFormScreen: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [cachedImages, setCachedImages] = useState<Set<string>>(new Set());
 
+  const [editingOption, setEditingOption] = useState<{
+    type: 'industryType' | 'payType' | 'attribution';
+    value: string;
+  } | null>(null);
+  const [newOptionValue, setNewOptionValue] = useState('');
+
   // 获取流水详情
   useEffect(() => {
     const fetchFlowDetail = async () => {
@@ -117,7 +123,7 @@ const FlowFormScreen: React.FC = () => {
       }
     };
     init();
-  }, [flowType, payType]);
+  }, [flowType]);
 
   useEffect(() => {
     const init = async () => {
@@ -484,6 +490,90 @@ const FlowFormScreen: React.FC = () => {
     </Overlay>
   );
 
+  // 处理双击编辑选项
+  const handleDoubleClick = (type: 'industryType' | 'payType' | 'attribution', value: string) => {
+    setEditingOption({ type, value });
+    setNewOptionValue(value);
+  };
+
+  // 保存编辑后的选项
+  const saveEditedOption = () => {
+    if (!editingOption || !newOptionValue.trim()) {
+      setEditingOption(null);
+      return;
+    }
+
+    const { type, value } = editingOption;
+    console.log('saveEditedOption',editingOption, newOptionValue);
+    // 更新相应的选项列表和当前选中值
+    if (type === 'industryType') {
+      // 如果新值不在列表中，添加到列表
+      if (!industryTypes.includes(newOptionValue)) {
+        setIndustryTypes(prev => [newOptionValue,...prev]);
+      }
+      // 更新当前选中的值
+      setIndustryType(newOptionValue);
+    } else if (type === 'payType') {
+      if (!payTypes.includes(newOptionValue)) {
+        setPayTypes(prev => [newOptionValue,...prev]);
+      }
+      setPayType(newOptionValue);
+    } else if (type === 'attribution') {
+      if (!attributions.includes(newOptionValue)) {
+        setAttributions(prev => [newOptionValue,...prev]);
+      }
+      setAttribution(newOptionValue);
+    }
+
+    // 关闭编辑模式
+    setEditingOption(null);
+  };
+
+  // 渲染编辑选项的 Overlay
+  const renderEditOptionOverlay = () => (
+    <Overlay
+      isVisible={!!editingOption}
+      onBackdropPress={() => setEditingOption(null)}
+      overlayStyle={[styles.editOptionOverlay, { backgroundColor: colors.card }]}
+    >
+      <View style={styles.editOptionContainer}>
+        <Text style={[styles.editOptionTitle, { color: colors.text }]}>
+          编辑{editingOption?.type === 'industryType' ? '交易类型' :
+               editingOption?.type === 'payType' ? '支付方式' : '归属人'}
+        </Text>
+
+        <Input
+          value={newOptionValue}
+          onChangeText={setNewOptionValue}
+          placeholder="请输入新的选项值"
+          containerStyle={styles.editOptionInput}
+          autoFocus
+          labelStyle={{ color: colors.text }}
+          inputStyle={{ color: colors.text }}
+        />
+
+        <View style={styles.editOptionButtons}>
+          <Button
+            title="取消"
+            type="outline"
+            containerStyle={styles.editOptionButton}
+            onPress={() => setEditingOption(null)}
+            titleStyle={{ color: colors.primary }}
+            buttonStyle={{ borderColor: colors.primary }}
+          />
+
+          <Button
+            title="保存"
+            containerStyle={styles.editOptionButton}
+            onPress={saveEditedOption}
+            titleStyle={{ color: 'white' }}
+            buttonStyle={{ backgroundColor: colors.primary }}
+          />
+        </View>
+      </View>
+    </Overlay>
+  );
+
   if (isFetching) {
     return (
       <>
@@ -538,7 +628,7 @@ const FlowFormScreen: React.FC = () => {
               inputStyle={{ fontSize: 14, lineHeight: 18, paddingVertical: 4, color: colors.text }}
             />
 
-            <Text style={styles.label}>交易类型</Text>
+            <Text style={styles.label}>交易类型 (长按新增)</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.typeContainer}>
                 {industryTypes.map((type) => (
@@ -549,6 +639,8 @@ const FlowFormScreen: React.FC = () => {
                       industryType === type && styles.selectedTypeItem,
                     ]}
                     onPress={() => setIndustryType(type)}
+                    onLongPress={() => handleDoubleClick('industryType', type)}
+                    delayLongPress={300}
                     disabled={isLoading}
                   >
                     <Text
@@ -564,9 +656,7 @@ const FlowFormScreen: React.FC = () => {
               </View>
             </ScrollView>
 
-            <Divider style={styles.divider} />
-
-            <Text style={styles.label}>支付方式</Text>
+            <Text style={styles.label}>支付方式 (长按新增)</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.typeContainer}>
                 {payTypes.map((type) => (
@@ -577,6 +667,8 @@ const FlowFormScreen: React.FC = () => {
                       payType === type && styles.selectedTypeItem,
                     ]}
                     onPress={() => setPayType(type)}
+                    onLongPress={() => handleDoubleClick('payType', type)}
+                    delayLongPress={300}
                     disabled={isLoading}
                   >
                     <Text
@@ -592,7 +684,7 @@ const FlowFormScreen: React.FC = () => {
               </View>
             </ScrollView>
 
-            <Text style={styles.label}>归属人</Text>
+            <Text style={styles.label}>归属人 (长按新增)</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.typeContainer}>
                 {attributions.map((item) => (
@@ -603,6 +695,8 @@ const FlowFormScreen: React.FC = () => {
                       attribution === item && styles.selectedTypeItem,
                     ]}
                     onPress={() => setAttribution(item)}
+                    onLongPress={() => handleDoubleClick('attribution', item)}
+                    delayLongPress={300}
                     disabled={isLoading}
                   >
                     <Text
@@ -686,6 +780,9 @@ const FlowFormScreen: React.FC = () => {
 
         {/* 小票图片查看器 */}
         {renderImageViewer()}
+
+        {/* 编辑选项的 Overlay */}
+        {renderEditOptionOverlay()}
 
         {/* 加载指示器 */}
         {(isLoading || uploadingImage) && (
@@ -899,6 +996,30 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: '#1976d2',
     fontSize: 14,
+  },
+  editOptionOverlay: {
+    width: '80%',
+    borderRadius: 10,
+    padding: 15,
+  },
+  editOptionContainer: {
+    width: '100%',
+  },
+  editOptionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  editOptionInput: {
+    marginBottom: 20,
+  },
+  editOptionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  editOptionButton: {
+    width: '48%',
   },
 });
 
