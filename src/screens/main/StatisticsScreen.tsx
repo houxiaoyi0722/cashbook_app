@@ -1517,7 +1517,7 @@ const StatisticsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ErrorBoundary>
+      <ErrorBoundary showFullScreen={true}>
         <View style={styles.container}>
           <BookSelector />
           {renderMonthSelector()}
@@ -1551,13 +1551,13 @@ const StatisticsScreen: React.FC = () => {
                     tintColor="#1976d2"
                   />
                 }>
-                  <ErrorBoundary>
+                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}}>
                     {renderMonthOverview()}
                   </ErrorBoundary>
-                  <ErrorBoundary>
+                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}}>
                     {renderBalanceOverview()}
                   </ErrorBoundary>
-                  <ErrorBoundary>
+                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}}>
                     {renderMonthTrend()}
                   </ErrorBoundary>
                 </ScrollView>
@@ -1576,16 +1576,16 @@ const StatisticsScreen: React.FC = () => {
                     tintColor="#1976d2"
                   />
                 }>
-                  <ErrorBoundary>
+                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 10}}>
                     {renderFlowTypeSelector()}
                   </ErrorBoundary>
-                  <ErrorBoundary>
+                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}}>
                     {renderIndustryTypeAnalysis()}
                   </ErrorBoundary>
-                  <ErrorBoundary>
+                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}}>
                     {renderPayTypeAnalysis()}
                   </ErrorBoundary>
-                  <ErrorBoundary>
+                  <ErrorBoundary containerStyle={{margin: 0, marginBottom: 15}}>
                     {renderAttributionAnalysis()}
                   </ErrorBoundary>
                 </ScrollView>

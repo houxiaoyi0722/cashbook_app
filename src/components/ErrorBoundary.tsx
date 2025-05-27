@@ -1,11 +1,13 @@
 import React, { Component, ReactNode } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { logger } from '../services/LogService';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+  containerStyle?: object;
+  showFullScreen?: boolean;
 }
 
 interface ErrorBoundaryState {
@@ -27,7 +29,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    console.log(111)
     // 更新 state，下次渲染时使用备用 UI
     return {
       hasError: true,
@@ -36,7 +37,6 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    console.log(222)
     // 记录错误信息
     try {
       logger.error('React', '组件渲染错误', {
@@ -55,23 +55,49 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   handleRetry = (): void => {
-    console.log(444)
     this.setState({ hasError: false, error: null });
   };
 
   render(): ReactNode {
-    console.log(333,this.state.hasError)
     if (this.state.hasError) {
       // 自定义备用 UI
       if (this.props.fallback) {
         return this.props.fallback;
       }
+
+      // 获取错误信息
+      const errorMessage = this.state.error
+        ? `${this.state.error.message || '未知错误'}`
+        : '未知错误';
+
       // 默认错误 UI
+      if (this.props.showFullScreen) {
+        return (
+          <View style={styles.fullScreenContainer}>
+            <View style={styles.errorCard}>
+              <Text style={styles.title}>哎呀，出错了</Text>
+              <Text style={styles.message}>
+                抱歉，页面加载失败。请尝试重新加载。
+              </Text>
+              <Text style={styles.errorDetails}>
+                错误信息: {errorMessage}
+              </Text>
+              <TouchableOpacity style={styles.button} onPress={this.handleRetry}>
+                <Text style={styles.buttonText}>重试</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+      }
+
       return (
-        <View style={styles.container}>
+        <View style={[styles.container, this.props.containerStyle]}>
           <Text style={styles.title}>哎呀，出错了</Text>
           <Text style={styles.message}>
-            抱歉，这部分内容加载失败。请报告此问题。
+            抱歉，这部分内容加载失败。请稍后重试。
+          </Text>
+          <Text style={styles.errorDetails}>
+            {errorMessage}
           </Text>
           <TouchableOpacity style={styles.button} onPress={this.handleRetry}>
             <Text style={styles.buttonText}>重试</Text>
@@ -84,32 +110,72 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 }
 
+const { width, height } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e9ecef',
-    marginVertical: 8,
+    margin: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    minHeight: 100,
+  },
+  fullScreenContainer: {
+    width: width,
+    height: height,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 20,
+  },
+  errorCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
+    alignItems: 'center',
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#dc3545',
     marginBottom: 8,
+    textAlign: 'center',
   },
   message: {
     fontSize: 14,
     color: '#343a40',
     marginBottom: 16,
+    textAlign: 'center',
+  },
+  errorDetails: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginBottom: 16,
+    padding: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 4,
+    width: '100%',
   },
   button: {
     backgroundColor: '#007bff',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 4,
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
   },
   buttonText: {
     color: '#ffffff',

@@ -16,6 +16,7 @@ import AppNavigator from './src/navigation';
 import { AuthProvider } from './src/context/AuthContext';
 import { BookProvider } from './src/context/BookContext';
 import { BookkeepingProvider } from './src/context/BookkeepingContext';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 const App = () => {
   // 初始化日志服务和错误处理
@@ -70,25 +71,42 @@ const App = () => {
     };
   }, []);
 
+  // 处理 ErrorBoundary 中的错误
+  const handleAppError = (error: Error, errorInfo: React.ErrorInfo) => {
+    console.error('应用级错误:', error);
+    // 尝试记录错误到日志系统
+    try {
+      logger.error('App', '应用级错误', {
+        message: error.message,
+        stack: error.stack,
+        componentStack: errorInfo.componentStack
+      });
+    } catch (logError) {
+      console.error('记录应用级错误失败:', logError);
+    }
+  };
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <StatusBar
-          barStyle="dark-content"
-          backgroundColor="#f5f5f5"
-          translucent={false}
-        />
-        <ThemeProvider>
-          <AuthProvider>
-            <BookProvider>
-              <BookkeepingProvider>
-                <AppNavigator />
-              </BookkeepingProvider>
-            </BookProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary showFullScreen={true} onError={handleAppError}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <StatusBar
+            barStyle="dark-content"
+            backgroundColor="#f5f5f5"
+            translucent={false}
+          />
+          <ThemeProvider>
+            <AuthProvider>
+              <BookProvider>
+                <BookkeepingProvider>
+                  <AppNavigator />
+                </BookkeepingProvider>
+              </BookProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 };
 
