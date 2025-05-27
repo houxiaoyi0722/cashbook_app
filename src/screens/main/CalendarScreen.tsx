@@ -1035,7 +1035,6 @@ const CalendarScreen: React.FC = () => {
                       <Text style={[
                         styles.duplicateItemMoney,
                         {color: '#f44336'},
-                        {color: colors.text},
                       ]}>
                         -{item.out.money.toFixed(2)}
                       </Text>
