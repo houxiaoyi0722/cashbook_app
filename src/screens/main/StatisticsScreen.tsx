@@ -824,7 +824,7 @@ const StatisticsScreen: React.FC = () => {
               {monthAnalysis.maxIn?.name || '无'}
             </Text>
             <Text style={[styles.maxItemValue, { color: '#4caf50' }]}>
-              {monthAnalysis.maxIn ? `+${monthAnalysis.maxIn.money.toFixed(2)}` : '0.00'}
+              {monthAnalysis.maxIn && monthAnalysis.maxIn.money ? `+${monthAnalysis.maxIn.money.toFixed(2)}` : '0.00'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -839,7 +839,7 @@ const StatisticsScreen: React.FC = () => {
               {monthAnalysis.maxOut?.name || '无'}
             </Text>
             <Text style={[styles.maxItemValue, { color: '#f44336' }]}>
-              {monthAnalysis.maxOut ? `-${monthAnalysis.maxOut.money.toFixed(2)}` : '0.00'}
+              {monthAnalysis.maxOut && monthAnalysis.maxOut.money ? `-${monthAnalysis.maxOut.money.toFixed(2)}` : '0.00'}
             </Text>
           </TouchableOpacity>
         </View>

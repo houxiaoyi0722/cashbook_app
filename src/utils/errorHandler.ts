@@ -11,7 +11,7 @@ declare const global: any;
 export const setupErrorHandlers = () => {
   // 处理未捕获的 JS 异常
   const originalErrorHandler = ErrorUtils.getGlobalHandler();
-  
+  console.log(1111)
   ErrorUtils.setGlobalHandler((error, isFatal) => {
     // 记录到日志文件
     logger.error('GlobalError', '未捕获的 JS 异常', {
@@ -36,7 +36,7 @@ export const setupErrorHandlers = () => {
   // 处理未捕获的 Promise 拒绝
   if (__DEV__) {
     // 开发环境下才设置这个，避免在生产环境触发多余的警告
-    const originalPromiseRejectionHandler = 
+    const originalPromiseRejectionHandler =
       // @ts-ignore - React Native 内部 API
       global.RN_HMRClient?.registerBundle ?? null;
 
@@ -101,15 +101,15 @@ export const withErrorHandling = <T extends (...args: any[]) => any>(
       return fn(...args);
     } catch (error) {
       logger.error(tag, `函数执行错误: ${fn.name || '匿名函数'}`, error);
-      
+
       if (showAlert) {
         Alert.alert(
           '操作失败',
           '执行操作时遇到错误，请稍后重试。'
         );
       }
-      
+
       return undefined;
     }
   };
-}; 
+};
