@@ -1392,7 +1392,7 @@ const CalendarScreen: React.FC = () => {
           <Card containerStyle={[styles.calendarCard,{backgroundColor: colors.card,borderColor: colors.border}]}>
             <Calendar
                 current={currentMonth}
-                key={currentMonth}
+                key={`${currentMonth}-${isDarkMode ? 'dark' : 'light'}`}
                 onDayPress={(day) => {
                   handleDayPress(day);
                 }}
