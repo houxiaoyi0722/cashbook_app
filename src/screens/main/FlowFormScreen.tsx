@@ -130,7 +130,7 @@ const FlowFormScreen: React.FC = () => {
       }
     };
     init();
-  }, []);
+  }, [flowType]);
 
   // 当获取到认证令牌后，预加载图片
   useEffect(() => {
