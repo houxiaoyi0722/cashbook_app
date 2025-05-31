@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, Alert, ActivityIndicator } from 'react-native';
+import {View, StyleSheet, FlatList, Alert, ActivityIndicator, TouchableOpacity, Text as RNText} from 'react-native';
 import { Text, Card, Button, Icon, ListItem, FAB, Input } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -135,7 +135,7 @@ const BookListScreen: React.FC = () => {
         />
         <ListItem.Content>
           <ListItem.Title style={[
-            isSelected && styles.selectedBookTitle, 
+            isSelected && styles.selectedBookTitle,
             { color: colors.text }
           ]}>
             {item.bookName}
@@ -267,12 +267,13 @@ const BookListScreen: React.FC = () => {
         ListEmptyComponent={renderEmptyList}
       />
 
-      <FAB
-        icon={{ name: 'add', color: 'white' }}
-        color={colors.primary}
-        placement="right"
+      <TouchableOpacity
+        style={[styles.customFab, { backgroundColor: colors.primary }]}
         onPress={handleAddBook}
-      />
+        activeOpacity={0.8}
+      >
+        <RNText style={styles.fabText}>+</RNText>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -342,6 +343,26 @@ const styles = StyleSheet.create({
   },
   bookList: {
     padding: 10,
+  },
+  customFab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  fabText: {
+    color: 'white',
+    fontSize: 30,
+    marginTop: -2,
   },
 });
 

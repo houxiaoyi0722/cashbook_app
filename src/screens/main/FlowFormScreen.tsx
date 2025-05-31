@@ -75,60 +75,64 @@ const FlowFormScreen: React.FC = () => {
   // 获取流水详情
   useEffect(() => {
     const fetchFlowDetail = async () => {
-      if (!currentFlow) {return;}
-      setName(currentFlow.name);
-      setMoney(currentFlow.money.toString());
-      setDescription(currentFlow.description || '');
-      setFlowType(currentFlow.flowType);
-      setIndustryType(currentFlow.industryType);
-      setPayType(currentFlow.payType);
-      setFlowDate(new Date(currentFlow.day));
-      setAttribution(currentFlow.attribution || '');
 
-      // 加载小票图片
-      if (currentFlow.invoice) {
-        const invoiceNames = currentFlow.invoice.split(',');
-        setInvoiceImages(invoiceNames);
-
-        try {
-          // 预缓存图片
-          await Promise.all(
-            invoiceNames.map(async (name) => {
-              await ImageCacheService.cacheImage(name);
-              setCachedImages(prev => new Set([...prev, name]));
-            })
-          );
-          // 更新刷新键以强制刷新组件
-          setRefreshKey(prev => prev + 1);
-        } catch (error) {
-          console.error('缓存图片失败:', error);
-        }
-      }
-
-      let mergedPayTypes;
-      if (currentFlow.payType) {
-        mergedPayTypes = [...new Set([currentFlow.payType,...defaultPayTypes, ...remotePayType])];
-      } else {
-        mergedPayTypes = [...new Set([...defaultPayTypes, ...remotePayType])];
-      }
-      setPayTypes(mergedPayTypes);
-
-      let mergedAttributions;
-      if (currentFlow.attribution) {
-        mergedAttributions = [...new Set([currentFlow.attribution,userInfo?.name!, ...remoteAttributions])];
-      } else {
-        mergedAttributions = [...new Set([userInfo?.name!, ...remoteAttributions])];
-      }
-      setAttributions(mergedAttributions);
-
+      let mergedPayTypes = defaultPayTypes;
+      let mergedAttributions = [userInfo?.name!];
       let defaultIndustryType = defaultIndustryTypes[flowType];
       let apiResponse = await api.flow.industryType(currentBook?.bookId!,flowType);
-      let merged;
-      if (currentFlow.industryType) {
-        merged = [...new Set([currentFlow.industryType,...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
-      } else {
+      let merged = defaultIndustryTypes[flowType];
+
+      if (currentFlow) {
+        setName(currentFlow.name);
+        setMoney(currentFlow.money.toString());
+        setDescription(currentFlow.description || '');
+        setFlowType(currentFlow.flowType);
+        setIndustryType(currentFlow.industryType);
+        setPayType(currentFlow.payType);
+        setFlowDate(new Date(currentFlow.day));
+        setAttribution(currentFlow.attribution || '');
+        // 加载小票图片
+        if (currentFlow.invoice) {
+          const invoiceNames = currentFlow.invoice.split(',');
+          setInvoiceImages(invoiceNames);
+
+          try {
+            // 预缓存图片
+            await Promise.all(
+              invoiceNames.map(async (name) => {
+                await ImageCacheService.cacheImage(name);
+                setCachedImages(prev => new Set([...prev, name]));
+              })
+            );
+            // 更新刷新键以强制刷新组件
+            setRefreshKey(prev => prev + 1);
+          } catch (error) {
+            console.error('缓存图片失败:', error);
+          }
+        }
+
+        if (currentFlow.payType) {
+          mergedPayTypes = [...new Set([currentFlow.payType,...defaultPayTypes, ...remotePayType])];
+        }
+
+        if (currentFlow.attribution) {
+          mergedAttributions = [...new Set([currentFlow.attribution,userInfo?.name!, ...remoteAttributions])];
+        }
+        if (currentFlow.industryType) {
+          merged = [...new Set([currentFlow.industryType,...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
+        }
+      }
+      if (!currentFlow || !currentFlow.payType) {
+        mergedPayTypes = [...new Set([...defaultPayTypes, ...remotePayType])];
+      }
+      if (!currentFlow || !currentFlow.attribution) {
+        mergedAttributions = [...new Set([userInfo?.name!, ...remoteAttributions])];
+      }
+      if (!currentFlow || !currentFlow.industryType) {
         merged = [...new Set([...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
       }
+      setPayTypes(mergedPayTypes);
+      setAttributions(mergedAttributions);
       setIndustryTypes(merged);
     };
     fetchFlowDetail();
