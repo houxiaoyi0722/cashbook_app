@@ -413,6 +413,7 @@ const BudgetScreen = () => {
 							onChangeText={setNewBudget}
 							labelStyle={{ color: colors.text }}
 							inputStyle={{ color: colors.text }}
+							inputContainerStyle={{ paddingVertical: 8 }}
 							keyboardType="numeric"
 							leftIcon={
 								<Icon
@@ -458,6 +459,7 @@ const BudgetScreen = () => {
 							value={ffName}
 							labelStyle={{ color: colors.text }}
 							inputStyle={{ color: colors.text }}
+							inputContainerStyle={{ paddingVertical: 8 }}
 							onChangeText={setFfName}
 							leftIcon={
 								<Icon
@@ -475,6 +477,7 @@ const BudgetScreen = () => {
 							value={ffAmount}
 							labelStyle={{ color: colors.text }}
 							inputStyle={{ color: colors.text }}
+							inputContainerStyle={{ paddingVertical: 8 }}
 							onChangeText={setFfAmount}
 							keyboardType="numeric"
 							leftIcon={
@@ -493,6 +496,7 @@ const BudgetScreen = () => {
 							value={ffAttribution}
 							labelStyle={{ color: colors.text }}
 							inputStyle={{ color: colors.text }}
+							inputContainerStyle={{ paddingVertical: 8 }}
 							onChangeText={setFfAttribution}
 							leftIcon={
 								<Icon
@@ -513,6 +517,7 @@ const BudgetScreen = () => {
 										editable={false}
 										labelStyle={{ color: colors.text }}
 										inputStyle={{ color: colors.text }}
+										inputContainerStyle={{ paddingVertical: 8 }}
 										leftIcon={
 											<Icon
 												type="material"
@@ -533,6 +538,7 @@ const BudgetScreen = () => {
 										editable={false}
 										labelStyle={{ color: colors.text }}
 										inputStyle={{ color: colors.text }}
+										inputContainerStyle={{ paddingVertical: 8 }}
 										leftIcon={
 											<Icon
 												type="material"

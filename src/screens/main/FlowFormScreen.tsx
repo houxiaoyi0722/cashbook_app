@@ -844,7 +844,7 @@ const styles = StyleSheet.create({
   },
   typeContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     paddingHorizontal: 10,
     marginBottom: 10,
   },
