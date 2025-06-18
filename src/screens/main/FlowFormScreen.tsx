@@ -138,6 +138,22 @@ const FlowFormScreen: React.FC = () => {
     fetchFlowDetail();
   }, [currentFlow]);
 
+  useEffect(() => {
+    const flowTypeChange = async () => {
+      let defaultIndustryType = defaultIndustryTypes[flowType];
+      let apiResponse = await api.flow.industryType(currentBook?.bookId!,flowType);
+      let merged;
+
+      if (currentFlow && currentFlow.industryType) {
+        merged = [...new Set([currentFlow.industryType,...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
+      } else {
+        merged = [...new Set([...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
+      }
+      setIndustryTypes(merged);
+    };
+    flowTypeChange();
+  }, [flowType]);
+
   // 当获取到认证令牌后，预加载图片
   useEffect(() => {
     if (invoiceImages.length > 0) {
@@ -577,7 +593,7 @@ const FlowFormScreen: React.FC = () => {
   if (isFetching) {
     return (
       <>
-        <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.statusBar} />
+        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.statusBar} />
         <View style={[styles.container, { backgroundColor: colors.background }]}>
           <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
         </View>
@@ -587,11 +603,11 @@ const FlowFormScreen: React.FC = () => {
 
   return (
     <>
-      <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.statusBar} />
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.statusBar} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
         <View style={[styles.container, { backgroundColor: colors.background }]}>
           <ScrollView keyboardShouldPersistTaps="handled">
