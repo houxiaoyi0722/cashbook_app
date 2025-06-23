@@ -412,8 +412,7 @@ const BudgetScreen = () => {
 							value={newBudget}
 							onChangeText={setNewBudget}
 							labelStyle={{ color: colors.text }}
-							inputStyle={{ color: colors.text }}
-							inputContainerStyle={{ paddingVertical: 8 }}
+							inputStyle={[{ color: colors.text }, styles.inputTextStyle]}
 							keyboardType="numeric"
 							leftIcon={
 								<Icon
@@ -458,8 +457,7 @@ const BudgetScreen = () => {
 							placeholder="请输入支出名称"
 							value={ffName}
 							labelStyle={{ color: colors.text }}
-							inputStyle={{ color: colors.text }}
-							inputContainerStyle={{ paddingVertical: 8 }}
+							inputStyle={[{ color: colors.text }, styles.inputTextStyle]}
 							onChangeText={setFfName}
 							leftIcon={
 								<Icon
@@ -476,8 +474,7 @@ const BudgetScreen = () => {
 							placeholder="请输入支出金额"
 							value={ffAmount}
 							labelStyle={{ color: colors.text }}
-							inputStyle={{ color: colors.text }}
-							inputContainerStyle={{ paddingVertical: 8 }}
+							inputStyle={[{ color: colors.text }, styles.inputTextStyle]}
 							onChangeText={setFfAmount}
 							keyboardType="numeric"
 							leftIcon={
@@ -495,8 +492,7 @@ const BudgetScreen = () => {
 							placeholder="请输入归属人"
 							value={ffAttribution}
 							labelStyle={{ color: colors.text }}
-							inputStyle={{ color: colors.text }}
-							inputContainerStyle={{ paddingVertical: 8 }}
+							inputStyle={[{ color: colors.text }, styles.inputTextStyle]}
 							onChangeText={setFfAttribution}
 							leftIcon={
 								<Icon
@@ -516,8 +512,7 @@ const BudgetScreen = () => {
 										value={ffStartMonth.format('YYYY-MM')}
 										editable={false}
 										labelStyle={{ color: colors.text }}
-										inputStyle={{ color: colors.text }}
-										inputContainerStyle={{ paddingVertical: 8 }}
+										inputStyle={[{ color: colors.text }, styles.inputTextStyle]}
 										leftIcon={
 											<Icon
 												type="material"
@@ -537,8 +532,7 @@ const BudgetScreen = () => {
 										value={ffEndMonth.format('YYYY-MM')}
 										editable={false}
 										labelStyle={{ color: colors.text }}
-										inputStyle={{ color: colors.text }}
-										inputContainerStyle={{ paddingVertical: 8 }}
+										inputStyle={[{ color: colors.text }, styles.inputTextStyle]}
 										leftIcon={
 											<Icon
 												type="material"
@@ -705,6 +699,9 @@ const styles = StyleSheet.create({
 	},
 	input: {
 		marginBottom: 8,
+	},
+	inputTextStyle: {
+		paddingVertical: 0,
 	},
 	buttonContainer: {
 		flexDirection: 'row',
