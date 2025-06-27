@@ -320,7 +320,7 @@ const SettingsScreen: React.FC = () => {
         value={oldPassword}
         onChangeText={setOldPassword}
         disabled={isLoading}
-        inputStyle={{color: colors.inputText}}
+        inputStyle={[{color: colors.inputText}, { paddingVertical: 0 }]}
         placeholderTextColor={colors.hint}
       />
 
@@ -337,7 +337,7 @@ const SettingsScreen: React.FC = () => {
         value={newPassword}
         onChangeText={setNewPassword}
         disabled={isLoading}
-        inputStyle={{color: colors.inputText}}
+        inputStyle={[{color: colors.inputText}, { paddingVertical: 0 }]}
         placeholderTextColor={colors.hint}
       />
 
@@ -354,7 +354,7 @@ const SettingsScreen: React.FC = () => {
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         disabled={isLoading}
-        inputStyle={{color: colors.inputText}}
+        inputStyle={[{color: colors.inputText}, { paddingVertical: 0 }]}
         placeholderTextColor={colors.hint}
       />
 

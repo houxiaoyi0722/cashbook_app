@@ -565,7 +565,7 @@ const FlowFormScreen: React.FC = () => {
           containerStyle={styles.editOptionInput}
           autoFocus
           labelStyle={{ color: colors.text }}
-          inputStyle={{ color: colors.text }}
+          inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
         />
 
         <View style={styles.editOptionButtons}>
@@ -629,7 +629,7 @@ const FlowFormScreen: React.FC = () => {
                 placeholder="请输入交易方名称"
                 value={name}
                 labelStyle={{ color: colors.text }}
-                inputStyle={{ fontSize: 14, lineHeight: 18, paddingVertical: 4, color: colors.text }}
+                inputStyle={[{ fontSize: 14, lineHeight: 18, paddingVertical: 4, color: colors.text }, { paddingVertical: 0 }]}
                 onChangeText={setName}
                 disabled={isLoading}
                 leftIcon={{ type: 'material', name: 'shopping-cart', color: '#1976d2' }}
@@ -646,7 +646,7 @@ const FlowFormScreen: React.FC = () => {
                 leftIcon={{ type: 'material', name: 'account-balance-wallet', color: '#1976d2' }}
                 errorMessage={money && !isNaN(Number(money)) && Number(money) > 0 ? '' : '请输入有效的金额'}
                 labelStyle={{ color: colors.text }}
-                inputStyle={{ fontSize: 14, lineHeight: 18, paddingVertical: 4, color: colors.text }}
+                inputStyle={[{ fontSize: 14, lineHeight: 18, paddingVertical: 4, color: colors.text }, { paddingVertical: 0 }]}
               />
 
               <Text style={styles.label}>交易类型 (长按新增)</Text>
@@ -766,7 +766,7 @@ const FlowFormScreen: React.FC = () => {
                 multiline
                 numberOfLines={3}
                 labelStyle={{ color: colors.text }}
-                inputStyle={{ fontSize: 14, textAlignVertical: 'top', paddingTop: 8, color: colors.text }}
+                inputStyle={[{ fontSize: 14, textAlignVertical: 'top', paddingTop: 8, color: colors.text }, { paddingVertical: 0 }]}
               />
 
               {/* 小票上传区域 */}

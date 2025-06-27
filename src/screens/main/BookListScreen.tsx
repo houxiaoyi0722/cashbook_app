@@ -245,7 +245,7 @@ const BookListScreen: React.FC = () => {
             value={shareKeyInput}
             onChangeText={setShareKeyInput}
             containerStyle={styles.importInput}
-            inputStyle={{ color: colors.text }}
+            inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
             placeholderTextColor={colors.secondaryText}
             rightIcon={
               <Icon

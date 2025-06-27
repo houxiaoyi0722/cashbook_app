@@ -137,7 +137,7 @@ const ServerFormScreen: React.FC = () => {
             onChangeText={setName}
             disabled={isLoading}
             labelStyle={{ color: colors.text }}
-            inputStyle={{ color: colors.text }}
+            inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
             placeholderTextColor={colors.secondaryText}
             leftIcon={{ type: 'material', name: 'label', color: colors.primary }}
             errorMessage={name.trim() ? '' : '服务器名称不能为空'}
@@ -151,7 +151,7 @@ const ServerFormScreen: React.FC = () => {
             onChangeText={setBaseUrl}
             disabled={isLoading}
             labelStyle={{ color: colors.text }}
-            inputStyle={{ color: colors.text }}
+            inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
             placeholderTextColor={colors.secondaryText}
             leftIcon={{ type: 'material', name: 'link', color: colors.primary }}
             errorMessage={baseUrl.trim() ? '' : '服务器地址不能为空'}
@@ -167,7 +167,7 @@ const ServerFormScreen: React.FC = () => {
             onChangeText={setUsername}
             disabled={isLoading}
             labelStyle={{ color: colors.text }}
-            inputStyle={{ color: colors.text }}
+            inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
             placeholderTextColor={colors.secondaryText}
             leftIcon={{ type: 'material', name: 'person', color: colors.primary }}
             errorMessage={username.trim() ? '' : '用户名不能为空'}
@@ -182,7 +182,7 @@ const ServerFormScreen: React.FC = () => {
             onChangeText={setPassword}
             disabled={isLoading}
             labelStyle={{ color: colors.text }}
-            inputStyle={{ color: colors.text }}
+            inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
             placeholderTextColor={colors.secondaryText}
             leftIcon={{ type: 'material', name: 'lock', color: colors.primary }}
             rightIcon={{

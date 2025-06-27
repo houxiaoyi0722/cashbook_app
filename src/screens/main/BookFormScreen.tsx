@@ -138,7 +138,7 @@ const BookFormScreen: React.FC = () => {
             onChangeText={setName}
             disabled={isLoading}
             labelStyle={{ color: colors.text }}
-            inputStyle={{ color: colors.text }}
+            inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
             placeholderTextColor={colors.secondaryText}
             leftIcon={{ type: 'material', name: 'book', color: colors.primary }}
             errorMessage={name.trim() ? '' : '账本名称不能为空'}
@@ -153,7 +153,7 @@ const BookFormScreen: React.FC = () => {
               onChangeText={setShareKey}
               disabled
               labelStyle={{ color: colors.text }}
-              inputStyle={{ color: colors.text }}
+              inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
               leftIcon={{ type: 'material', name: 'share', color: colors.primary }}
               rightIcon={{
                 type: 'material',
