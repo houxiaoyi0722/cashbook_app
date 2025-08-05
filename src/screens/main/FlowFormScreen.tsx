@@ -14,6 +14,7 @@ import ImageViewer from 'react-native-image-zoom-viewer';
 import dayjs from 'dayjs';
 import ImageCacheService from '../../services/ImageCacheService';
 import { useTheme, getColors } from '../../context/ThemeContext';
+import LocalCacheService from '../../services/LocalCacheService';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowForm'>;
@@ -72,87 +73,142 @@ const FlowFormScreen: React.FC = () => {
   } | null>(null);
   const [newOptionValue, setNewOptionValue] = useState('');
 
-  // 获取流水详情
+  // 获取流水详情（支持离线）
   useEffect(() => {
     const fetchFlowDetail = async () => {
+      try {
+        // 优先使用本地缓存
+        const cachedIndustryTypes = await LocalCacheService.getIndustryTypes(flowType);
+        const cachedPayTypes = await LocalCacheService.getPayTypes();
+        const cachedAttributions = await LocalCacheService.getAttributions();
 
-      let mergedPayTypes = defaultPayTypes;
-      let mergedAttributions = [userInfo?.name!];
-      let defaultIndustryType = defaultIndustryTypes[flowType];
-      let apiResponse = await api.flow.industryType(currentBook?.bookId!,flowType);
-      let merged = defaultIndustryTypes[flowType];
+        let mergedPayTypes = cachedPayTypes;
+        let mergedAttributions = [userInfo?.name!, ...cachedAttributions];
+        let mergedIndustryTypes = cachedIndustryTypes;
 
-      if (currentFlow) {
-        setName(currentFlow.name);
-        setMoney(currentFlow.money.toString());
-        setDescription(currentFlow.description || '');
-        setFlowType(currentFlow.flowType);
-        setIndustryType(currentFlow.industryType);
-        setPayType(currentFlow.payType);
-        setFlowDate(new Date(currentFlow.day));
-        setAttribution(currentFlow.attribution || '');
-        // 加载小票图片
-        if (currentFlow.invoice) {
-          const invoiceNames = currentFlow.invoice.split(',');
-          setInvoiceImages(invoiceNames);
-
+        // 尝试从服务器获取最新数据
+        if (currentBook?.bookId) {
           try {
-            // 预缓存图片
-            await Promise.all(
-              invoiceNames.map(async (name) => {
-                await ImageCacheService.cacheImage(name);
-                setCachedImages(prev => new Set([...prev, name]));
-              })
+            const apiResponse = await api.flow.industryType(currentBook.bookId, flowType);
+            const serverIndustryTypes = apiResponse.d.map(item => item.industryType);
+            
+            // 合并服务器数据到本地缓存
+            await LocalCacheService.mergeServerData(
+              { [flowType]: serverIndustryTypes },
+              remotePayType,
+              remoteAttributions
             );
-            // 更新刷新键以强制刷新组件
-            setRefreshKey(prev => prev + 1);
+
+            // 更新合并后的数据
+            mergedIndustryTypes = [...new Set([...cachedIndustryTypes, ...serverIndustryTypes])];
+            mergedPayTypes = [...new Set([...cachedPayTypes, ...remotePayType])];
+            mergedAttributions = [...new Set([...mergedAttributions, ...remoteAttributions])];
           } catch (error) {
-            console.error('缓存图片失败:', error);
+            console.log('服务器数据获取失败，使用本地缓存:', error);
+            // 服务器获取失败时，继续使用本地缓存数据
           }
         }
 
-        if (currentFlow.payType) {
-          mergedPayTypes = [...new Set([currentFlow.payType,...defaultPayTypes, ...remotePayType])];
+        // 处理当前流水数据
+        if (currentFlow) {
+          setName(currentFlow.name);
+          setMoney(currentFlow.money.toString());
+          setDescription(currentFlow.description || '');
+          setFlowType(currentFlow.flowType);
+          setIndustryType(currentFlow.industryType);
+          setPayType(currentFlow.payType);
+          setFlowDate(new Date(currentFlow.day));
+          setAttribution(currentFlow.attribution || '');
+
+          // 确保当前流水的选项在列表中
+          if (currentFlow.payType && !mergedPayTypes.includes(currentFlow.payType)) {
+            mergedPayTypes.unshift(currentFlow.payType);
+          }
+          if (currentFlow.attribution && !mergedAttributions.includes(currentFlow.attribution)) {
+            mergedAttributions.unshift(currentFlow.attribution);
+          }
+          if (currentFlow.industryType && !mergedIndustryTypes.includes(currentFlow.industryType)) {
+            mergedIndustryTypes.unshift(currentFlow.industryType);
+          }
+
+          // 加载小票图片
+          if (currentFlow.invoice) {
+            const invoiceNames = currentFlow.invoice.split(',');
+            setInvoiceImages(invoiceNames);
+
+            try {
+              // 预缓存图片
+              await Promise.all(
+                invoiceNames.map(async (name) => {
+                  await ImageCacheService.cacheImage(name);
+                  setCachedImages(prev => new Set([...prev, name]));
+                })
+              );
+              // 更新刷新键以强制刷新组件
+              setRefreshKey(prev => prev + 1);
+            } catch (error) {
+              console.error('缓存图片失败:', error);
+            }
+          }
         }
 
-        if (currentFlow.attribution) {
-          mergedAttributions = [...new Set([currentFlow.attribution,userInfo?.name!, ...remoteAttributions])];
-        }
-        if (currentFlow.industryType) {
-          merged = [...new Set([currentFlow.industryType,...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
-        }
+        setPayTypes(mergedPayTypes);
+        setAttributions(mergedAttributions);
+        setIndustryTypes(mergedIndustryTypes);
+
+      } catch (error) {
+        console.error('获取流水详情失败:', error);
+        // 使用默认数据
+        setPayTypes(defaultPayTypes);
+        setAttributions([userInfo?.name!]);
+        setIndustryTypes(defaultIndustryTypes[flowType] || []);
       }
-      if (!currentFlow || !currentFlow.payType) {
-        mergedPayTypes = [...new Set([...defaultPayTypes, ...remotePayType])];
-      }
-      if (!currentFlow || !currentFlow.attribution) {
-        mergedAttributions = [...new Set([userInfo?.name!, ...remoteAttributions])];
-      }
-      if (!currentFlow || !currentFlow.industryType) {
-        merged = [...new Set([...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
-      }
-      setPayTypes(mergedPayTypes);
-      setAttributions(mergedAttributions);
-      setIndustryTypes(merged);
     };
-    fetchFlowDetail();
-  }, [currentFlow]);
 
+    fetchFlowDetail();
+  }, [currentFlow, flowType, currentBook]);
+
+  // 处理流类型变化（支持离线）
   useEffect(() => {
     const flowTypeChange = async () => {
-      let defaultIndustryType = defaultIndustryTypes[flowType];
-      let apiResponse = await api.flow.industryType(currentBook?.bookId!,flowType);
-      let merged;
+      try {
+        const cachedIndustryTypes = await LocalCacheService.getIndustryTypes(flowType);
+        let merged = cachedIndustryTypes;
 
-      if (currentFlow && currentFlow.industryType) {
-        merged = [...new Set([currentFlow.industryType,...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
-      } else {
-        merged = [...new Set([...defaultIndustryType, ...apiResponse.d.map(item => item.industryType)])];
+        // 尝试从服务器获取最新数据
+        if (currentBook?.bookId) {
+          try {
+            const apiResponse = await api.flow.industryType(currentBook.bookId, flowType);
+            const serverIndustryTypes = apiResponse.d.map(item => item.industryType);
+            
+            // 合并数据
+            merged = [...new Set([...cachedIndustryTypes, ...serverIndustryTypes])];
+            
+            // 更新缓存
+            await LocalCacheService.mergeServerData(
+              { [flowType]: serverIndustryTypes },
+              [],
+              []
+            );
+          } catch (error) {
+            console.log('服务器数据获取失败，使用本地缓存:', error);
+          }
+        }
+
+        // 确保当前流水的行业类型在列表中
+        if (currentFlow?.industryType && !merged.includes(currentFlow.industryType)) {
+          merged.unshift(currentFlow.industryType);
+        }
+
+        setIndustryTypes(merged);
+      } catch (error) {
+        console.error('流类型变化处理失败:', error);
+        setIndustryTypes(defaultIndustryTypes[flowType] || []);
       }
-      setIndustryTypes(merged);
     };
+
     flowTypeChange();
-  }, [flowType]);
+  }, [flowType, currentBook]);
 
   // 当获取到认证令牌后，预加载图片
   useEffect(() => {
@@ -513,8 +569,8 @@ const FlowFormScreen: React.FC = () => {
   };
 
   // 保存编辑后的选项
-  const saveEditedOption = () => {
-    if (!editingOption || !newOptionValue.trim()) {
+  const saveEditedOption = async () => {
+    if (!newOptionValue.trim()) {
       setEditingOption(null);
       return;
     }
@@ -540,6 +596,9 @@ const FlowFormScreen: React.FC = () => {
       }
       setAttribution(newOptionValue);
     }
+
+    // 将用户自定义选项保存到本地缓存
+    await LocalCacheService.addCustomOption(type, newOptionValue);
 
     // 关闭编辑模式
     setEditingOption(null);
