@@ -191,13 +191,14 @@ const SyncManagementScreen: React.FC = () => {
   const renderFlowItem = ({ item }: { item: any }) => (
     <ListItem
       bottomDivider
-      containerStyle={[styles.listItem, { backgroundColor: colors.card }]}
+      containerStyle={[styles.listItem, { backgroundColor: colors.card, paddingVertical: 8 }]}
       onPress={() => handleSync(item)}
     >
       <Icon
         name={item.data.flowType === '收入' ? 'trending-up' : 'trending-down'}
         type="material"
         color={item.data.flowType === '收入' ? '#4caf50' : '#f44336'}
+        size={20}
       />
       <ListItem.Content>
         <ListItem.Title style={[styles.listTitle, { color: colors.text }]}>
@@ -210,7 +211,7 @@ const SyncManagementScreen: React.FC = () => {
           {item.data.industryType} • {item.data.payType}
         </Text>
       </ListItem.Content>
-      <Icon name="sync" type="material" color={colors.primary} />
+      <Icon name="sync" type="material" color={colors.primary} size={18} />
     </ListItem>
   );
 
@@ -220,7 +221,7 @@ const SyncManagementScreen: React.FC = () => {
         // 离线模式 - 原有的同步管理界面
         <>
           {/* 统计卡片 */}
-          <Card containerStyle={[styles.statsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Card containerStyle={[styles.statsCard, { backgroundColor: colors.card, borderColor: colors.border, padding: 12 }]}>
             <Text style={[styles.statsTitle, { color: colors.text }]}>同步统计</Text>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
@@ -239,7 +240,7 @@ const SyncManagementScreen: React.FC = () => {
           </Card>
 
           {/* 操作按钮 */}
-          <Card containerStyle={[styles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Card containerStyle={[styles.actionCard, { backgroundColor: colors.card, borderColor: colors.border, padding: 12 }]}>
             {/* 当前同步目标显示 */}
             <View style={styles.syncTargetInfo}>
               <Text style={[styles.syncTargetTitle, { color: colors.text }]}>同步目标</Text>
@@ -253,17 +254,18 @@ const SyncManagementScreen: React.FC = () => {
 
             <Button
               title={`批量同步 (${unsyncedFlows.length})`}
-              icon={<Icon name="sync" type="material" color="white" size={20} />}
+              icon={<Icon name="sync" type="material" color="white" size={18} />}
               buttonStyle={[styles.batchSyncButton, { backgroundColor: colors.primary }]}
+              titleStyle={{ fontSize: 14 }}
               onPress={handleBatchSync}
               disabled={unsyncedFlows.length === 0 || isLoading || !serverConfig || !currentBook}
             />
 
             <Button
               title={`清理已同步数据 (${syncStats.synced})`}
-              icon={<Icon name="delete-sweep" type="material" color="white" size={20} />}
+              icon={<Icon name="delete-sweep" type="material" color="white" size={18} />}
               buttonStyle={[styles.cleanupButton, { backgroundColor: colors.warning }]}
-              titleStyle={{ color: 'white' }}
+              titleStyle={{ color: 'white', fontSize: 14 }}
               onPress={handleCleanupSyncedData}
               disabled={syncStats.synced === 0 || isLoading}
             />
@@ -276,7 +278,7 @@ const SyncManagementScreen: React.FC = () => {
             keyExtractor={item => item.id}
             contentContainerStyle={styles.listContainer}
             ListEmptyComponent={
-              <Card containerStyle={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Card containerStyle={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border, padding: 20 }]}>
                 <Text style={[styles.emptyText, { color: colors.secondaryText }]}>
                   没有未同步的流水
                 </Text>
@@ -323,17 +325,17 @@ const SyncManagementScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
+    padding: 8, // 从10减少到8
   },
   statsCard: {
-    borderRadius: 10,
-    marginBottom: 10,
+    borderRadius: 8, // 从10减少到8
+    marginBottom: 8, // 从10减少到8
   },
   statsTitle: {
-    fontSize: 18,
+    fontSize: 16, // 从18减少到16
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 15,
+    marginBottom: 12, // 从15减少到12
   },
   statsRow: {
     flexDirection: 'row',
@@ -343,123 +345,125 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statNumber: {
-    fontSize: 24,
+    fontSize: 22, // 从24减少到22
     fontWeight: 'bold',
   },
   statLabel: {
-    fontSize: 12,
-    marginTop: 5,
+    fontSize: 11, // 从12减少到11
+    marginTop: 3, // 从5减少到3
   },
   actionCard: {
-    borderRadius: 10,
-    marginBottom: 10,
-    paddingVertical: 10,
+    borderRadius: 8, // 从10减少到8
+    marginBottom: 8, // 从10减少到8
+    paddingVertical: 8, // 从10减少到8
   },
   batchSyncButton: {
-    borderRadius: 8,
+    borderRadius: 6, // 从8减少到6
+    marginBottom: 6, // 添加按钮间距
   },
   listContainer: {
-    paddingBottom: 20,
+    paddingBottom: 16, // 从20减少到16
   },
   listItem: {
-    borderRadius: 10,
-    marginVertical: 5,
+    borderRadius: 8, // 从10减少到8
+    marginVertical: 2, // 从3减少到2
   },
   listTitle: {
     fontWeight: 'bold',
+    fontSize: 15, // 添加字体大小控制
   },
   listSubtitle: {
-    fontSize: 14,
-    marginTop: 5,
+    fontSize: 13, // 从14减少到13
+    marginTop: 2, // 从3减少到2
   },
   listMeta: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 11, // 从12减少到11
+    marginTop: 1, // 从2减少到1
   },
   emptyCard: {
-    borderRadius: 10,
+    borderRadius: 8, // 从10减少到8
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 24, // 从30减少到24
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 14, // 从15减少到14
   },
   modalOverlay: {
     width: '90%',
-    borderRadius: 10,
-    padding: 20,
+    borderRadius: 8, // 从10减少到8
+    padding: 16, // 从20减少到16
   },
   modalContent: {
     width: '100%',
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18, // 从20减少到18
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 16, // 从20减少到16
   },
   modalSubtitle: {
-    fontSize: 16,
+    fontSize: 15, // 从16减少到15
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 16, // 从20减少到16
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 15, // 从16减少到15
     fontWeight: 'bold',
-    marginTop: 15,
-    marginBottom: 10,
+    marginTop: 12, // 从15减少到12
+    marginBottom: 8, // 从10减少到8
   },
   buttonGroup: {
-    borderRadius: 8,
-    marginBottom: 10,
+    borderRadius: 6, // 从8减少到6
+    marginBottom: 8, // 从10减少到8
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 30,
+    marginTop: 24, // 从30减少到24
   },
   modalButton: {
     flex: 1,
-    marginHorizontal: 5,
+    marginHorizontal: 4, // 从5减少到4
   },
   onlineModeCard: {
-    borderRadius: 10,
-    marginBottom: 10,
+    borderRadius: 8, // 从10减少到8
+    marginBottom: 8, // 从10减少到8
     alignItems: 'center',
-    paddingVertical: 30,
+    paddingVertical: 24, // 从30减少到24
   },
   onlineModeIcon: {
-    marginBottom: 15,
+    marginBottom: 12, // 从15减少到12
   },
   onlineModeTitle: {
-    fontSize: 20,
+    fontSize: 18, // 从20减少到18
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 8, // 从10减少到8
   },
   onlineModeSubtitle: {
-    fontSize: 14,
+    fontSize: 13, // 从14减少到13
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 8, // 从10减少到8
   },
   syncTargetInfo: {
-    marginBottom: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    marginBottom: 8, // 从10减少到8
+    paddingHorizontal: 8, // 从10减少到8
+    paddingVertical: 4, // 从5减少到4
     backgroundColor: '#f0f0f0', // 示例背景色
-    borderRadius: 5,
+    borderRadius: 4, // 从5减少到4
   },
   syncTargetTitle: {
-    fontSize: 14,
+    fontSize: 13, // 从14减少到13
     fontWeight: 'bold',
-    marginBottom: 5,
+    marginBottom: 4, // 从5减少到4
   },
   syncTargetText: {
-    fontSize: 13,
+    fontSize: 12, // 从13减少到12
   },
   cleanupButton: {
-    borderRadius: 8,
-    marginTop: 10,
+    borderRadius: 6, // 从8减少到6
+    marginTop: 8, // 从10减少到8
   },
 });
 
