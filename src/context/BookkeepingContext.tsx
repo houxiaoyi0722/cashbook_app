@@ -14,8 +14,8 @@ interface BookkeepingContextType {
   remoteAttributions: string[],
   remotePayType: string[],
   updateCurrentBook: (book: Book | null) => Promise<void>;
-  fetchCalendarData: (bookId: string, month: string) => Promise<{ dailyData: DailyData; calendarMarks: CalendarMark }>;
-  fetchDayFlows: (bookId: string, date: string) => Promise<Flow[]>;
+  fetchCalendarData: () => Promise<{ dailyData: DailyData; calendarMarks: CalendarMark }>;
+  fetchDayFlows: (date: string) => Promise<Flow[]>;
   addFlow: (flow: Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Flow>;
   updateFlow: (data: Partial<Omit<Flow,'createdAt' | 'updatedAt'>>) => Promise<Flow>;
   deleteFlow: (flowId: number) => Promise<void>;

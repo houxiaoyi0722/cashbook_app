@@ -1851,6 +1851,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
     marginRight: 8,
+    marginBottom: 2,
     backgroundColor: '#f5f5f5',
   },
   criteriaButtonActive: {
