@@ -191,6 +191,12 @@ const StatisticsScreen: React.FC = () => {
   const fetchMonthAnalysis = useCallback(async () => {
     if (!currentBook || !currentMonth) {return;}
 
+    // 离线模式下跳过数据获取
+    if (isOfflineMode) {
+      console.log('离线模式：跳过月度分析数据获取');
+      return;
+    }
+
     try {
       setIsLoading(true);
       const response = await api.analytics.monthAnalysis(currentMonth, currentBook.bookId);
@@ -206,15 +212,20 @@ const StatisticsScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('获取当月分析失败', error);
-      Alert.alert('错误', '获取当月分析失败');
     } finally {
       setIsLoading(false);
     }
-  }, [currentBook, currentMonth]);
+  }, [currentBook, currentMonth, isOfflineMode]);
 
   // 获取月度数据
   const fetchMonthData = useCallback(async () => {
     if (!currentBook) {return;}
+
+    // 离线模式下跳过数据获取
+    if (isOfflineMode) {
+      console.log('离线模式：跳过月度数据获取');
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -266,15 +277,20 @@ const StatisticsScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('获取月度数据失败', error instanceof Error ? error.message : String(error));
-      Alert.alert('错误', '获取月度数据失败');
     } finally {
       setIsLoading(false);
     }
-  }, [currentBook, currentMonth]);
+  }, [currentBook, currentMonth, isOfflineMode]);
 
   // 获取行业类型数据
   const fetchIndustryTypeData = useCallback(async () => {
     if (!currentBook || !currentMonth) {return;}
+
+    // 离线模式下跳过数据获取
+    if (isOfflineMode) {
+      console.log('离线模式：跳过行业类型数据获取');
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -304,15 +320,20 @@ const StatisticsScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('获取行业类型数据失败', error instanceof Error ? error.message : String(error));
-      Alert.alert('错误', '获取行业类型数据失败');
     } finally {
       setIsLoading(false);
     }
-  }, [currentBook, currentMonth, selectedFlowType, isDarkMode]);
+  }, [currentBook, currentMonth, selectedFlowType, isDarkMode, isOfflineMode]);
 
   // 获取支付方式数据
   const fetchPayTypeData = useCallback(async () => {
     if (!currentBook || !currentMonth) {return;}
+
+    // 离线模式下跳过数据获取
+    if (isOfflineMode) {
+      console.log('离线模式：跳过支付方式数据获取');
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -343,15 +364,20 @@ const StatisticsScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('获取支付方式数据失败', error instanceof Error ? error.message : String(error));
-      Alert.alert('错误', '获取支付方式数据失败');
     } finally {
       setIsLoading(false);
     }
-  }, [currentBook, currentMonth, selectedFlowType, isDarkMode]);
+  }, [currentBook, currentMonth, selectedFlowType, isDarkMode, isOfflineMode]);
 
   // 获取流水归属数据
   const fetchAttributionData = useCallback(async () => {
     if (!currentBook || !currentMonth) {return;}
+
+    // 离线模式下跳过数据获取
+    if (isOfflineMode) {
+      console.log('离线模式：跳过流水归属数据获取');
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -380,15 +406,21 @@ const StatisticsScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('获取流水归属数据失败', error instanceof Error ? error.message : String(error));
-      Alert.alert('错误', '获取流水归属数据失败');
     } finally {
       setIsLoading(false);
     }
-  }, [currentBook, currentMonth, selectedFlowType, isDarkMode]);
+  }, [currentBook, currentMonth, selectedFlowType, isDarkMode, isOfflineMode]);
 
   // 当前账本变化时，重新获取数据
   useEffect(() => {
     let isMounted = true;
+
+    // 离线模式下跳过数据获取
+    if (isOfflineMode) {
+      console.log('离线模式：跳过月度分析数据获取');
+      return;
+    }
+
     if (currentBook) {
       fetchMonthData().catch(err => {
         if (isMounted) {
@@ -402,6 +434,13 @@ const StatisticsScreen: React.FC = () => {
   // 当前月份变化时，重新获取分析数据
   useEffect(() => {
     let isMounted = true;
+
+    // 离线模式下跳过数据获取
+    if (isOfflineMode) {
+      console.log('离线模式：跳过月度分析数据获取');
+      return;
+    }
+
     if (currentBook && currentMonth) {
       const fetchData = async () => {
         try {
@@ -445,7 +484,6 @@ const StatisticsScreen: React.FC = () => {
       ]);
     } catch (error) {
       console.error('刷新数据失败', error instanceof Error ? error.message : String(error));
-      Alert.alert('错误', '刷新数据失败');
     } finally {
       setRefreshing(false);
     }
@@ -632,7 +670,6 @@ const StatisticsScreen: React.FC = () => {
       setDetailsLoadingMore(false);
     } catch (error) {
       console.error('获取流水详情失败', error instanceof Error ? error.message : String(error));
-      Alert.alert('错误', '获取流水详情失败');
       setDetailsLoading(false);
       setDetailsLoadingMore(false);
     }

@@ -47,6 +47,13 @@ const BudgetScreen = () => {
 		if (!currentBook) {
 			return;
 		}
+
+		// 离线模式下跳过数据获取
+		if (isOfflineMode) {
+			console.log('离线模式：跳过预算数据获取');
+			return;
+		}
+
 		setLoading(true);
 		try {
 			// 加载预算
@@ -64,17 +71,23 @@ const BudgetScreen = () => {
 			}
 		} catch (error) {
 			console.error('加载数据失败:', error);
-			Alert.alert('错误', '加载数据失败');
 		} finally {
 			setLoading(false);
 		}
-	}, [currentBook, currentMonth]);
+	}, [currentBook, currentMonth, isOfflineMode]);
 
 	// 刷新已用额度
 	const refreshUsedAmount = async () => {
 		if (!currentBook) {
 			return;
 		}
+
+		// 离线模式下跳过刷新
+		if (isOfflineMode) {
+			console.log('离线模式：跳过刷新已用额度');
+			return;
+		}
+
 		try {
 			await api.budget.reloadUsedAmount(currentBook.bookId, currentMonth);
 			await loadData();
@@ -89,6 +102,13 @@ const BudgetScreen = () => {
 		if (!currentBook) {
 			return;
 		}
+
+		// 离线模式下禁止保存
+		if (isOfflineMode) {
+			Alert.alert('提示', '离线模式下无法保存预算，请连接网络后重试');
+			return;
+		}
+
 		if (!newBudget || isNaN(Number(newBudget))) {
 			Alert.alert('错误', '请输入有效的预算金额');
 			return;

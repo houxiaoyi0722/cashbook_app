@@ -117,6 +117,14 @@ const AppNavigator = () => {
   useEffect(() => {
     const checkInitialRoute = async () => {
       try {
+        // 首先检查是否处于离线模式
+        const offlineMode = await AsyncStorage.getItem('offline_mode');
+        if (offlineMode === 'true') {
+          // 离线模式下，直接进入MainTabs（离线记账）
+          setInitialRoute('MainTabs');
+          return;
+        }
+
         // 检查是否有服务器配置
         const serverConfig = await AsyncStorage.getItem('server_config');
         // 检查是否已登录

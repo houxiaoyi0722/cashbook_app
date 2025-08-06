@@ -80,6 +80,13 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const fetchCalendarData = useCallback(async () => {
     if (!currentBook) {return { dailyData: {}, calendarMarks: {} };}
 
+    // 检查离线模式
+    const isOfflineMode = await checkOfflineMode();
+    if (isOfflineMode) {
+      console.log('离线模式：跳过日历数据获取');
+      return { dailyData: {}, calendarMarks: {} };
+    }
+
     try {
       // 使用 analytics.daily 替代 calendar API
       const response = await api.analytics.daily(currentBook.bookId);
@@ -115,11 +122,18 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.error('获取日历数据失败', error instanceof Error ? error.message : String(error));
       return { dailyData: {}, calendarMarks: {} };
     }
-  }, [currentBook]);
+  }, [currentBook, checkOfflineMode]);
 
   // 获取某天的流水记录
   const fetchDayFlows = useCallback(async (date: string): Promise<Flow[]> => {
     if (!currentBook) {return [];}
+
+    // 检查离线模式
+    const isOfflineMode = await checkOfflineMode();
+    if (isOfflineMode) {
+      console.log('离线模式：跳过日流水数据获取');
+      return [];
+    }
 
     try {
       setIsLoading(true);
@@ -141,7 +155,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } finally {
       setIsLoading(false);
     }
-  }, [currentBook]);
+  }, [currentBook, checkOfflineMode]);
 
   // 添加流水记录
   const addFlow = useCallback(async (flow: Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>): Promise<Flow> => {

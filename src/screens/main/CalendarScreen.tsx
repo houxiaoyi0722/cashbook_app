@@ -199,6 +199,12 @@ const CalendarScreen: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
 
+    // 离线模式下跳过数据获取
+    if (isOfflineMode) {
+      console.log('离线模式：跳过日历数据获取');
+      return;
+    }
+
     // 只有当账本真正变化时才重置状态和获取数据
     if (currentBook) {
       // 重置状态，确保数据与当前账本匹配
@@ -226,7 +232,7 @@ const CalendarScreen: React.FC = () => {
     }
 
     return () => { isMounted = false; };
-  }, [currentBook]);
+  }, [currentBook, isOfflineMode]);
 
   // 检查离线模式状态
   useEffect(() => {

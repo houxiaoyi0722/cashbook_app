@@ -154,6 +154,39 @@ const SyncManagementScreen: React.FC = () => {
     }
   }, [unsyncedFlows, serverConfig, currentBook, loadUnsyncedFlows]);
 
+  // 清理已同步数据
+  const handleCleanupSyncedData = useCallback(() => {
+    Alert.alert(
+      '清理已同步数据',
+      '此操作将删除所有已同步到服务器的本地流水记录，确定要继续吗？',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '确定',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              const cleanedCount = await LocalDataService.cleanupSyncedFlows();
+              
+              if (cleanedCount > 0) {
+                Alert.alert('清理完成', `已清理 ${cleanedCount} 条已同步的流水记录`);
+                await loadUnsyncedFlows(); // 重新加载数据
+              } else {
+                Alert.alert('提示', '没有已同步的数据需要清理');
+              }
+            } catch (error) {
+              console.error('清理已同步数据失败:', error);
+              Alert.alert('错误', '清理数据失败');
+            } finally {
+              setIsLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  }, [loadUnsyncedFlows]);
+
   // 渲染流水项
   const renderFlowItem = ({ item }: { item: any }) => (
     <ListItem
@@ -224,6 +257,15 @@ const SyncManagementScreen: React.FC = () => {
               buttonStyle={[styles.batchSyncButton, { backgroundColor: colors.primary }]}
               onPress={handleBatchSync}
               disabled={unsyncedFlows.length === 0 || isLoading || !serverConfig || !currentBook}
+            />
+
+            <Button
+              title={`清理已同步数据 (${syncStats.synced})`}
+              icon={<Icon name="delete-sweep" type="material" color="white" size={20} />}
+              buttonStyle={[styles.cleanupButton, { backgroundColor: colors.warning }]}
+              titleStyle={{ color: 'white' }}
+              onPress={handleCleanupSyncedData}
+              disabled={syncStats.synced === 0 || isLoading}
             />
           </Card>
 
@@ -414,6 +456,10 @@ const styles = StyleSheet.create({
   },
   syncTargetText: {
     fontSize: 13,
+  },
+  cleanupButton: {
+    borderRadius: 8,
+    marginTop: 10,
   },
 });
 
