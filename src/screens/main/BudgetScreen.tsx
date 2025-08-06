@@ -9,13 +9,17 @@ import {useBookkeeping} from '../../context/BookkeepingContext';
 import BookSelector from '../../components/BookSelector';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useTheme, getColors} from '../../context/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import OfflineModeOverlay from '../../components/OfflineModeOverlay';
 
 const BudgetScreen = () => {
 	// 基础状态
 	const {currentBook} = useBookkeeping();
 	const {isDarkMode} = useTheme();
 	const colors = getColors(isDarkMode);
+	const [isOfflineMode, setIsOfflineMode] = useState(false);
 	const [loading, setLoading] = useState(false);
+
 	const [currentMonth, setCurrentMonth] = useState(dayjs().format('YYYY-MM'));
 	const [showBudgetModal, setShowBudgetModal] = useState(false);
 	const [newBudget, setNewBudget] = useState('');
@@ -264,6 +268,19 @@ const BudgetScreen = () => {
 		}
 	}, [currentBook, currentMonth, loadData]);
 
+	// 检查离线模式状态
+	useEffect(() => {
+		const checkOfflineMode = async () => {
+			try {
+				const offlineMode = await AsyncStorage.getItem('offline_mode');
+				setIsOfflineMode(offlineMode === 'true');
+			} catch (error) {
+				console.error('检查离线模式失败:', error);
+			}
+		};
+		checkOfflineMode();
+	}, []);
+
 	// 计算固定支出总额
 	const totalFixedExpense = fixedFlows.reduce((sum, item) => sum + item.money, 0);
 
@@ -273,6 +290,14 @@ const BudgetScreen = () => {
 	const usedPercentageNumber = parseFloat(usedPercentage);
 	const usedPercentageColor = usedPercentageNumber < 70 ? '#4caf50' : usedPercentageNumber < 90 ? '#ff9800' : '#f44336';
 
+	if (isOfflineMode) {
+		return (
+			<OfflineModeOverlay
+				title="预算管理"
+				description="离线模式下预算管理功能暂时不可用"
+			/>
+		);
+	}
 
 	return (
 		<SafeAreaView style={[styles.container,{backgroundColor: colors.background}]} edges={['top']}>
@@ -378,12 +403,10 @@ const BudgetScreen = () => {
 									</ListItem.Content>
 									<Text style={styles.fixedFlowAmount}>{item.money.toFixed(2)}</Text>
 									<View style={styles.fixedFlowActions}>
-										<TouchableOpacity onPress={() => openEditFixedFlowModal(item)}
-										                  style={styles.actionButton}>
+										<TouchableOpacity onPress={() => openEditFixedFlowModal(item)} style={styles.actionButton}>
 											<Icon name="edit" type="material" size={20} color="#1976d2"/>
 										</TouchableOpacity>
-										<TouchableOpacity onPress={() => handleDeleteFixedFlow(item)}
-										                  style={styles.actionButton}>
+										<TouchableOpacity onPress={() => handleDeleteFixedFlow(item)} style={styles.actionButton}>
 											<Icon name="delete" type="material" size={20} color="#f44336"/>
 										</TouchableOpacity>
 									</View>
@@ -625,7 +648,7 @@ const styles = StyleSheet.create({
 		justifyContent: 'center',
 		alignItems: 'center',
 		backgroundColor: 'white',
-		borderBottomWidth: 1
+		borderBottomWidth: 1,
 	},
 	monthButton: {
 		padding: 8,

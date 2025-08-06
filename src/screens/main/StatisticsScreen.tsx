@@ -23,6 +23,8 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import { formatMoney, formatIncomeAmount, formatExpenseAmount } from '../../utils/formatters';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useTheme, getColors } from '../../context/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import OfflineModeOverlay from '../../components/OfflineModeOverlay';
 
 import * as echarts from 'echarts/core';
 import {BarChart, PieChart} from 'echarts/charts';
@@ -127,6 +129,7 @@ const StatisticsScreen: React.FC = () => {
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
 
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [tabIndex, setTabIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [monthData, setMonthData] = useState<AnalyticsItem[]>([]);
@@ -170,6 +173,19 @@ const StatisticsScreen: React.FC = () => {
 
   // 添加流水类型选择状态
   const [selectedFlowType, setSelectedFlowType] = useState<'支出' | '收入' | '不计收支'>('支出');
+
+  // 检查离线模式状态
+  useEffect(() => {
+    const checkOfflineMode = async () => {
+      try {
+        const offlineMode = await AsyncStorage.getItem('offline_mode');
+        setIsOfflineMode(offlineMode === 'true');
+      } catch (error) {
+        console.error('检查离线模式失败:', error);
+      }
+    };
+    checkOfflineMode();
+  }, []);
 
   // 获取月度分析
   const fetchMonthAnalysis = useCallback(async () => {
@@ -1533,6 +1549,15 @@ const StatisticsScreen: React.FC = () => {
       </View>
     </View>
   );
+
+  if (isOfflineMode) {
+    return (
+      <OfflineModeOverlay
+        title="统计分析"
+        description="离线模式下统计分析功能暂时不可用"
+      />
+    );
+  }
 
   if (!currentBook) {
     return (

@@ -19,6 +19,7 @@ import BookListScreen from '../screens/main/BookListScreen';
 import BookFormScreen from '../screens/main/BookFormScreen';
 import FlowFormScreen from '../screens/main/FlowFormScreen';
 import LogsScreen from '../screens/main/LogsScreen';
+import SyncManagementScreen from '../screens/SyncManagementScreen';
 
 // 上下文提供者
 import {AuthProvider} from '../context/AuthContext';
@@ -214,6 +215,11 @@ const AppNavigator = () => {
               name="Logs"
               component={LogsScreen}
               options={{ title: '日志' }}
+            />
+            <Stack.Screen
+              name="SyncManagement"
+              component={SyncManagementScreen}
+              options={{ title: '同步管理' }}
             />
           </Stack.Navigator>
         </BookProvider>

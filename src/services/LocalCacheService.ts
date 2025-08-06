@@ -13,13 +13,15 @@ class LocalCacheService {
   private readonly CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7天过期
 
   // 默认数据
-  private readonly defaultIndustryTypes = {
+  private readonly defaultIndustryTypes: { [key: string]: string[] } = {
     '收入': ['工资', '奖金', '转账红包', '其他'],
     '支出': ['餐饮美食', '日用百货', '交通出行', '充值缴费', '服饰装扮', '公共服务', '商业服务', '家居家装', '文化休闲', '爱车养车', '生活服务', '运动户外', '亲友代付', '其他'],
     '不计收支': ['信用借还', '投资理财', '退款', '报销', '收款', '其他'],
   };
 
   private readonly defaultPayTypes = ['现金', '支付宝', '微信', '银行卡', '信用卡', '其他'];
+
+  private readonly defaultAttributions = ['自己', '配偶', '其他'];
 
   // 获取缓存数据
   async getCachedData(): Promise<CachedData> {
@@ -29,19 +31,23 @@ class LocalCacheService {
         const data: CachedData = JSON.parse(cached);
         // 检查是否过期
         if (Date.now() - data.lastUpdated < this.CACHE_EXPIRY) {
+          // 确保归属人至少有默认数据
+          if (!data.attributions || data.attributions.length === 0) {
+            data.attributions = [...this.defaultAttributions];
+          }
           return data;
         }
       }
     } catch (error) {
       console.error('读取缓存失败:', error);
     }
-    
+
     // 返回默认数据
     return {
       industryTypes: this.defaultIndustryTypes,
       payTypes: this.defaultPayTypes,
-      attributions: [],
-      lastUpdated: Date.now()
+      attributions: [...this.defaultAttributions],
+      lastUpdated: Date.now(),
     };
   }
 
@@ -52,7 +58,7 @@ class LocalCacheService {
       const updated = {
         ...current,
         ...data,
-        lastUpdated: Date.now()
+        lastUpdated: Date.now(),
       };
       await AsyncStorage.setItem(this.CACHE_KEY, JSON.stringify(updated));
     } catch (error) {
@@ -67,7 +73,7 @@ class LocalCacheService {
     serverAttributions: string[]
   ): Promise<void> {
     const current = await this.getCachedData();
-    
+
     // 合并行业类型
     const mergedIndustryTypes = { ...current.industryTypes };
     Object.keys(serverIndustryTypes).forEach(flowType => {
@@ -85,7 +91,7 @@ class LocalCacheService {
     await this.updateCache({
       industryTypes: mergedIndustryTypes,
       payTypes: mergedPayTypes,
-      attributions: mergedAttributions
+      attributions: mergedAttributions,
     });
   }
 
@@ -96,7 +102,7 @@ class LocalCacheService {
     flowType?: string
   ): Promise<void> {
     const current = await this.getCachedData();
-    
+
     if (type === 'industryType' && flowType) {
       const existing = current.industryTypes[flowType] || [];
       if (!existing.includes(value)) {

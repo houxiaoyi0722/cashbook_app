@@ -4,6 +4,7 @@ import api from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import serverConfigManager from '../services/serverConfig.ts';
 import {eventBus} from '../navigation';
+import LocalDataService from '../services/LocalDataService';
 
 
 // 记账上下文类型
@@ -12,12 +13,9 @@ interface BookkeepingContextType {
   currentBook: Book | null;
   remoteAttributions: string[],
   remotePayType: string[],
-  updateCurrentBook: (currentBook: Book | null) => Promise<void>;
-  fetchCalendarData: () => Promise<{
-    dailyData: DailyData;
-    calendarMarks: CalendarMark;
-  }>;
-  fetchDayFlows: (date: string) => Promise<Flow[]>;
+  updateCurrentBook: (book: Book | null) => Promise<void>;
+  fetchCalendarData: (bookId: string, month: string) => Promise<{ dailyData: DailyData; calendarMarks: CalendarMark }>;
+  fetchDayFlows: (bookId: string, date: string) => Promise<Flow[]>;
   addFlow: (flow: Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Flow>;
   updateFlow: (data: Partial<Omit<Flow,'createdAt' | 'updatedAt'>>) => Promise<Flow>;
   deleteFlow: (flowId: number) => Promise<void>;
@@ -29,10 +27,21 @@ const STORAGE_KEY = 'current_book';
 
 // 记账上下文提供者
 export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [remoteAttributions, setRemoteAttributions] = useState<string[]>([]);
   const [remotePayType, setRemotePayType] = useState<string[]>([]);
+
+  // 检查是否为离线模式
+  const checkOfflineMode = useCallback(async (): Promise<boolean> => {
+    try {
+      const offlineMode = await AsyncStorage.getItem('offline_mode');
+      return offlineMode === 'true';
+    } catch (error) {
+      console.error('检查离线模式失败:', error);
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
     // 从本地存储加载当前账本
@@ -138,6 +147,21 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const addFlow = useCallback(async (flow: Omit<Flow, 'id' | 'createdAt' | 'updatedAt'>): Promise<Flow> => {
     if (!currentBook) {throw new Error('未选择账本');}
 
+    const isOfflineMode = await checkOfflineMode();
+
+    if (isOfflineMode) {
+      console.log('离线模式：保存流水到本地');
+      console.log('流水数据:', flow);
+      const result = await LocalDataService.addLocalFlow(flow);
+      console.log('保存结果:', result);
+
+      // 发送本地数据更新事件
+      eventBus.emit('refreshLocalData');
+
+      return flow as Flow; // 返回本地数据
+    }
+
+    console.log('在线模式：保存流水到服务器');
     const response = await api.flow.create({
       ...flow,
       bookId: currentBook.bookId,
@@ -147,7 +171,7 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return response.d;
     }
     throw new Error(response.m);
-  }, [currentBook]);
+  }, [currentBook, checkOfflineMode]);
 
   // 更新流水记录
   const updateFlow = useCallback(async (data: Partial<Omit<Flow,'createdAt' | 'updatedAt'>>): Promise<Flow> => {

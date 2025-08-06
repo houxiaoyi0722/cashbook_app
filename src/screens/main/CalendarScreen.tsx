@@ -29,6 +29,8 @@ import ImageViewer from 'react-native-image-zoom-viewer';
 import ImageCacheService from '../../services/ImageCacheService';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useTheme, getColors} from '../../context/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import OfflineModeOverlay from '../../components/OfflineModeOverlay';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -47,6 +49,7 @@ const CalendarScreen: React.FC = () => {
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
 
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [dailyData, setDailyData] = useState<DailyData>({});
   const [calendarMarks, setCalendarMarks] = useState<CalendarMark>({});
@@ -224,6 +227,19 @@ const CalendarScreen: React.FC = () => {
 
     return () => { isMounted = false; };
   }, [currentBook]);
+
+  // 检查离线模式状态
+  useEffect(() => {
+    const checkOfflineMode = async () => {
+      try {
+        const offlineMode = await AsyncStorage.getItem('offline_mode');
+        setIsOfflineMode(offlineMode === 'true');
+      } catch (error) {
+        console.error('检查离线模式失败:', error);
+      }
+    };
+    checkOfflineMode();
+  }, []);
 
   // 自定义日期单元格渲染函数
   const renderCustomDay = useCallback((day: any, state: any) => {
@@ -1328,6 +1344,15 @@ const CalendarScreen: React.FC = () => {
       </View>
     </Modal>
   );
+
+  if (isOfflineMode) {
+    return (
+      <OfflineModeOverlay
+        title="流水日历"
+        description="离线模式下流水日历功能暂时不可用"
+      />
+    );
+  }
 
   if (!currentBook) {
     return (

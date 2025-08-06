@@ -15,6 +15,7 @@ import dayjs from 'dayjs';
 import ImageCacheService from '../../services/ImageCacheService';
 import { useTheme, getColors } from '../../context/ThemeContext';
 import LocalCacheService from '../../services/LocalCacheService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowForm'>;
@@ -31,17 +32,32 @@ const defaultIndustryTypes = {
   '不计收支': ['信用借还', '投资理财', '退款', '报销', '收款', '其他'],
 };
 
-// todo 融合接口数据和固定数据后去重,固定数据交由设置页面编辑
+// 融合接口数据和固定数据后去重,固定数据交由设置页面编辑
 const defaultPayTypes = ['现金', '支付宝', '微信', '银行卡', '信用卡', '其他'];
 
 const FlowFormScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { currentFlow, date } = route.params || {};
-  const { currentBook, remotePayType, remoteAttributions } = useBookkeeping();
+  const { currentBook, remotePayType, remoteAttributions, addFlow } = useBookkeeping();
   const {userInfo} = useAuth();
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
+
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
+
+  // 检查离线模式状态
+  useEffect(() => {
+    const checkOfflineMode = async () => {
+      try {
+        const offlineMode = await AsyncStorage.getItem('offline_mode');
+        setIsOfflineMode(offlineMode === 'true');
+      } catch (error) {
+        console.error('检查离线模式失败:', error);
+      }
+    };
+    checkOfflineMode();
+  }, []);
 
   const [name, setName] = useState('');
   const [money, setMoney] = useState('');
@@ -83,15 +99,19 @@ const FlowFormScreen: React.FC = () => {
         const cachedAttributions = await LocalCacheService.getAttributions();
 
         let mergedPayTypes = cachedPayTypes;
-        let mergedAttributions = [userInfo?.name!, ...cachedAttributions];
+        let mergedAttributions = [...cachedAttributions];
+        // 如果有用户信息且不在列表中，则添加到开头
+        if (userInfo?.name && !mergedAttributions.includes(userInfo.name)) {
+          mergedAttributions.unshift(userInfo.name);
+        }
         let mergedIndustryTypes = cachedIndustryTypes;
 
-        // 尝试从服务器获取最新数据
-        if (currentBook?.bookId) {
+        // 尝试从服务器获取最新数据（仅在在线模式下）
+        if (currentBook?.bookId && !isOfflineMode) {
           try {
             const apiResponse = await api.flow.industryType(currentBook.bookId, flowType);
             const serverIndustryTypes = apiResponse.d.map(item => item.industryType);
-            
+
             // 合并服务器数据到本地缓存
             await LocalCacheService.mergeServerData(
               { [flowType]: serverIndustryTypes },
@@ -160,7 +180,11 @@ const FlowFormScreen: React.FC = () => {
         console.error('获取流水详情失败:', error);
         // 使用默认数据
         setPayTypes(defaultPayTypes);
-        setAttributions([userInfo?.name!]);
+        const defaultAttributions = ['自己', '配偶', '其他'];
+        if (userInfo?.name && !defaultAttributions.includes(userInfo.name)) {
+          defaultAttributions.unshift(userInfo.name);
+        }
+        setAttributions(defaultAttributions);
         setIndustryTypes(defaultIndustryTypes[flowType] || []);
       }
     };
@@ -175,15 +199,15 @@ const FlowFormScreen: React.FC = () => {
         const cachedIndustryTypes = await LocalCacheService.getIndustryTypes(flowType);
         let merged = cachedIndustryTypes;
 
-        // 尝试从服务器获取最新数据
-        if (currentBook?.bookId) {
+        // 尝试从服务器获取最新数据（仅在在线模式下）
+        if (currentBook?.bookId && !isOfflineMode) {
           try {
             const apiResponse = await api.flow.industryType(currentBook.bookId, flowType);
             const serverIndustryTypes = apiResponse.d.map(item => item.industryType);
-            
+
             // 合并数据
             merged = [...new Set([...cachedIndustryTypes, ...serverIndustryTypes])];
-            
+
             // 更新缓存
             await LocalCacheService.mergeServerData(
               { [flowType]: serverIndustryTypes },
@@ -248,6 +272,7 @@ const FlowFormScreen: React.FC = () => {
 
     try {
       setIsLoading(true);
+
       if (currentFlow) {
         // 更新流水
         await api.flow.update({
@@ -264,8 +289,8 @@ const FlowFormScreen: React.FC = () => {
         });
         eventBus.emit('refreshCalendarFlows');
       } else {
-        // 创建流水
-        await api.flow.create({
+        // 创建流水 - 使用BookkeepingContext的addFlow方法
+        const flowData = {
           bookId: currentBook.bookId,
           name,
           money: Number(money),
@@ -275,7 +300,9 @@ const FlowFormScreen: React.FC = () => {
           attribution,
           description: description.trim() || undefined,
           day: dayjs(flowDate).format('YYYY-MM-DD'),
-        });
+        };
+
+        await addFlow(flowData);
         eventBus.emit('refreshCalendarFlows');
       }
 
@@ -575,7 +602,7 @@ const FlowFormScreen: React.FC = () => {
       return;
     }
 
-    const { type, value } = editingOption;
+    const { type } = editingOption!;
     console.log('saveEditedOption',editingOption, newOptionValue);
     // 更新相应的选项列表和当前选中值
     if (type === 'industryType') {
@@ -598,7 +625,7 @@ const FlowFormScreen: React.FC = () => {
     }
 
     // 将用户自定义选项保存到本地缓存
-    await LocalCacheService.addCustomOption(type, newOptionValue);
+    await LocalCacheService.addCustomOption(type, newOptionValue, type === 'industryType' ? flowType : undefined);
 
     // 关闭编辑模式
     setEditingOption(null);
@@ -670,6 +697,15 @@ const FlowFormScreen: React.FC = () => {
       >
         <View style={[styles.container, { backgroundColor: colors.background }]}>
           <ScrollView keyboardShouldPersistTaps="handled">
+            {/* 离线模式提示 */}
+            {isOfflineMode && (
+              <View style={[styles.offlineBanner, { backgroundColor: '#ff9800' }]}>
+                <Text style={[styles.offlineBannerText, { color: 'white' }]}>
+                  离线模式：数据将保存到本地
+                </Text>
+              </View>
+            )}
+
             <Card containerStyle={[styles.card,{backgroundColor: colors.card, borderColor: colors.border}]}>
               <Card.Title style={{color: colors.text}}>{currentFlow ? '编辑流水' : '创建流水'}</Card.Title>
 
@@ -1101,6 +1137,17 @@ const styles = StyleSheet.create({
   },
   editOptionButton: {
     width: '48%',
+  },
+  offlineBanner: {
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    alignItems: 'center',
+    marginBottom: 10,
+    borderRadius: 5,
+  },
+  offlineBannerText: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
 

@@ -20,6 +20,7 @@ export type MainStackParamList = {
   };
   Login: undefined;
   Logs: undefined;
+  SyncManagement: undefined;
 };
 
 export type MainTabParamList = {

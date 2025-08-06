@@ -5,6 +5,7 @@ import serverConfigManager from '../services/serverConfig';
 import api from '../services/api';
 import {eventBus} from '../navigation';
 import { logger } from '../services/LogService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // 认证上下文类型
 interface AuthContextType {
@@ -19,6 +20,10 @@ interface AuthContextType {
   saveServerConfig: (config: ServerConfig) => Promise<void>;
   deleteServerConfig: (id: string) => Promise<void>;
   switchServer: (id: string) => Promise<void>;
+  // 新增离线模式相关
+  isOfflineMode: boolean;
+  enableOfflineMode: () => void;
+  disableOfflineMode: () => void;
 }
 
 // 创建认证上下文
@@ -37,6 +42,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [serverConfig, setServerConfig] = useState<ServerConfig | null>(null);
   const [serverConfigs, setServerConfigs] = useState<ServerConfig[]>([]);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
+
+  // 启用离线模式
+  const enableOfflineMode = useCallback(async () => {
+    setIsOfflineMode(true);
+    setIsLoggedIn(false);
+    setUserInfo(null);
+    await AsyncStorage.setItem('offline_mode', 'true');
+  }, []);
+
+  // 禁用离线模式
+  const disableOfflineMode = useCallback(async () => {
+    setIsOfflineMode(false);
+    await AsyncStorage.removeItem('offline_mode');
+  }, []);
 
   // 初始化认证状态
   useEffect(() => {
@@ -45,6 +65,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // 获取所有服务器配置
         const configs = await serverConfigManager.getAllConfigs();
         setServerConfigs(configs);
+
+        // 检查是否处于离线模式
+        const offlineMode = await AsyncStorage.getItem('offline_mode');
+        const isOffline = offlineMode === 'true';
+        setIsOfflineMode(isOffline);
+
+        if (isOffline) {
+          // 离线模式：尝试连接服务器以检查是否可以自动退出
+          const currentServer = await serverConfigManager.getCurrentServer();
+          if (currentServer) {
+            try {
+              api.init(currentServer);
+              // 尝试获取配置以测试连接
+              await api.config();
+              // 如果成功，可以提示用户是否退出离线模式
+              console.log('服务器已可连接，可退出离线模式');
+              // 这里可以添加自动退出或提示逻辑
+            } catch (error) {
+              console.log('仍处于离线状态，继续离线模式');
+            }
+          }
+          return; // 离线模式下不继续执行后续网络操作
+        }
 
         // 获取当前服务器配置
         const currentServer = await serverConfigManager.getCurrentServer();
@@ -212,6 +255,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         saveServerConfig,
         deleteServerConfig,
         switchServer,
+        // 新增离线模式相关
+        isOfflineMode,
+        enableOfflineMode,
+        disableOfflineMode,
       }}
     >
       {children}

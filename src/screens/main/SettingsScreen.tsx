@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useCallback} from 'react';
 import {ActivityIndicator, Alert, ScrollView, StyleSheet, View} from 'react-native';
 import {Card, Dialog, Icon, Input, ListItem, Overlay, Switch, Text} from '@rneui/themed';
 import {useNavigation} from '@react-navigation/native';
@@ -17,7 +17,7 @@ type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { userInfo, logout } = useAuth();
+  const { userInfo, logout, isOfflineMode, enableOfflineMode, disableOfflineMode } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
 
@@ -154,6 +154,49 @@ const SettingsScreen: React.FC = () => {
     setConfirmPassword('');
   };
 
+  // 处理离线模式切换
+  const handleOfflineModeToggle = useCallback(() => {
+    if (isOfflineMode) {
+      // 退出离线模式
+      Alert.alert(
+        '退出离线模式',
+        '退出离线模式后将返回服务器选择页面，本地数据将保留。',
+        [
+          { text: '取消', style: 'cancel' },
+          {
+            text: '确定',
+            onPress: () => {
+              disableOfflineMode();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'ServerList' }],
+              });
+            },
+          },
+        ]
+      );
+    } else {
+      // 启用离线模式
+      Alert.alert(
+        '启用离线模式',
+        '在离线模式下，您可以创建本地账本并记账，数据将存储在本地。后续可以选择性同步到服务器。',
+        [
+          { text: '取消', style: 'cancel' },
+          {
+            text: '确定',
+            onPress: () => {
+              enableOfflineMode();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs' }],
+              });
+            },
+          },
+        ]
+      );
+    }
+  }, [isOfflineMode, enableOfflineMode, disableOfflineMode, navigation]);
+
   // 渲染用户信息
   const renderUserInfo = () => (
     <Card containerStyle={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
@@ -176,9 +219,9 @@ const SettingsScreen: React.FC = () => {
     <Card containerStyle={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
       <Card.Title style={{color: colors.text}}>账户设置</Card.Title>
 
-      <ListItem 
-        onPress={() => setIsChangePasswordVisible(true)} 
-        bottomDivider 
+      <ListItem
+        onPress={() => setIsChangePasswordVisible(true)}
+        bottomDivider
         key="change-password"
         containerStyle={{backgroundColor: colors.card}}
       >
@@ -189,9 +232,9 @@ const SettingsScreen: React.FC = () => {
         <ListItem.Chevron color={colors.secondaryText} />
       </ListItem>
 
-      <ListItem 
-        onPress={handleSwitchServer} 
-        bottomDivider 
+      <ListItem
+        onPress={handleSwitchServer}
+        bottomDivider
         key="switch-server"
         containerStyle={{backgroundColor: colors.card}}
       >
@@ -215,12 +258,46 @@ const SettingsScreen: React.FC = () => {
         <ListItem.Chevron color={colors.secondaryText} />
       </ListItem>
 
-      <ListItem 
-        bottomDivider 
+      {/* 离线模式管理 */}
+      <ListItem
+        onPress={handleOfflineModeToggle}
+        bottomDivider
+        key="offline-mode"
+        containerStyle={{backgroundColor: colors.card}}
+      >
+        <Icon
+          name={isOfflineMode ? 'cloud-off' : 'offline-bolt'}
+          type="material"
+          color={isOfflineMode ? colors.warning : colors.primary}
+        />
+        <ListItem.Content>
+          <ListItem.Title style={{color: colors.text}}>
+            {isOfflineMode ? '退出离线模式' : '启用离线模式'}
+          </ListItem.Title>
+        </ListItem.Content>
+        <ListItem.Chevron color={colors.secondaryText} />
+      </ListItem>
+
+      {/* 同步管理 - 始终显示 */}
+      <ListItem
+        onPress={() => navigation.navigate('SyncManagement')}
+        bottomDivider
+        key="sync-management"
+        containerStyle={{backgroundColor: colors.card}}
+      >
+        <Icon name="sync" type="material" color={colors.primary} />
+        <ListItem.Content>
+          <ListItem.Title style={{color: colors.text}}>同步管理</ListItem.Title>
+        </ListItem.Content>
+        <ListItem.Chevron color={colors.secondaryText} />
+      </ListItem>
+
+      <ListItem
+        bottomDivider
         key="dark-mode"
         containerStyle={{backgroundColor: colors.card}}
       >
-        <Icon name={isDarkMode ? "nightlight" : "wb-sunny"} type="material" color={colors.primary} />
+        <Icon name={isDarkMode ? 'nightlight' : 'wb-sunny'} type="material" color={colors.primary} />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>深色模式</ListItem.Title>
         </ListItem.Content>
@@ -231,8 +308,8 @@ const SettingsScreen: React.FC = () => {
         />
       </ListItem>
 
-      <ListItem 
-        onPress={handleLogout} 
+      <ListItem
+        onPress={handleLogout}
         key="logout"
         containerStyle={{backgroundColor: colors.card}}
       >
@@ -250,8 +327,8 @@ const SettingsScreen: React.FC = () => {
     <Card containerStyle={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
       <Card.Title style={{color: colors.text}}>关于</Card.Title>
 
-      <ListItem 
-        bottomDivider 
+      <ListItem
+        bottomDivider
         key="version"
         containerStyle={{backgroundColor: colors.card}}
       >
@@ -262,7 +339,7 @@ const SettingsScreen: React.FC = () => {
         </ListItem.Content>
       </ListItem>
 
-      <ListItem 
+      <ListItem
         key="developer"
         containerStyle={{backgroundColor: colors.card}}
         bottomDivider
@@ -274,7 +351,7 @@ const SettingsScreen: React.FC = () => {
         </ListItem.Content>
       </ListItem>
 
-      <ListItem 
+      <ListItem
         key="server-version"
         containerStyle={{backgroundColor: colors.card}}
         bottomDivider
@@ -285,8 +362,8 @@ const SettingsScreen: React.FC = () => {
           <ListItem.Subtitle style={{color: colors.secondaryText}}>{serverVersion || '未知'}</ListItem.Subtitle>
         </ListItem.Content>
       </ListItem>
-      <ListItem 
-        key="check-update" 
+      <ListItem
+        key="check-update"
         onPress={() => updateService.checkForUpdates()}
         containerStyle={{backgroundColor: colors.card}}
       >
@@ -306,7 +383,7 @@ const SettingsScreen: React.FC = () => {
       overlayStyle={[styles.dialog, { backgroundColor: colors.dialog }]}
     >
       <Text style={[styles.dialogTitle, { color: colors.text }]}>修改密码</Text>
-      
+
       <Input
         placeholder="原密码"
         secureTextEntry={!oldPasswordVisible}

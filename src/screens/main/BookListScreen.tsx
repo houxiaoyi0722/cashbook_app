@@ -17,11 +17,33 @@ const BookListScreen: React.FC = () => {
   const { books, fetchBooks, deleteBook, isLoading } = useBook();
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
+  const { currentBook, updateCurrentBook } = useBookkeeping();
 
   const [error, setError] = useState<string | null>(null);
   const [localLoading, setLocalLoading] = useState(true);
   const [shareKeyInput, setShareKeyInput] = useState('');
-  const { currentBook, updateCurrentBook } = useBookkeeping();
+
+  // 添加导入共享账本方法
+  const handleImportSharedBook = useCallback(async () => {
+    if (!shareKeyInput.trim()) {
+      Alert.alert('错误', '请输入共享码');
+      return;
+    }
+
+    try {
+      setLocalLoading(true);
+      // 调用导入共享账本的 API
+      await api.book.inshare({ key: shareKeyInput.trim() });
+      await fetchBooks();
+      Alert.alert('成功', '共享账本已导入');
+      setShareKeyInput('');
+    } catch (error) {
+      console.error('导入共享账本失败', error);
+      Alert.alert('错误', '导入共享账本失败，请检查共享码是否正确');
+    } finally {
+      setLocalLoading(false);
+    }
+  }, [shareKeyInput, fetchBooks]);
 
   // 使用 useCallback 包装 loadBooks 函数，避免无限循环
   const loadBooks = useCallback(async () => {
@@ -29,9 +51,8 @@ const BookListScreen: React.FC = () => {
       setError(null);
       setLocalLoading(true);
       await fetchBooks();
-    } catch (err) {
-      console.error('加载账本列表失败', err);
-      setError(typeof err === 'string' ? err : '加载账本列表失败');
+    } catch (error: any) {
+      setError(error.message || '加载失败');
     } finally {
       setLocalLoading(false);
     }
@@ -40,14 +61,11 @@ const BookListScreen: React.FC = () => {
   // 处理选择账本
   const handleSelectBook = useCallback(async (book: Book) => {
     try {
-      setLocalLoading(true);
       await updateCurrentBook(book);
       navigation.navigate('MainTabs');
     } catch (err) {
       console.error('选择账本失败', err);
       Alert.alert('错误', typeof err === 'string' ? err : '选择账本失败');
-    } finally {
-      setLocalLoading(false);
     }
   }, [navigation, updateCurrentBook]);
 
@@ -87,29 +105,7 @@ const BookListScreen: React.FC = () => {
     );
   }, [deleteBook]);
 
-  // 添加导入共享账本方法
-  const handleImportSharedBook = useCallback(async () => {
-    if (!shareKeyInput.trim()) {
-      Alert.alert('错误', '请输入共享码');
-      return;
-    }
-
-    try {
-      setLocalLoading(true);
-      // 调用导入共享账本的 API
-      await api.book.inshare({ key: shareKeyInput.trim() });
-      await fetchBooks();
-      Alert.alert('成功', '共享账本已导入');
-      setShareKeyInput('');
-    } catch (error) {
-      console.error('导入共享账本失败', error);
-      Alert.alert('错误', '导入共享账本失败，请检查共享码是否正确');
-    } finally {
-      setLocalLoading(false);
-    }
-  }, [shareKeyInput, fetchBooks]);
-
-  // 只在组件挂载时加载一次账本
+  // 初始化加载
   useEffect(() => {
     loadBooks();
   }, [loadBooks]);
@@ -124,7 +120,7 @@ const BookListScreen: React.FC = () => {
         containerStyle={[
           styles.bookItem,
           isSelected && styles.selectedBookItem,
-          { backgroundColor: isSelected ? colors.primary + '20' : colors.card, borderColor: colors.border }
+          { backgroundColor: isSelected ? colors.primary + '20' : colors.card, borderColor: colors.border },
         ]}
         onPress={() => handleSelectBook(item)}
       >
@@ -136,7 +132,7 @@ const BookListScreen: React.FC = () => {
         <ListItem.Content>
           <ListItem.Title style={[
             isSelected && styles.selectedBookTitle,
-            { color: colors.text }
+            { color: colors.text },
           ]}>
             {item.bookName}
           </ListItem.Title>
@@ -259,6 +255,7 @@ const BookListScreen: React.FC = () => {
         </View>
       </Card>
 
+      {/* 账本列表 */}
       <FlatList
         data={books}
         renderItem={renderBookItem}

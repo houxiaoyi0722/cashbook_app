@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator, Text as RNText } from 'react-native';
-import { Text, Icon, ListItem } from '@rneui/themed';
+import { Text, Icon, ListItem, Card } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MainStackParamList } from '../../navigation/types';
@@ -13,7 +13,7 @@ type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
 const ServerListScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { serverConfig, serverConfigs, deleteServerConfig, switchServer, isLoading, isLoggedIn, isLogOut } = useAuth();
+  const { serverConfig, serverConfigs, deleteServerConfig, switchServer, isLoading, isLoggedIn, isLogOut, enableOfflineMode, isOfflineMode, disableOfflineMode } = useAuth();
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
@@ -57,6 +57,49 @@ const ServerListScreen: React.FC = () => {
     }
   }, [switchServer]);
 
+  // 处理离线模式切换
+  const handleOfflineModeToggle = useCallback(() => {
+    if (isOfflineMode) {
+      // 退出离线模式
+      Alert.alert(
+        '退出离线模式',
+        '退出离线模式后将返回服务器选择页面，本地数据将保留。',
+        [
+          { text: '取消', style: 'cancel' },
+          {
+            text: '确定',
+            onPress: () => {
+              disableOfflineMode();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'ServerList' }],
+              });
+            },
+          },
+        ]
+      );
+    } else {
+      // 启用离线模式
+      Alert.alert(
+        '启用离线模式',
+        '在离线模式下，您可以创建本地账本并记账，数据将存储在本地。后续可以选择性同步到服务器。',
+        [
+          { text: '取消', style: 'cancel' },
+          {
+            text: '确定',
+            onPress: () => {
+              enableOfflineMode();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs' }],
+              });
+            },
+          },
+        ]
+      );
+    }
+  }, [isOfflineMode, enableOfflineMode, disableOfflineMode, navigation]);
+
   // 处理服务器删除
   const handleDeleteServer = useCallback((server: ServerConfig) => {
     Alert.alert(
@@ -98,10 +141,10 @@ const ServerListScreen: React.FC = () => {
         style={[
           styles.customServerItem,
           isSelected && styles.selectedServerItem,
-          { 
+          {
             backgroundColor: isSelected ? colors.primary + '20' : colors.card,
-            borderColor: colors.border 
-          }
+            borderColor: colors.border,
+          },
         ]}
         onPress={() => handleSelectServer(item.id)}
       >
@@ -151,6 +194,37 @@ const ServerListScreen: React.FC = () => {
         <ActivityIndicator size="large" color={colors.primary} style={styles.loading} />
       ) : (
         <>
+          {/* 离线模式管理 */}
+          <Card containerStyle={[styles.offlineModeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <ListItem
+              onPress={handleOfflineModeToggle}
+              bottomDivider={false}
+              containerStyle={{backgroundColor: 'transparent'}}
+            >
+              <Icon
+                name={isOfflineMode ? 'cloud-off' : 'offline-bolt'}
+                type="material"
+                color={isOfflineMode ? colors.warning : colors.primary}
+                size={24}
+              />
+              <ListItem.Content>
+                <ListItem.Title style={[styles.offlineModeTitle, { color: colors.text }]}>
+                  {isOfflineMode ? '退出离线模式' : '离线记账模式'}
+                </ListItem.Title>
+                <ListItem.Subtitle style={[styles.offlineModeSubtitle, { color: colors.secondaryText }]}>
+                  {isOfflineMode
+                    ? '当前为离线模式，点击退出并返回服务器选择'
+                    : '无需连接服务器，本地记账后可选择性同步'
+                  }
+                </ListItem.Subtitle>
+              </ListItem.Content>
+              <ListItem.Chevron color={colors.secondaryText} />
+            </ListItem>
+          </Card>
+
+          {/* 服务器列表标题 */}
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>选择服务器</Text>
+
           {serverConfigs.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={[styles.emptyText, { color: colors.text }]}>暂无服务器配置</Text>
@@ -259,6 +333,26 @@ const styles = StyleSheet.create({
   },
   loading: {
     marginTop: 20,
+  },
+  offlineModeCard: {
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 0, // 改为0，因为ListItem有自己的padding
+  },
+  offlineModeTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  offlineModeSubtitle: {
+    fontSize: 14,
+    marginTop: 4,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    marginTop: 16,
+    marginLeft: 16,
   },
 });
 
