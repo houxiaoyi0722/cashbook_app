@@ -86,7 +86,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.4.2"
+        versionName "1.5.0"
         resConfigs "en", "zh" // 只保留英语和中文资源
     }
     signingConfigs {
