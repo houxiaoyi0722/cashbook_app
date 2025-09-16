@@ -693,10 +693,10 @@ const FlowFormScreen: React.FC = () => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <View style={[styles.container, { backgroundColor: colors.background }]}>
-          <ScrollView keyboardShouldPersistTaps="handled">
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={true} bounces={true} alwaysBounceVertical={false}>
             {/* 离线模式提示 */}
             {isOfflineMode && (
               <View style={[styles.offlineBanner, { backgroundColor: '#ff9800' }]}>
@@ -1145,7 +1145,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 5,
   },
-  offlineBannerText: {
+  scrollContent: { flexGrow: 1, paddingBottom: 20 }, offlineBannerText: {
     fontSize: 14,
     fontWeight: 'bold',
   },
