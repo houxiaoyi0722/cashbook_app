@@ -9,7 +9,9 @@ variables:
 
 sync-to-github:
   stage: sync
-  image: alpine:latest
+  image:
+    name: alpine:3.16
+    pull_policy: if-not-present  # 添加这行
   tags:
     - docker
   script:
