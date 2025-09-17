@@ -5,7 +5,7 @@ variables:
   # 设置这些变量在GitLab项目的CI/CD设置中
   # Settings → CI/CD → Variables
   GITHUB_TOKEN: $GITHUB_TOKEN
-  SYNC_BRANCH: "main"
+  SYNC_BRANCH: "master"
 
 sync-to-github:
   stage: sync
