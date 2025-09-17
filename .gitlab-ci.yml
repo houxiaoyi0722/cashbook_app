@@ -12,11 +12,6 @@ sync-to-github:
   image: alpine:latest
   tags:
     - docker
-  before_script:
-    - apk add --no-cache git openssh-client
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - ssh-keyscan github.com >> ~/.ssh/known_hosts
   script:
     - |
       # 添加GitHub远程仓库
