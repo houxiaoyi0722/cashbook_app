@@ -10,7 +10,7 @@ variables:
 sync-to-github:
   stage: sync
   image:
-    name: alpine:latest
+    name: 10.144.233.86:8082/sang/library/alpine:3.22
     pull_policy: if-not-present  # 添加这行
   tags:
     - docker
