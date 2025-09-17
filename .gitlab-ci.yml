@@ -15,8 +15,12 @@ sync-to-github:
   tags:
     - docker
   script:
-    - git fetch https://houxiaoyi0722:${GITHUB_TOKEN}@github.com/houxiaoyi0722/cashbook_app.git
-    - git push -f https://houxiaoyi0722:${GITHUB_TOKEN}@github.com/houxiaoyi0722/cashbook_app.git HEAD:main
+    - |
+      # 添加GitHub远程仓库
+      git fetch https://houxiaoyi0722:${GITHUB_TOKEN}@github.com/houxiaoyi0722/cashbook_app.git
+      
+      # 推送到GitHub
+      git push -f https://houxiaoyi0722:${GITHUB_TOKEN}@github.com/houxiaoyi0722/cashbook_app.git HEAD:main
   rules:
     - if: $CI_COMMIT_BRANCH == $SYNC_BRANCH
       when: always
