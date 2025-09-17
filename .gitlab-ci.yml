@@ -10,7 +10,7 @@ variables:
 sync-to-github:
   stage: sync
   image:
-    name: 10.144.233.86:8082/sang/alpine/git:v2.49.1
+    name: 10.144.233.86:8082/sang/bitnami/git:latest
     pull_policy: if-not-present  # 添加这行
   tags:
     - docker
