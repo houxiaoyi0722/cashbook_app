@@ -26,3 +26,6 @@ sync-to-github:
       git push -f https://houxiaoyi0722:${GITHUB_TOKEN}@github.com/houxiaoyi0722/cashbook_app.git HEAD:main
   rules:
     - if: $CI_COMMIT_BRANCH == $SYNC_BRANCH
+      when: always
+  retry:
+    max: 2
