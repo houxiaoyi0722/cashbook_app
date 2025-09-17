@@ -10,12 +10,10 @@ variables:
 sync-to-github:
   stage: sync
   image:
-    name: 10.144.233.86:8082/sang/library/alpine:3.22
+    name: 10.144.233.86:8082/sang/alpine/git:v2.49.1
     pull_policy: if-not-present  # 添加这行
   tags:
     - docker
-  before_script:
-    - apk add git
   script:
     - |
       # 添加GitHub远程仓库
