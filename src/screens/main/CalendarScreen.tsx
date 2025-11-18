@@ -874,6 +874,109 @@ const CalendarScreen: React.FC = () => {
     );
   }, [currentBook, fetchDuplicateFlows, fetchCalendarFlows]);
 
+  // 批量编辑相关状态 - 滑动操作版本
+  const [isBatchEditMode, setIsBatchEditMode] = useState(false);
+  const [batchOperations, setBatchOperations] = useState<Array<{outId: number, inIds: number[], type: 'ignore' | 'balance'}>>([]);
+  const [hiddenItems, setHiddenItems] = useState<Record<number, boolean>>({});
+
+  // 切换批量编辑模式
+  const toggleBatchEditMode = useCallback(() => {
+    setIsBatchEditMode(prev => {
+      if (prev) {
+        // 退出批量编辑模式时清空操作记录和隐藏项
+        setBatchOperations([]);
+        setHiddenItems({});
+      }
+      return !prev;
+    });
+  }, []);
+
+  // 处理滑动操作 - 修改为同时存储inIds
+  const handleSwipeAction = useCallback((outId: number, type: 'ignore' | 'balance', inIds: number[] = []) => {
+    // 添加到操作记录，对于平账操作需要存储inIds
+    setBatchOperations(prev => [...prev, { outId, type, inIds }]);
+    // 隐藏该项
+    setHiddenItems(prev => ({ ...prev, [outId]: true }));
+  }, []);
+
+  // 撤销上一步操作
+  const undoLastOperation = useCallback(() => {
+    if (batchOperations.length === 0) {return;}
+
+    const lastOperation = batchOperations[batchOperations.length - 1];
+    // 从操作记录中移除
+    setBatchOperations(prev => prev.slice(0, -1));
+    // 取消隐藏该项
+    setHiddenItems(prev => {
+      const newHidden = { ...prev };
+      delete newHidden[lastOperation.outId];
+      return newHidden;
+    });
+  }, [batchOperations]);
+
+  // 提交批量编辑 - 修改为使用存储的inIds
+  const submitBatchEdit = useCallback(async () => {
+    if (!currentBook) {return;}
+
+    const ignoreOutIds: number[] = [];
+    const balanceOperations: Array<{outId: number, inIds: number[]}> = [];
+
+    // 分类处理操作
+    batchOperations.forEach(operation => {
+      if (operation.type === 'ignore') {
+        ignoreOutIds.push(operation.outId);
+      } else if (operation.type === 'balance') {
+        // 使用存储的inIds
+        balanceOperations.push({
+          outId: operation.outId,
+          inIds: operation.inIds,
+        });
+      }
+    });
+
+    try {
+      setBalanceLoading(true);
+      console.log(ignoreOutIds,balanceOperations)
+      // 批量忽略
+      if (ignoreOutIds.length > 0) {
+        const ignoreResponse = await api.flow.ignoreAllBalanceItems({
+          bookId: currentBook.bookId,
+          ids: ignoreOutIds,
+        });
+        if (ignoreResponse.c !== 200) {
+          Alert.alert('错误', ignoreResponse.m || '批量忽略失败');
+          return;
+        }
+      }
+
+      // 批量平账 - 使用存储的inIds
+      for (const operation of balanceOperations) {
+        const balanceResponse = await api.flow.confirmBalance({
+          bookId: currentBook.bookId,
+          outId: operation.outId,
+          inIds: operation.inIds,
+        });
+        if (balanceResponse.c !== 200) {
+          Alert.alert('错误', balanceResponse.m || `平账失败（ID:${operation.outId}）`);
+          return;
+        }
+      }
+
+      // 成功处理
+      Alert.alert('成功', '批量操作完成');
+      setIsBatchEditMode(false);
+      setBatchOperations([]);
+      setHiddenItems({});
+      await fetchBalanceCandidates();
+      await fetchCalendarFlows();
+    } catch (error) {
+      console.error('批量操作失败', error);
+      Alert.alert('错误', '批量操作失败');
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, [batchOperations, currentBook, fetchCalendarFlows]);
+
   // 获取平账候选数据
   const fetchBalanceCandidates = useCallback(async () => {
     if (!currentBook) {return;}
@@ -1023,132 +1126,322 @@ const CalendarScreen: React.FC = () => {
         overlayStyle={[styles.balanceOverlay, {backgroundColor: colors.dialog}]}
       >
         <View style={styles.balanceContainer}>
-          <View style={styles.balanceHeader}>
+                    <View style={styles.balanceHeader}>
             <Text style={[styles.balanceTitle, {color: colors.text}]}>平账管理</Text>
 
-            {balanceCandidates.length > 0 && (
-              <TouchableOpacity
-                style={[styles.balanceIgnoreAllButton, {backgroundColor: colors.input}]}
-                onPress={handleIgnoreAllBalanceItems}
-              >
-                <Text style={[styles.balanceIgnoreAllText, {color: colors.text}]}>忽略全部</Text>
+            <View style={styles.balanceHeaderActions}>
+              {balanceCandidates.length > 0 && (
+                <>
+                  {!isBatchEditMode ? (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.balanceIgnoreAllButton, {backgroundColor: colors.input}]}
+                        onPress={handleIgnoreAllBalanceItems}
+                      >
+                        <Text style={[styles.balanceIgnoreAllText, {color: colors.text}]}>忽略全部</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.batchEditButton, {backgroundColor: colors.input}]}
+                        onPress={toggleBatchEditMode}
+                      >
+                        <Text style={[styles.batchEditButtonText, {color: colors.text}]}>批量编辑</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      {batchOperations.length > 0 && (
+                        <TouchableOpacity
+                          style={[styles.undoButton, {backgroundColor: colors.input}]}
+                          onPress={undoLastOperation}
+                        >
+                          <Icon name="undo" type="material" size={16} color={colors.text} />
+                          <Text style={[styles.undoButtonText, {color: colors.text}]}>撤销</Text>
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity
+                        style={[styles.batchEditButton, {backgroundColor: colors.primary}]}
+                        onPress={submitBatchEdit}
+                      >
+                        <Text style={[styles.batchEditButtonText, {color: 'white'}]}>提交</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.batchEditButton, {backgroundColor: colors.input}]}
+                        onPress={toggleBatchEditMode}
+                      >
+                        <Text style={[styles.batchEditButtonText, {color: colors.text}]}>取消</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </>
+              )}
+              <TouchableOpacity onPress={() => setShowBalanceModal(false)}>
+                <Icon name="close" type="material" size={24} color={colors.text} />
               </TouchableOpacity>
-            )}
-
-            <TouchableOpacity onPress={() => setShowBalanceModal(false)}>
-              <Icon name="close" type="material" size={24} color={colors.text} />
-            </TouchableOpacity>
+            </View>
           </View>
-
-          <ScrollView style={styles.balanceContent}>
-            {balanceLoading ? (
-              <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
-            ) : balanceCandidates.length === 0 ? (
-              <Text style={[styles.balanceEmptyText, {color: colors.text}]}>没有找到需要平账的记录</Text>
-            ) : (
-              balanceCandidates.map((item, index) => (
-                <View key={`balance-${index}`} style={[styles.balanceGroup,{backgroundColor: colors.card}]}>
-                  {/* 支出项 */}
-                  <View style={styles.balanceOutItem}>
-                    <View style={styles.duplicateItemHeader}>
-                      <Text style={[styles.duplicateItemTitle]} numberOfLines={1}>
-                        {item.out.name || '无名称'}
-                      </Text>
-                      <Text style={[
-                        styles.duplicateItemMoney,
-                        {color: '#f44336'},
-                      ]}>
-                        -{item.out.money.toFixed(2)}
-                      </Text>
-                    </View>
-
-                    <View style={styles.duplicateItemCompactDetails}>
-                      <Text style={styles.duplicateItemCompactDetail}>
-                        <Text style={styles.duplicateItemCompactLabel}>日期:</Text> {item.out.day}
-                      </Text>
-                      <Text style={styles.duplicateItemCompactDetail}>
-                        <Text style={styles.duplicateItemCompactLabel}>类型:</Text> {item.out.flowType}
-                      </Text>
-                      <Text style={styles.duplicateItemCompactDetail}>
-                        <Text style={styles.duplicateItemCompactLabel}>分类:</Text> {item.out.industryType}
-                      </Text>
-                      <Text style={styles.duplicateItemCompactDetail}>
-                        <Text style={styles.duplicateItemCompactLabel}>支付:</Text> {item.out.payType}
-                      </Text>
-                      {item.out.description && (
-                        <Text style={styles.duplicateItemCompactDetail} numberOfLines={1}>
-                          <Text style={styles.duplicateItemCompactLabel}>备注:</Text> {item.out.description}
+          <View style={styles.balanceContentWrapper}>
+            {isBatchEditMode ? (
+                <View>
+                  <View style={[styles.batchEditBanner, {backgroundColor: colors.card}]}>
+                    <View style={styles.batchEditBannerContent}>
+                      <View style={styles.batchEditCount}>
+                        <Text style={[styles.batchEditCountText, {color: colors.text}]}>
+                          ({batchOperations.filter(op => op.type === 'ignore').length})忽略
                         </Text>
-                      )}
-                      {item.out.attribution && (
-                          <Text style={styles.duplicateItemCompactDetail}>
-                            <Text style={styles.duplicateItemCompactLabel}>归属:</Text> {item.out.attribution}
-                          </Text>
-                      )}
-                    </View>
-                  </View>
-
-                  {/* 收入项 */}
-                  <View style={styles.balanceInItem}>
-                    <View style={styles.duplicateItemHeader}>
-                      <Text style={styles.duplicateItemTitle} numberOfLines={1}>
-                        {item.in.name || '无名称'}
-                      </Text>
-                      <Text style={[
-                        styles.duplicateItemMoney,
-                        {color: item.in.flowType === '收入' ? '#4caf50' : '#757575'},
-                      ]}>
-                        {item.in.flowType === '收入' ? '+' : ''}
-                        {item.in.money.toFixed(2)}
-                      </Text>
-                    </View>
-
-                    <View style={styles.duplicateItemCompactDetails}>
-                      <Text style={styles.duplicateItemCompactDetail}>
-                        <Text style={styles.duplicateItemCompactLabel}>日期:</Text> {item.in.day}
-                      </Text>
-                      <Text style={styles.duplicateItemCompactDetail}>
-                        <Text style={styles.duplicateItemCompactLabel}>类型:</Text> {item.in.flowType}
-                      </Text>
-                      <Text style={styles.duplicateItemCompactDetail}>
-                        <Text style={styles.duplicateItemCompactLabel}>分类:</Text> {item.in.industryType}
-                      </Text>
-                      <Text style={styles.duplicateItemCompactDetail}>
-                        <Text style={styles.duplicateItemCompactLabel}>支付:</Text> {item.in.payType}
-                      </Text>
-                      {item.in.description && (
-                        <Text style={styles.duplicateItemCompactDetail} numberOfLines={1}>
-                          <Text style={styles.duplicateItemCompactLabel}>备注:</Text> {item.in.description}
+                      </View>
+                      <View style={styles.batchEditSwipeHint}>
+                        <Text style={[styles.batchEditSwipeHintText, {color: colors.text}]}>
+                          &lt;&lt;&lt;左滑
                         </Text>
-                      )}
-                      {item.in.attribution && (
-                          <Text style={styles.duplicateItemCompactDetail}>
-                            <Text style={styles.duplicateItemCompactLabel}>归属:</Text> {item.in.attribution}
-                          </Text>
-                      )}
+                        <Text style={[styles.batchEditSwipeHintText, {color: colors.text}]}>
+                          右滑&gt;&gt;&gt;
+                        </Text>
+                      </View>
+                      <View style={styles.batchEditCount}>
+                        <Text style={[styles.batchEditCountText, {color: colors.text}]}>
+                          平账({batchOperations.filter(op => op.type === 'balance').length})
+                        </Text>
+                      </View>
                     </View>
                   </View>
+                  <SwipeListView
+                    data={balanceCandidates.filter(item => !hiddenItems[item.out.id])}
+                    keyExtractor={(item) => `balance-${item.out.id}`}
+                    renderItem={({ item }) => (
+                      <View style={[styles.balanceGroup, { backgroundColor: colors.card }]}>
+                        {/* 支出项 */}
+                        <View style={styles.balanceOutItem}>
+                          <View style={styles.duplicateItemHeader}>
+                            <Text style={[styles.duplicateItemTitle]} numberOfLines={1}>
+                              {item.out.name || '无名称'}
+                            </Text>
+                            <Text style={[
+                              styles.duplicateItemMoney,
+                              { color: '#f44336' },
+                            ]}>
+                              -{item.out.money.toFixed(2)}
+                            </Text>
+                          </View>
 
-                  {/* 按钮区域 */}
-                  <View style={styles.balanceActionContainer}>
-                    <TouchableOpacity
-                        style={[styles.balanceIgnoreButton, {backgroundColor: colors.input}]}
-                        onPress={() => handleIgnoreBalanceItem(item.out.id)}
-                    >
-                      <Text style={[styles.balanceIgnoreText, {color: colors.text}]}>忽略</Text>
-                    </TouchableOpacity>
+                          <View style={styles.duplicateItemCompactDetails}>
+                            <Text style={styles.duplicateItemCompactDetail}>
+                              <Text style={styles.duplicateItemCompactLabel}>日期:</Text> {item.out.day}
+                            </Text>
+                            <Text style={styles.duplicateItemCompactDetail}>
+                              <Text style={styles.duplicateItemCompactLabel}>类型:</Text> {item.out.flowType}
+                            </Text>
+                            <Text style={styles.duplicateItemCompactDetail}>
+                              <Text style={styles.duplicateItemCompactLabel}>分类:</Text> {item.out.industryType}
+                            </Text>
+                            <Text style={styles.duplicateItemCompactDetail}>
+                              <Text style={styles.duplicateItemCompactLabel}>支付:</Text> {item.out.payType}
+                            </Text>
+                            {item.out.description && (
+                              <Text style={styles.duplicateItemCompactDetail} numberOfLines={1}>
+                                <Text style={styles.duplicateItemCompactLabel}>备注:</Text> {item.out.description}
+                              </Text>
+                            )}
+                            {item.out.attribution && (
+                              <Text style={styles.duplicateItemCompactDetail}>
+                                <Text style={styles.duplicateItemCompactLabel}>归属:</Text> {item.out.attribution}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
 
-                    <TouchableOpacity
-                        style={[styles.balanceConfirmButton, {backgroundColor: colors.primary}]}
-                        onPress={() => handleConfirmBalance(item.out.id, [item.in.id])}
-                    >
-                      <Text style={[styles.balanceConfirmText, {color: 'white'}]}>平账</Text>
-                    </TouchableOpacity>
-                  </View>
+                        {/* 收入项 */}
+                        <View style={styles.balanceInItem}>
+                          <View style={styles.duplicateItemHeader}>
+                            <Text style={styles.duplicateItemTitle} numberOfLines={1}>
+                              {item.in.name || '无名称'}
+                            </Text>
+                            <Text style={[
+                              styles.duplicateItemMoney,
+                              { color: item.in.flowType === '收入' ? '#4caf50' : '#757575' },
+                            ]}>
+                              {item.in.flowType === '收入' ? '+' : ''}
+                              {item.in.money.toFixed(2)}
+                            </Text>
+                          </View>
+
+                          <View style={styles.duplicateItemCompactDetails}>
+                            <Text style={styles.duplicateItemCompactDetail}>
+                              <Text style={styles.duplicateItemCompactLabel}>日期:</Text> {item.in.day}
+                            </Text>
+                            <Text style={styles.duplicateItemCompactDetail}>
+                              <Text style={styles.duplicateItemCompactLabel}>类型:</Text> {item.in.flowType}
+                            </Text>
+                            <Text style={styles.duplicateItemCompactDetail}>
+                              <Text style={styles.duplicateItemCompactLabel}>分类:</Text> {item.in.industryType}
+                            </Text>
+                            <Text style={styles.duplicateItemCompactDetail}>
+                              <Text style={styles.duplicateItemCompactLabel}>支付:</Text> {item.in.payType}
+                            </Text>
+                            {item.in.description && (
+                              <Text style={styles.duplicateItemCompactDetail} numberOfLines={1}>
+                                <Text style={styles.duplicateItemCompactLabel}>备注:</Text> {item.in.description}
+                              </Text>
+                            )}
+                            {item.in.attribution && (
+                              <Text style={styles.duplicateItemCompactDetail}>
+                                <Text style={styles.duplicateItemCompactLabel}>归属:</Text> {item.in.attribution}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                    renderHiddenItem={() => (<View/>)}
+                    leftOpenValue={200}
+                    rightOpenValue={-200}
+                    onRowOpen={(rowKey, rowMap, toValue) => {
+                      const outId = parseInt(rowKey.replace('balance-', ''));
+                      // 找到对应的item来获取inIds
+                      const item = balanceCandidates.find(item => item.out.id === outId);
+                      if (item) {
+                        let inIds: number[] = [];
+                        if (Array.isArray(item.in)) {
+                          inIds = item.in.map((inItem: Flow) => inItem.id);
+                        } else if (item.in) {
+                          inIds = [item.in.id];
+                        }
+
+                        if (toValue > 0) {
+                          // 右滑 - 平账
+                          handleSwipeAction(outId, 'balance', inIds);
+                        } else {
+                          // 左滑 - 忽略
+                          handleSwipeAction(outId, 'ignore');
+                        }
+                      }
+                      // 关闭行以显示隐藏效果
+                      setTimeout(() => {
+                        rowMap[rowKey]?.closeRow();
+                      }, 50);
+                    }}
+                    disableLeftSwipe={false}
+                    disableRightSwipe={false}
+                  />
                 </View>
-              ))
+            ) : (
+              <ScrollView
+                style={styles.balanceContent}
+                contentContainerStyle={styles.balanceContentContainer}
+                showsVerticalScrollIndicator={true}
+              >
+                {balanceLoading ? (
+                  <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+                ) : balanceCandidates.length === 0 ? (
+                  <Text style={[styles.balanceEmptyText, { color: colors.text }]}>没有找到需要平账的记录</Text>
+                ) : (
+                  balanceCandidates.map((item, index) => (
+                    <View key={`balance-${index}`} style={[styles.balanceGroup, { backgroundColor: colors.card }]}>
+                      {/* 支出项 */}
+                      <View style={styles.balanceOutItem}>
+                        <View style={styles.duplicateItemHeader}>
+                          <Text style={[styles.duplicateItemTitle]} numberOfLines={1}>
+                            {item.out.name || '无名称'}
+                          </Text>
+                          <Text style={[
+                            styles.duplicateItemMoney,
+                            { color: '#f44336' },
+                          ]}>
+                            -{item.out.money.toFixed(2)}
+                          </Text>
+                        </View>
+
+                        <View style={styles.duplicateItemCompactDetails}>
+                          <Text style={styles.duplicateItemCompactDetail}>
+                            <Text style={styles.duplicateItemCompactLabel}>日期:</Text> {item.out.day}
+                          </Text>
+                          <Text style={styles.duplicateItemCompactDetail}>
+                            <Text style={styles.duplicateItemCompactLabel}>类型:</Text> {item.out.flowType}
+                          </Text>
+                          <Text style={styles.duplicateItemCompactDetail}>
+                            <Text style={styles.duplicateItemCompactLabel}>分类:</Text> {item.out.industryType}
+                          </Text>
+                          <Text style={styles.duplicateItemCompactDetail}>
+                            <Text style={styles.duplicateItemCompactLabel}>支付:</Text> {item.out.payType}
+                          </Text>
+                          {item.out.description && (
+                            <Text style={styles.duplicateItemCompactDetail} numberOfLines={1}>
+                              <Text style={styles.duplicateItemCompactLabel}>备注:</Text> {item.out.description}
+                            </Text>
+                          )}
+                          {item.out.attribution && (
+                            <Text style={styles.duplicateItemCompactDetail}>
+                              <Text style={styles.duplicateItemCompactLabel}>归属:</Text> {item.out.attribution}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+
+                      {/* 收入项 */}
+                      <View style={styles.balanceInItem}>
+                        <View style={styles.duplicateItemHeader}>
+                          <Text style={styles.duplicateItemTitle} numberOfLines={1}>
+                            {item.in.name || '无名称'}
+                          </Text>
+                          <Text style={[
+                            styles.duplicateItemMoney,
+                            { color: item.in.flowType === '收入' ? '#4caf50' : '#757575' },
+                          ]}>
+                            {item.in.flowType === '收入' ? '+' : ''}
+                            {item.in.money.toFixed(2)}
+                          </Text>
+                        </View>
+
+                        <View style={styles.duplicateItemCompactDetails}>
+                          <Text style={styles.duplicateItemCompactDetail}>
+                            <Text style={styles.duplicateItemCompactLabel}>日期:</Text> {item.in.day}
+                          </Text>
+                          <Text style={styles.duplicateItemCompactDetail}>
+                            <Text style={styles.duplicateItemCompactLabel}>类型:</Text> {item.in.flowType}
+                          </Text>
+                          <Text style={styles.duplicateItemCompactDetail}>
+                            <Text style={styles.duplicateItemCompactLabel}>分类:</Text> {item.in.industryType}
+                          </Text>
+                          <Text style={styles.duplicateItemCompactDetail}>
+                            <Text style={styles.duplicateItemCompactLabel}>支付:</Text> {item.in.payType}
+                          </Text>
+                          {item.in.description && (
+                            <Text style={styles.duplicateItemCompactDetail} numberOfLines={1}>
+                              <Text style={styles.duplicateItemCompactLabel}>备注:</Text> {item.in.description}
+                            </Text>
+                          )}
+                          {item.in.attribution && (
+                            <Text style={styles.duplicateItemCompactDetail}>
+                              <Text style={styles.duplicateItemCompactLabel}>归属:</Text> {item.in.attribution}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+
+                      {/* 按钮区域 */}
+                      <View style={styles.balanceActionContainer}>
+                        <TouchableOpacity
+                          style={[styles.balanceIgnoreButton, { backgroundColor: colors.input }]}
+                          onPress={() => handleIgnoreBalanceItem(item.out.id)}
+                        >
+                          <Text style={[styles.balanceIgnoreText, { color: colors.text }]}>忽略</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.balanceConfirmButton, { backgroundColor: colors.primary }]}
+                          onPress={() => handleConfirmBalance(item.out.id, [item.in.id])}
+                        >
+                          <Text style={[styles.balanceConfirmText, { color: 'white' }]}>平账</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </ScrollView>
             )}
-          </ScrollView>
+            {isBatchEditMode && balanceCandidates.filter(item => !hiddenItems[item.out.id]).length === 0 && balanceCandidates.length > 0 && (
+              <Text style={[styles.balanceEmptyText, { color: colors.text }]}>所有记录已处理</Text>
+            )}
+          </View>
         </View>
       </Overlay>
     );
@@ -1788,7 +2081,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 2,
     backgroundColor: '#f5f5f5',
-    borderBottomWidth: 1
+    borderBottomWidth: 1,
   },
   actionButton: {
     flexDirection: 'row',
@@ -1933,8 +2226,8 @@ const styles = StyleSheet.create({
   },
   // 平账弹窗样式
   balanceOverlay: {
-    maxWidth: '85%',
-    maxHeight: '75%',
+    width: '90%',
+    height: '80%',
     borderRadius: 10,
     padding: 0,
     overflow: 'hidden',
@@ -1960,15 +2253,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
-    marginRight: 120,
+    marginRight: 8,
   },
   balanceIgnoreAllText: {
     fontSize: 12,
     color: '#757575',
   },
+  balanceContentWrapper: {
+    flex: 1,
+    width: '100%',
+  },
   balanceContent: {
     flex: 1,
-    minWidth:'100%',
+    width: '100%',
+  },
+  balanceContentContainer: {
     padding: 10,
   },
   balanceEmptyText: {
@@ -1977,7 +2276,7 @@ const styles = StyleSheet.create({
     color: '#757575',
   },
   balanceGroup: {
-    marginBottom: 15,
+    marginBottom: 8,
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
     padding: 8,
@@ -2191,6 +2490,89 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
+  },
+  balanceHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  batchEditButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  batchEditButtonText: {
+    fontSize: 12,
+  },
+  batchActionContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  batchSelectButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#bdbdbd',
+    backgroundColor: '#f5f5f5',
+  },
+  batchSelectButtonActiveIgnore: {
+    backgroundColor: '#f44336',
+    borderColor: '#f44336',
+  },
+  batchSelectButtonActiveBalance: {
+    backgroundColor: '#4caf50',
+    borderColor: '#4caf50',
+  },
+  batchSelectButtonText: {
+    fontSize: 12,
+    color: '#757575',
+  },
+  batchSelectButtonTextActive: {
+    color: 'white',
+  },
+  undoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  undoButtonText: {
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  // 批量编辑横幅样式
+  batchEditBanner: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  batchEditBannerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  batchEditCount: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  batchEditCountText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  batchEditSwipeHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 2,
+  },
+  batchEditSwipeHintText: {
+    fontSize: 14,
+    marginHorizontal: 8,
   },
 });
 
