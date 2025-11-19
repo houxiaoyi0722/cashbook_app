@@ -1126,7 +1126,14 @@ const CalendarScreen: React.FC = () => {
         overlayStyle={[styles.balanceOverlay, {backgroundColor: colors.dialog}]}
       >
         <View style={styles.balanceContainer}>
-                    <View style={styles.balanceHeader}>
+          {/* Loading 遮罩 */}
+          {balanceLoading && (
+            <View style={[styles.loadingOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[styles.loadingText, { color: 'white' }]}>处理中...</Text>
+            </View>
+          )}
+          <View style={styles.balanceHeader}>
             <Text style={[styles.balanceTitle, {color: colors.text}]}>平账管理</Text>
 
             <View style={styles.balanceHeaderActions}>
@@ -1161,12 +1168,14 @@ const CalendarScreen: React.FC = () => {
                       <TouchableOpacity
                         style={[styles.batchEditButton, {backgroundColor: colors.primary}]}
                         onPress={submitBatchEdit}
+                        disabled={balanceLoading}
                       >
                         <Text style={[styles.batchEditButtonText, {color: 'white'}]}>提交</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.batchEditButton, {backgroundColor: colors.input}]}
                         onPress={toggleBatchEditMode}
+                        disabled={balanceLoading}
                       >
                         <Text style={[styles.batchEditButtonText, {color: colors.text}]}>取消</Text>
                       </TouchableOpacity>
@@ -1174,7 +1183,7 @@ const CalendarScreen: React.FC = () => {
                   )}
                 </>
               )}
-              <TouchableOpacity onPress={() => setShowBalanceModal(false)}>
+              <TouchableOpacity onPress={() => setShowBalanceModal(false)} disabled={balanceLoading}>
                 <Icon name="close" type="material" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
@@ -1295,6 +1304,7 @@ const CalendarScreen: React.FC = () => {
                     leftOpenValue={200}
                     rightOpenValue={-200}
                     onRowOpen={(rowKey, rowMap, toValue) => {
+                      if (balanceLoading) return;
                       const outId = parseInt(rowKey.replace('balance-', ''));
                       // 找到对应的item来获取inIds
                       const item = balanceCandidates.find(item => item.out.id === outId);
@@ -1422,6 +1432,7 @@ const CalendarScreen: React.FC = () => {
                         <TouchableOpacity
                           style={[styles.balanceIgnoreButton, { backgroundColor: colors.input }]}
                           onPress={() => handleIgnoreBalanceItem(item.out.id)}
+                          disabled={balanceLoading}
                         >
                           <Text style={[styles.balanceIgnoreText, { color: colors.text }]}>忽略</Text>
                         </TouchableOpacity>
@@ -1429,6 +1440,7 @@ const CalendarScreen: React.FC = () => {
                         <TouchableOpacity
                           style={[styles.balanceConfirmButton, { backgroundColor: colors.primary }]}
                           onPress={() => handleConfirmBalance(item.out.id, [item.in.id])}
+                          disabled={balanceLoading}
                         >
                           <Text style={[styles.balanceConfirmText, { color: 'white' }]}>平账</Text>
                         </TouchableOpacity>
