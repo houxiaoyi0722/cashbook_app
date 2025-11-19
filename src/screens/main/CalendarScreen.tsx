@@ -1186,20 +1186,20 @@ const CalendarScreen: React.FC = () => {
                     <View style={styles.batchEditBannerContent}>
                       <View style={styles.batchEditCount}>
                         <Text style={[styles.batchEditCountText, {color: colors.text}]}>
-                          ({batchOperations.filter(op => op.type === 'ignore').length})忽略
+                          忽略: {batchOperations.filter(op => op.type === 'ignore').length}
                         </Text>
                       </View>
                       <View style={styles.batchEditSwipeHint}>
                         <Text style={[styles.batchEditSwipeHintText, {color: colors.text}]}>
-                          &lt;&lt;&lt;左滑
+                          ← 左滑忽略
                         </Text>
                         <Text style={[styles.batchEditSwipeHintText, {color: colors.text}]}>
-                          右滑&gt;&gt;&gt;
+                          右滑平账 →
                         </Text>
                       </View>
                       <View style={styles.batchEditCount}>
-                        <Text style={[styles.batchEditCountText, {color: colors.text}]}>
-                          平账({batchOperations.filter(op => op.type === 'balance').length})
+                        <Text style={[styles.batchEditCountText, {color: colors.success}]}>
+                          平账: {batchOperations.filter(op => op.type === 'balance').length}
                         </Text>
                       </View>
                     </View>
@@ -2539,7 +2539,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 4,
-    marginRight: 8,
+    marginRight: 50,
   },
   undoButtonText: {
     fontSize: 12,
