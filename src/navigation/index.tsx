@@ -20,6 +20,9 @@ import BookFormScreen from '../screens/main/BookFormScreen';
 import FlowFormScreen from '../screens/main/FlowFormScreen';
 import LogsScreen from '../screens/main/LogsScreen';
 import SyncManagementScreen from '../screens/SyncManagementScreen';
+// AI屏幕
+import AIConfigScreen from '../screens/ai/AIConfigScreen';
+import AIChatScreen from '../screens/ai/AIChatScreen';
 
 // 上下文提供者
 import {AuthProvider} from '../context/AuthContext';
@@ -78,6 +81,16 @@ const MainTabs = () => {
             tabBarLabel: '统计',
             tabBarIcon: ({ color, size }) => (
               <Icon name="bar-chart" type="material" color={color} size={size} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="AIChat"
+          component={AIChatScreen}
+          options={{
+            tabBarLabel: 'AI助手',
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="robot" type="material" color={color} size={size} />
             ),
           }}
         />
@@ -228,6 +241,12 @@ const AppNavigator = () => {
               name="SyncManagement"
               component={SyncManagementScreen}
               options={{ title: '同步管理' }}
+            />
+            {/* AI相关屏幕 */}
+            <Stack.Screen
+              name="AIConfig"
+              component={AIConfigScreen}
+              options={{ title: 'AI助手配置' }}
             />
           </Stack.Navigator>
         </BookProvider>

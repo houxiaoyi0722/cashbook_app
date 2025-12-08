@@ -288,7 +288,7 @@ class Api {
       return response.data;
     },
 
-    // 支出类型列表
+    // 支付类型列表
     payType: async (bookId: string): Promise<ApiResponse<[{payType: string}]>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
       console.log(`📋 Fetching payType details: ${bookId}`);

@@ -1,0 +1,883 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';import { SafeAreaView } from 'react-native-safe-area-context';
+import { Icon } from '@rneui/themed';
+import { aiConfigService, AIConfig } from '../../services/AIConfigService';
+import { useTheme, getColors } from '../../context/ThemeContext';
+
+const AIConfigScreen: React.FC = () => {
+  const { isDarkMode } = useTheme();
+  const colors = getColors(isDarkMode);
+
+  const [loading, setLoading] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [config, setConfig] = useState<Partial<AIConfig>>({
+    provider: 'openai',
+    model: 'gpt-3.5-turbo',
+    maxTokens: 1000,
+    temperature: 0.7
+  });
+  const [models, setModels] = useState<Array<{id: string, name: string, description?: string}>>([]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [validationState, setValidationState] = useState<'none' | 'validating' | 'success' | 'error'>('none');
+
+  useEffect(() => {
+    loadConfig();
+  }, []);
+
+  // 当服务商或API Key变化时，重新加载模型
+  useEffect(() => {
+    if (config.provider && config.apiKey) {
+      loadModels();
+    } else {
+      // 如果没有API Key或服务商，清空模型列表
+      setModels([]);
+    }
+  }, [config.provider, config.apiKey]);
+
+  const loadConfig = async () => {
+    try {
+      const savedConfig = await aiConfigService.getConfig();
+      if (savedConfig) {
+        setConfig(savedConfig);
+      }
+    } catch (error) {
+      console.error('加载配置失败:', error);
+    }
+  };
+
+  const loadModels = async () => {
+    if (!config.apiKey || !config.provider) {
+      setModels([]);
+      return;
+    }
+
+    // 自定义服务商不需要从API获取模型
+    if (config.provider === 'custom') {
+      setModels([]);
+      return;
+    }
+
+    setLoadingModels(true);
+    try {
+      const availableModels = await aiConfigService.getAvailableModels();
+      setModels(availableModels);
+
+      // 如果当前选择的模型不在新获取的列表中，且列表不为空，则选择第一个模型
+      if (availableModels.length > 0) {
+        const currentModelExists = availableModels.some(model => model.id === config.model);
+        if (!currentModelExists) {
+          setConfig((prev: any) => ({ ...prev, model: availableModels[0].id }));
+        }
+      }
+    } catch (error) {
+      console.error('加载模型列表失败:', error);
+      setModels([]);
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!config.apiKey?.trim()) {
+      Alert.alert('错误', '请输入API Key');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const success = await aiConfigService.saveConfig(config);
+      if (success) {
+        Alert.alert('成功', 'AI配置已保存');
+      } else {
+        Alert.alert('失败', '保存配置失败，请重试');
+      }
+    } catch (error: any) {
+      Alert.alert('错误', error.message || '保存配置失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleValidate = async () => {
+    if (!config.apiKey?.trim()) {
+      Alert.alert('提示', '请输入API Key进行验证');
+      return;
+    }
+
+    setValidating(true);
+    setValidationState('validating');
+    try {
+      // 创建一个完整的 AIConfig 对象用于验证
+      const validationConfig: AIConfig = {
+        provider: config.provider || 'openai',
+        apiKey: config.apiKey,
+        model: config.model || 'gpt-3.5-turbo',
+        baseURL: config.baseURL,
+        maxTokens: config.maxTokens,
+        temperature: config.temperature
+      };
+      const isValid = await aiConfigService.validateConfig(validationConfig);
+      if (isValid) {
+        setValidationState('success');
+        // 验证成功后自动加载模型列表
+        if (config.provider !== 'custom') {
+          loadModels();
+        }
+      } else {
+        setValidationState('error');
+      }
+    } catch (error: any) {
+      setValidationState('error');
+      console.error('验证失败:', error);
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const handleClear = async () => {
+    Alert.alert(
+      '确认',
+      '确定要清除AI配置吗？',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '确定',
+          onPress: async () => {
+            await aiConfigService.clearConfig();
+            setConfig({
+              provider: 'openai',
+              model: 'gpt-3.5-turbo'
+            });
+            Alert.alert('已清除', 'AI配置已清除');
+          }
+        }
+      ]
+    );
+  };
+
+  const handleProviderSelect = (provider: AIConfig['provider']) => {
+    setConfig((prev: Partial<AIConfig>) => ({
+      ...prev,
+      provider,
+      baseURL: provider === 'custom' ? prev.baseURL : undefined,
+      // 为不同服务商设置默认模型
+      model: provider === 'deepseek' ? 'deepseek-chat' :
+             provider === 'openai' ? 'gpt-3.5-turbo' :
+             provider === 'anthropic' ? 'claude-3-haiku-20240307' :
+             provider === 'google' ? 'gemini-pro' : ''
+    }));
+    // 切换服务商时重置验证状态
+    setValidationState('none');
+    setModels([]);
+  };
+
+  const handleModelSelect = (modelId: string) => {
+    setConfig((prev: Partial<AIConfig>) => ({ ...prev, model: modelId }));
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+
+        {/* 服务商选择 */}
+        <View style={styles.section}>
+          <Text style={[styles.label, {color: colors.text}]}>AI服务商</Text>
+          <View style={styles.providerContainer}>
+            {[
+              { id: 'openai' as const, name: 'OpenAI' },
+              { id: 'anthropic' as const, name: 'Anthropic' },
+              { id: 'google' as const, name: 'Google' },
+              { id: 'deepseek' as const, name: 'DeepSeek' },
+              { id: 'custom' as const, name: '自定义' }
+            ].map((provider) => (
+              <TouchableOpacity
+                key={provider.id}
+                style={[
+                  styles.providerButton,
+                  { backgroundColor: colors.card },
+                  config.provider === provider.id && [
+                    styles.providerButtonActive,
+                    { backgroundColor: colors.primary }
+                  ]
+                ]}
+                onPress={() => handleProviderSelect(provider.id)}
+              >
+                <Text style={[
+                  styles.providerText,
+                  { color: colors.text },
+                  config.provider === provider.id && styles.providerTextActive
+                ]}>
+                  {provider.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* API Key */}
+        <View style={styles.section}>
+          <Text style={[styles.label, {color: colors.text}]}>API Key *</Text>
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.input,
+                  color: colors.text,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                },
+                validating && { borderColor: colors.warning },
+                validationState === 'success' && { borderColor: colors.success },
+                validationState === 'error' && { borderColor: colors.error }
+              ]}
+              value={config.apiKey}
+              onChangeText={(text) => {
+                setConfig((prev: any) => ({ ...prev, apiKey: text }));
+                setValidationState('none'); // 重置验证状态
+              }}
+              placeholder={getApiKeyPlaceholder(config.provider)}
+              placeholderTextColor={colors.hint}
+              secureTextEntry
+              multiline
+              numberOfLines={2}
+              editable={!validating}
+            />
+            {validating && (
+              <View style={styles.inputLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            )}
+            {validationState === 'success' && (
+              <View style={styles.inputSuccess}>
+                <Icon name="check-circle" type="material" color={colors.success} size={20} />
+              </View>
+            )}
+            {validationState === 'error' && (
+              <View style={styles.inputError}>
+                <Icon name="error" type="material" color={colors.error} size={20} />
+              </View>
+            )}
+          </View>
+          <Text style={[styles.helperText, {color: colors.secondaryText}]}>
+            {getApiKeyHelperText(config.provider)}
+          </Text>
+          {validationState === 'error' && (
+            <Text style={[styles.errorText, {color: colors.error}]}>
+              API Key验证失败，请检查是否正确
+            </Text>
+          )}
+          {validationState === 'success' && (
+            <Text style={[styles.successText, {color: colors.success}]}>
+              API Key验证成功！
+            </Text>
+          )}
+        </View>
+
+        {/* 模型选择 */}
+        <View style={styles.section}>
+          <View style={styles.modelHeader}>
+            <Text style={[styles.label, {color: colors.text}]}>模型</Text>
+            {config.provider !== 'custom' && config.apiKey && (
+              <TouchableOpacity
+                style={[styles.refreshButton, { backgroundColor: colors.card }]}
+                onPress={loadModels}
+                disabled={loadingModels}
+              >
+                {loadingModels ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Icon name="refresh" type="material" color={colors.primary} size={18} />
+                )}
+                <Text style={[styles.refreshText, {color: colors.primary}]}>
+                  {loadingModels ? '加载中...' : '刷新'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {loadingModels ? (
+            <View style={[styles.loadingContainer, {backgroundColor: colors.card}]}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.loadingText, {color: colors.secondaryText}]}>
+                正在加载模型列表...
+              </Text>
+            </View>
+          ) : (
+            <>
+              {/* 自定义服务商或模型列表为空时显示输入框 */}
+              {(config.provider === 'custom' || models.length === 0) ? (
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.input,
+                      color: colors.text,
+                      borderColor: colors.border
+                    }
+                  ]}
+                  value={config.model}
+                  onChangeText={(text) => setConfig((prev: any) => ({ ...prev, model: text }))}
+                  placeholder={
+                    config.provider === 'custom' ? "输入自定义模型名称" :
+                    "无法获取模型列表，请手动输入模型名称"
+                  }
+                  placeholderTextColor={colors.hint}
+                />
+              ) : (
+                <>
+                  <View style={styles.modelsGrid}>
+                    {models.map((model) => (
+                      <TouchableOpacity
+                        key={model.id}
+                        style={[
+                          styles.modelCard,
+                          { backgroundColor: colors.card },
+                          config.model === model.id && [
+                            styles.modelCardActive,
+                            { backgroundColor: colors.primary + '20', borderColor: colors.primary }
+                          ]
+                        ]}
+                        onPress={() => handleModelSelect(model.id)}
+                      >
+                        <View style={styles.modelCardHeader}>
+                          <Icon
+                            name={config.model === model.id ? "check-circle" : "circle"}
+                            type="material"
+                            color={config.model === model.id ? colors.primary : colors.secondaryText}
+                            size={20}
+                          />
+                          <Text style={[
+                            styles.modelName,
+                            { color: colors.text },
+                            config.model === model.id && { color: colors.primary, fontWeight: '600' }
+                          ]} numberOfLines={1}>
+                            {model.name}
+                          </Text>
+                        </View>
+                        <Text style={[styles.modelId, {color: colors.secondaryText}]} numberOfLines={1}>
+                          {model.id}
+                        </Text>
+                        {model.description && (
+                          <Text style={[styles.modelDesc, {color: colors.secondaryText}]} numberOfLines={2}>
+                            {model.description}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  {/* 对于支持API获取模型的服务商，也允许手动输入 */}
+                  {(config.provider === 'deepseek' || config.provider === 'openai' ||
+                    config.provider === 'anthropic' || config.provider === 'google') && (
+                    <View style={styles.manualInputContainer}>
+                      <Text style={[styles.manualInputLabel, {color: colors.secondaryText}]}>
+                        或手动输入模型名称：
+                      </Text>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          styles.marginTop,
+                          {
+                            backgroundColor: colors.input,
+                            color: colors.text,
+                            borderColor: colors.border
+                          }
+                        ]}
+                        value={config.model}
+                        onChangeText={(text) => setConfig((prev: any) => ({ ...prev, model: text }))}
+                        placeholder="输入模型ID"
+                        placeholderTextColor={colors.hint}
+                      />
+                    </View>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
+          {models.length === 0 && config.provider !== 'custom' && !loadingModels && config.apiKey && (
+            <View style={[styles.noModelsContainer, {backgroundColor: colors.card}]}>
+              <Icon name="info" type="material" color={colors.warning} size={24} />
+              <Text style={[styles.noModelsText, {color: colors.warning}]}>
+                无法获取模型列表
+              </Text>
+              <Text style={[styles.noModelsSubtext, {color: colors.secondaryText}]}>
+                请检查API Key是否正确，或手动输入模型名称
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* 自定义API地址 */}
+        {(config.provider === 'custom' || config.provider === 'deepseek') && (
+          <View style={styles.section}>
+            <Text style={[styles.label, {color: colors.text}]}>API地址</Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.input,
+                  color: colors.text,
+                  borderColor: colors.border
+                }
+              ]}
+              value={config.baseURL}
+              onChangeText={(text) => setConfig((prev: any) => ({ ...prev, baseURL: text }))}
+              placeholder={config.provider === 'deepseek' ? "https://api.deepseek.com" : "https://api.example.com/v1"}
+              placeholderTextColor={colors.hint}
+            />
+            {config.provider === 'deepseek' && (
+              <Text style={[styles.helperText, {color: colors.secondaryText}]}>
+                DeepSeek官方API地址：https://api.deepseek.com
+              </Text>
+            )}
+          </View>
+        )}
+
+        {/* 高级设置开关 */}
+        <TouchableOpacity
+          style={[
+            styles.advancedToggle,
+            { backgroundColor: colors.card }
+          ]}
+          onPress={() => setShowAdvanced(!showAdvanced)}
+        >
+          <Icon
+            name={showAdvanced ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+            type="material"
+            color={colors.primary}
+            size={24}
+          />
+          <Text style={[styles.advancedToggleText, {color: colors.primary}]}>
+            {showAdvanced ? '隐藏' : '显示'}高级设置
+          </Text>
+        </TouchableOpacity>
+
+        {/* 高级设置 */}
+        {showAdvanced && (
+          <>
+            <View style={styles.section}>
+              <Text style={[styles.label, {color: colors.text}]}>最大令牌数</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.input,
+                    color: colors.text,
+                    borderColor: colors.border
+                  }
+                ]}
+                value={config.maxTokens?.toString()}
+                onChangeText={(text) => {
+                  const num = parseInt(text);
+                  if (!isNaN(num) && num > 0) {
+                    setConfig((prev: any) => ({ ...prev, maxTokens: num }));
+                  } else if (text === '') {
+                    setConfig((prev: any) => ({ ...prev, maxTokens: undefined }));
+                  }
+                }}
+                placeholder="1000"
+                placeholderTextColor={colors.hint}
+                keyboardType="numeric"
+              />
+              <Text style={[styles.helperText, {color: colors.secondaryText}]}>
+                控制AI回复的最大长度，值越大回复越详细
+              </Text>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={[styles.label, {color: colors.text}]}>温度 (0-2)</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.input,
+                    color: colors.text,
+                    borderColor: colors.border
+                  }
+                ]}
+                value={config.temperature?.toString()}
+                onChangeText={(text) => {
+                  const num = parseFloat(text);
+                  if (!isNaN(num) && num >= 0 && num <= 2) {
+                    setConfig((prev: any) => ({ ...prev, temperature: num }));
+                  } else if (text === '') {
+                    setConfig((prev: any) => ({ ...prev, temperature: undefined }));
+                  }
+                }}
+                placeholder="0.7"
+                placeholderTextColor={colors.hint}
+                keyboardType="numeric"
+              />
+              <Text style={[styles.helperText, {color: colors.secondaryText}]}>
+                数值越高，回答越随机；数值越低，回答越确定
+              </Text>
+            </View>
+          </>
+        )}
+
+        {/* 操作按钮 */}
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              styles.validateButton,
+              { backgroundColor: colors.warning }
+            ]}
+            onPress={handleValidate}
+            disabled={validating}
+          >
+            {validating ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>验证API Key</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.button,
+              styles.clearButton,
+              { backgroundColor: colors.error }
+            ]}
+            onPress={handleClear}
+          >
+            <Text style={styles.buttonText}>清除配置</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.button,
+              styles.saveButton,
+              { backgroundColor: colors.success }
+            ]}
+            onPress={handleSave}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Icon name="save" type="material" color="#fff" size={18} />
+                <Text style={styles.buttonText}>保存配置</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* 使用说明 */}
+        <View style={[styles.infoContainer, {backgroundColor: colors.card}]}>
+          <Text style={[styles.infoTitle, {color: colors.primary}]}>使用说明：</Text>
+          <View style={styles.infoItem}>
+            <Icon name="info" type="material" color={colors.success} size={16} />
+            <Text style={[styles.infoText, {color: colors.text}]}>
+              前往 OpenAI 官网注册并获取API Key
+            </Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Icon name="info" type="material" color={colors.success} size={16} />
+            <Text style={[styles.infoText, {color: colors.text}]}>
+              输入API Key并选择模型
+            </Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Icon name="info" type="material" color={colors.success} size={16} />
+            <Text style={[styles.infoText, {color: colors.text}]}>
+              点击"验证API Key"确认有效
+            </Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Icon name="info" type="material" color={colors.success} size={16} />
+            <Text style={[styles.infoText, {color: colors.text}]}>
+              保存配置后即可使用AI助手
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+// 辅助函数：获取API Key占位符文本
+const getApiKeyPlaceholder = (provider?: string) => {
+  switch (provider) {
+    case 'openai': return '输入OpenAI API Key';
+    case 'anthropic': return '输入Anthropic API Key';
+    case 'google': return '输入Google API Key';
+    case 'deepseek': return '输入DeepSeek API Key';
+    case 'custom': return '输入自定义API Key';
+    default: return '输入API Key';
+  }
+};
+
+// 辅助函数：获取API Key帮助文本
+const getApiKeyHelperText = (provider?: string) => {
+  switch (provider) {
+    case 'openai': return '可以在 OpenAI 官网获取API Key';
+    case 'anthropic': return '可以在 Anthropic 官网获取API Key';
+    case 'google': return '可以在 Google AI Studio 获取API Key';
+    case 'deepseek': return '可以在 DeepSeek 官网获取API Key';
+    case 'custom': return '输入自定义服务的API Key';
+    default: return '请输入API Key';
+  }
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 30,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  backButton: {
+    padding: 4,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    flex: 1,
+  },
+  subtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  inputContainer: {
+    position: 'relative',
+  },
+  input: {
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    paddingRight: 40, // 为图标留出空间
+  },
+  inputLoading: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
+  },
+  inputSuccess: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
+  },
+  inputError: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
+  },
+  helperText: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  errorText: {
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  successText: {
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  providerContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -4,
+  },
+  providerButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    marginVertical: 4,
+    flex: 1,
+    minWidth: '22%',
+    alignItems: 'center',
+  },
+  providerButtonActive: {},
+  providerText: {
+    fontSize: 14,
+  },
+  providerTextActive: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  modelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    gap: 4,
+  },
+  refreshText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  modelsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -4,
+    marginBottom: 12,
+  },
+  modelCard: {
+    width: '48%',
+    marginHorizontal: '1%',
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  modelCardActive: {
+    borderWidth: 1,
+  },
+  modelCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    gap: 6,
+  },
+  modelName: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
+  },
+  modelId: {
+    fontSize: 11,
+    marginBottom: 4,
+  },
+  modelDesc: {
+    fontSize: 11,
+    fontStyle: 'italic',
+  },
+  manualInputContainer: {
+    marginTop: 12,
+  },
+  manualInputLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  marginTop: {
+    marginTop: 8,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginLeft: 8,
+    fontSize: 14,
+  },
+  noModelsContainer: {
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  noModelsText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  noModelsSubtext: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  advancedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    justifyContent: 'center',
+  },
+  advancedToggleText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    marginTop: 20,
+    marginBottom: 30,
+    gap: 12,
+  },
+  button: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  validateButton: {},
+  clearButton: {},
+  saveButton: {},
+  buttonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  infoContainer: {
+    padding: 16,
+    borderRadius: 8,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    marginLeft: 8,
+    flex: 1,
+  },
+});
+
+export default AIConfigScreen;

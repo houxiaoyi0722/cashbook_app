@@ -293,6 +293,20 @@ const SettingsScreen: React.FC = () => {
       </ListItem>
 
       <ListItem
+        onPress={() => navigation.navigate('AIConfig')}
+        bottomDivider
+        key="ai-config"
+        containerStyle={{backgroundColor: colors.card}}
+      >
+        <Icon name="robot" type="material" color={colors.primary} />
+        <ListItem.Content>
+          <ListItem.Title style={{color: colors.text}}>AI助手配置</ListItem.Title>
+        </ListItem.Content>
+        <ListItem.Chevron color={colors.secondaryText} />
+      </ListItem>
+
+
+      <ListItem
         bottomDivider
         key="dark-mode"
         containerStyle={{backgroundColor: colors.card}}
