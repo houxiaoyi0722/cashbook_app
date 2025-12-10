@@ -23,8 +23,11 @@ const AIConfigScreen: React.FC = () => {
     provider: 'openai',
     model: 'gpt-3.5-turbo',
     maxTokens: 1000,
-    temperature: 0.7
+    temperature: 0.7,
+    baseURL: 'https://api.openai.com/v1'
   });
+  // 存储每个供应商的配置
+  const [providerConfigs, setProviderConfigs] = useState<Record<string, Partial<AIConfig>>>({});
   const [models, setModels] = useState<Array<{id: string, name: string, description?: string}>>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -49,6 +52,11 @@ const AIConfigScreen: React.FC = () => {
       const savedConfig = await aiConfigService.getConfig();
       if (savedConfig) {
         setConfig(savedConfig);
+        // 初始化providerConfigs，将当前配置保存到对应供应商
+        setProviderConfigs(prev => ({
+          ...prev,
+          [savedConfig.provider]: savedConfig
+        }));
       }
     } catch (error) {
       console.error('加载配置失败:', error);
@@ -61,15 +69,12 @@ const AIConfigScreen: React.FC = () => {
       return;
     }
 
-    // 自定义服务商不需要从API获取模型
-    if (config.provider === 'custom') {
-      setModels([]);
-      return;
-    }
-
+    // 所有提供商（包括自定义提供商）都可以尝试从API获取模型
+    // 自定义提供商使用 OpenAI 兼容的端点，应该能够获取模型列表
     setLoadingModels(true);
     try {
-      const availableModels = await aiConfigService.getAvailableModels();
+      // 传递当前配置给 getAvailableModels
+      const availableModels = await aiConfigService.getAvailableModels(config);
       setModels(availableModels);
 
       // 如果当前选择的模型不在新获取的列表中，且列表不为空，则选择第一个模型
@@ -97,6 +102,11 @@ const AIConfigScreen: React.FC = () => {
     try {
       const success = await aiConfigService.saveConfig(config);
       if (success) {
+        // 保存配置时也更新providerConfigs
+        setProviderConfigs(prev => ({
+          ...prev,
+          [config.provider || 'openai']: config
+        }));
         Alert.alert('成功', 'AI配置已保存');
       } else {
         Alert.alert('失败', '保存配置失败，请重试');
@@ -130,9 +140,7 @@ const AIConfigScreen: React.FC = () => {
       if (isValid) {
         setValidationState('success');
         // 验证成功后自动加载模型列表
-        if (config.provider !== 'custom') {
-          loadModels();
-        }
+        loadModels();
       } else {
         setValidationState('error');
       }
@@ -147,18 +155,71 @@ const AIConfigScreen: React.FC = () => {
   const handleClear = async () => {
     Alert.alert(
       '确认',
-      '确定要清除AI配置吗？',
+      '确定要清除当前供应商的配置吗？',
       [
         { text: '取消', style: 'cancel' },
         {
           text: '确定',
           onPress: async () => {
-            await aiConfigService.clearConfig();
+            const currentProvider = config.provider || 'openai';
+
+            // 为当前供应商设置默认配置
+            let defaultBaseURL = '';
+            let defaultModel = '';
+            switch (currentProvider) {
+              case 'openai':
+                defaultBaseURL = 'https://api.openai.com/v1';
+                defaultModel = 'gpt-3.5-turbo';
+                break;
+              case 'anthropic':
+                defaultBaseURL = 'https://api.anthropic.com/v1';
+                defaultModel = 'claude-3-haiku-20240307';
+                break;
+              case 'google':
+                defaultBaseURL = 'https://generativelanguage.googleapis.com/v1';
+                defaultModel = 'gemini-pro';
+                break;
+              case 'deepseek':
+                defaultBaseURL = 'https://api.deepseek.com';
+                defaultModel = 'deepseek-chat';
+                break;
+              case 'custom':
+                defaultBaseURL = '';
+                defaultModel = '';
+                break;
+            }
+
+            // 更新当前配置状态
             setConfig({
-              provider: 'openai',
-              model: 'gpt-3.5-turbo'
+              provider: currentProvider,
+              apiKey: '',
+              model: defaultModel,
+              baseURL: defaultBaseURL,
+              maxTokens: 1000,
+              temperature: 0.7
             });
-            Alert.alert('已清除', 'AI配置已清除');
+
+            // 更新 providerConfigs，将当前供应商的配置重置为默认值（API Key 为空）
+            setProviderConfigs(prev => ({
+              ...prev,
+              [currentProvider]: {
+                provider: currentProvider,
+                apiKey: '',
+                model: defaultModel,
+                baseURL: defaultBaseURL,
+                maxTokens: 1000,
+                temperature: 0.7
+              }
+            }));
+
+            // 同时清除 AsyncStorage 中的配置
+            await aiConfigService.clearConfig();
+
+            // 重置验证状态和模型列表
+            setValidationState('none');
+            setModels([]);
+
+            Alert.alert('已清除', '当前供应商配置已清除');
           }
         }
       ]
@@ -166,19 +227,69 @@ const AIConfigScreen: React.FC = () => {
   };
 
   const handleProviderSelect = (provider: AIConfig['provider']) => {
-    setConfig((prev: Partial<AIConfig>) => ({
-      ...prev,
-      provider,
-      baseURL: provider === 'custom' ? prev.baseURL : undefined,
-      // 为不同服务商设置默认模型
-      model: provider === 'deepseek' ? 'deepseek-chat' :
-             provider === 'openai' ? 'gpt-3.5-turbo' :
-             provider === 'anthropic' ? 'claude-3-haiku-20240307' :
-             provider === 'google' ? 'gemini-pro' : ''
-    }));
+    // 使用函数式更新来确保获取最新的 providerConfigs
+    setProviderConfigs(prev => {
+      // 1. 保存当前供应商的配置到providerConfigs
+      const updatedProviderConfigs = {
+        ...prev,
+        [config.provider || 'openai']: {
+          ...config,
+          provider: config.provider || 'openai'
+        }
+      };
+
+      // 2. 检查要切换到的供应商是否有已保存的配置
+      const savedProviderConfig = updatedProviderConfigs[provider];
+
+      if (savedProviderConfig) {
+        // 如果有，则恢复该供应商的配置（包括API Key）
+        setConfig(savedProviderConfig);
+      } else {
+        // 如果没有，则使用默认配置
+        // 为每个提供商设置默认的 baseURL
+        let defaultBaseURL = '';
+        switch (provider) {
+          case 'openai':
+            defaultBaseURL = 'https://api.openai.com/v1';
+            break;
+          case 'anthropic':
+            defaultBaseURL = 'https://api.anthropic.com/v1';
+            break;
+          case 'google':
+            defaultBaseURL = 'https://generativelanguage.googleapis.com/v1';
+            break;
+          case 'deepseek':
+            defaultBaseURL = 'https://api.deepseek.com';
+            break;
+          case 'custom':
+            defaultBaseURL = '';
+            break;
+        }
+
+        setConfig({
+          provider,
+          // 总是更新为新的默认 baseURL
+          baseURL: defaultBaseURL,
+          // 为不同服务商设置默认模型
+          model: provider === 'deepseek' ? 'deepseek-chat' :
+                 provider === 'openai' ? 'gpt-3.5-turbo' :
+                 provider === 'anthropic' ? 'claude-3-haiku-20240307' :
+                 provider === 'google' ? 'gemini-pro' : '',
+          // 只有在没有保存配置时才清空API Key
+          apiKey: '',
+          maxTokens: 1000,
+          temperature: 0.7
+        });
+      }
+
+      return updatedProviderConfigs;
+    });
+
     // 切换服务商时重置验证状态
     setValidationState('none');
     setModels([]);
+    // 重置加载状态，取消任何正在进行的模型加载
+    setLoadingModels(false);
   };
 
   const handleModelSelect = (modelId: string) => {
@@ -288,7 +399,7 @@ const AIConfigScreen: React.FC = () => {
         <View style={styles.section}>
           <View style={styles.modelHeader}>
             <Text style={[styles.label, {color: colors.text}]}>模型</Text>
-            {config.provider !== 'custom' && config.apiKey && (
+            {config.apiKey && (
               <TouchableOpacity
                 style={[styles.refreshButton, { backgroundColor: colors.card }]}
                 onPress={loadModels}
@@ -315,11 +426,59 @@ const AIConfigScreen: React.FC = () => {
             </View>
           ) : (
             <>
-              {/* 自定义服务商或模型列表为空时显示输入框 */}
-              {(config.provider === 'custom' || models.length === 0) ? (
+              {/* 模型选择网格（当有模型时显示） */}
+              {models.length > 0 && (
+                <View style={styles.modelsGrid}>
+                  {models.map((model) => (
+                    <TouchableOpacity
+                      key={model.id}
+                      style={[
+                        styles.modelCard,
+                        { backgroundColor: colors.card },
+                        config.model === model.id && [
+                          styles.modelCardActive,
+                          { backgroundColor: colors.primary + '20', borderColor: colors.primary }
+                        ]
+                      ]}
+                      onPress={() => handleModelSelect(model.id)}
+                    >
+                      <View style={styles.modelCardHeader}>
+                        <Icon
+                          name={config.model === model.id ? "check-circle" : "circle"}
+                          type="material"
+                          color={config.model === model.id ? colors.primary : colors.secondaryText}
+                          size={20}
+                        />
+                        <Text style={[
+                          styles.modelName,
+                          { color: colors.text },
+                          config.model === model.id && { color: colors.primary, fontWeight: '600' }
+                        ]} numberOfLines={1}>
+                          {model.name}
+                        </Text>
+                      </View>
+                      <Text style={[styles.modelId, {color: colors.secondaryText}]} numberOfLines={1}>
+                        {model.id}
+                      </Text>
+                      {model.description && (
+                        <Text style={[styles.modelDesc, {color: colors.secondaryText}]} numberOfLines={2}>
+                          {model.description}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              
+              {/* 模型名称输入字段（始终显示） */}
+              <View style={styles.manualInputContainer}>
+                <Text style={[styles.manualInputLabel, {color: colors.secondaryText}]}>
+                  {models.length > 0 ? '或手动输入模型名称：' : '手动输入模型名称：'}
+                </Text>
                 <TextInput
                   style={[
                     styles.input,
+                    styles.marginTop,
                     {
                       backgroundColor: colors.input,
                       color: colors.text,
@@ -328,84 +487,14 @@ const AIConfigScreen: React.FC = () => {
                   ]}
                   value={config.model}
                   onChangeText={(text) => setConfig((prev: any) => ({ ...prev, model: text }))}
-                  placeholder={
-                    config.provider === 'custom' ? "输入自定义模型名称" :
-                    "无法获取模型列表，请手动输入模型名称"
-                  }
+                  placeholder={models.length > 0 ? "输入模型ID" : "无法获取模型列表，请手动输入模型名称"}
                   placeholderTextColor={colors.hint}
                 />
-              ) : (
-                <>
-                  <View style={styles.modelsGrid}>
-                    {models.map((model) => (
-                      <TouchableOpacity
-                        key={model.id}
-                        style={[
-                          styles.modelCard,
-                          { backgroundColor: colors.card },
-                          config.model === model.id && [
-                            styles.modelCardActive,
-                            { backgroundColor: colors.primary + '20', borderColor: colors.primary }
-                          ]
-                        ]}
-                        onPress={() => handleModelSelect(model.id)}
-                      >
-                        <View style={styles.modelCardHeader}>
-                          <Icon
-                            name={config.model === model.id ? "check-circle" : "circle"}
-                            type="material"
-                            color={config.model === model.id ? colors.primary : colors.secondaryText}
-                            size={20}
-                          />
-                          <Text style={[
-                            styles.modelName,
-                            { color: colors.text },
-                            config.model === model.id && { color: colors.primary, fontWeight: '600' }
-                          ]} numberOfLines={1}>
-                            {model.name}
-                          </Text>
-                        </View>
-                        <Text style={[styles.modelId, {color: colors.secondaryText}]} numberOfLines={1}>
-                          {model.id}
-                        </Text>
-                        {model.description && (
-                          <Text style={[styles.modelDesc, {color: colors.secondaryText}]} numberOfLines={2}>
-                            {model.description}
-                          </Text>
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  {/* 对于支持API获取模型的服务商，也允许手动输入 */}
-                  {(config.provider === 'deepseek' || config.provider === 'openai' ||
-                    config.provider === 'anthropic' || config.provider === 'google') && (
-                    <View style={styles.manualInputContainer}>
-                      <Text style={[styles.manualInputLabel, {color: colors.secondaryText}]}>
-                        或手动输入模型名称：
-                      </Text>
-                      <TextInput
-                        style={[
-                          styles.input,
-                          styles.marginTop,
-                          {
-                            backgroundColor: colors.input,
-                            color: colors.text,
-                            borderColor: colors.border
-                          }
-                        ]}
-                        value={config.model}
-                        onChangeText={(text) => setConfig((prev: any) => ({ ...prev, model: text }))}
-                        placeholder="输入模型ID"
-                        placeholderTextColor={colors.hint}
-                      />
-                    </View>
-                  )}
-                </>
-              )}
+              </View>
             </>
           )}
 
-          {models.length === 0 && config.provider !== 'custom' && !loadingModels && config.apiKey && (
+          {models.length === 0 && !loadingModels && config.apiKey && (
             <View style={[styles.noModelsContainer, {backgroundColor: colors.card}]}>
               <Icon name="info" type="material" color={colors.warning} size={24} />
               <Text style={[styles.noModelsText, {color: colors.warning}]}>
@@ -418,31 +507,27 @@ const AIConfigScreen: React.FC = () => {
           )}
         </View>
 
-        {/* 自定义API地址 */}
-        {(config.provider === 'custom' || config.provider === 'deepseek') && (
-          <View style={styles.section}>
-            <Text style={[styles.label, {color: colors.text}]}>API地址</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.input,
-                  color: colors.text,
-                  borderColor: colors.border
-                }
-              ]}
-              value={config.baseURL}
-              onChangeText={(text) => setConfig((prev: any) => ({ ...prev, baseURL: text }))}
-              placeholder={config.provider === 'deepseek' ? "https://api.deepseek.com" : "https://api.example.com/v1"}
-              placeholderTextColor={colors.hint}
-            />
-            {config.provider === 'deepseek' && (
-              <Text style={[styles.helperText, {color: colors.secondaryText}]}>
-                DeepSeek官方API地址：https://api.deepseek.com
-              </Text>
-            )}
-          </View>
-        )}
+        {/* API地址 - 始终可见 */}
+        <View style={styles.section}>
+          <Text style={[styles.label, {color: colors.text}]}>API地址</Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.input,
+                color: colors.text,
+                borderColor: colors.border
+              }
+            ]}
+            value={config.baseURL}
+            onChangeText={(text) => setConfig((prev: any) => ({ ...prev, baseURL: text }))}
+            placeholder={getBaseURLPlaceholder(config.provider)}
+            placeholderTextColor={colors.hint}
+          />
+          <Text style={[styles.helperText, {color: colors.secondaryText}]}>
+            {getBaseURLHelperText(config.provider)}
+          </Text>
+        </View>
 
         {/* 高级设置开关 */}
         <TouchableOpacity
@@ -581,7 +666,7 @@ const AIConfigScreen: React.FC = () => {
           <View style={styles.infoItem}>
             <Icon name="info" type="material" color={colors.success} size={16} />
             <Text style={[styles.infoText, {color: colors.text}]}>
-              前往 OpenAI 官网注册并获取API Key
+              前往模型官网注册并获取API Key
             </Text>
           </View>
           <View style={styles.infoItem}>
@@ -629,6 +714,30 @@ const getApiKeyHelperText = (provider?: string) => {
     case 'deepseek': return '可以在 DeepSeek 官网获取API Key';
     case 'custom': return '输入自定义服务的API Key';
     default: return '请输入API Key';
+  }
+};
+
+// 辅助函数：获取Base URL占位符文本
+const getBaseURLPlaceholder = (provider?: string) => {
+  switch (provider) {
+    case 'openai': return 'https://api.openai.com/v1';
+    case 'anthropic': return 'https://api.anthropic.com/v1';
+    case 'google': return 'https://generativelanguage.googleapis.com/v1';
+    case 'deepseek': return 'https://api.deepseek.com';
+    case 'custom': return 'https://api.example.com/v1';
+    default: return '输入API地址';
+  }
+};
+
+// 辅助函数：获取Base URL帮助文本
+const getBaseURLHelperText = (provider?: string) => {
+  switch (provider) {
+    case 'openai': return 'OpenAI官方API地址：https://api.openai.com/v1';
+    case 'anthropic': return 'Anthropic官方API地址：https://api.anthropic.com/v1';
+    case 'google': return 'Google官方API地址：https://generativelanguage.googleapis.com/v1';
+    case 'deepseek': return 'DeepSeek官方API地址：https://api.deepseek.com';
+    case 'custom': return '输入自定义服务的API地址';
+    default: return '请输入API地址';
   }
 };
 

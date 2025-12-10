@@ -14,17 +14,36 @@ const DEFAULT_CONFIG: {
   model: string;
   maxTokens: number;
   temperature: number;
+  baseURL: string;
 } = {
   provider: 'openai',
   model: 'gpt-3.5-turbo',
   maxTokens: 1000,
-  temperature: 0.7
+  temperature: 0.7,
+  baseURL: 'https://api.openai.com/v1'
 };
 
 const STORAGE_KEY = 'ai_config';
 
 class AIConfigService {
   private config: AIConfig | null = null;
+
+  private getDefaultBaseURL(provider: string): string {
+    switch (provider) {
+      case 'openai':
+        return 'https://api.openai.com/v1';
+      case 'anthropic':
+        return 'https://api.anthropic.com/v1';
+      case 'google':
+        return 'https://generativelanguage.googleapis.com/v1';
+      case 'deepseek':
+        return 'https://api.deepseek.com';
+      case 'custom':
+        return 'https://api.openai.com/v1'; // 为自定义提供商提供合理的默认值
+      default:
+        return '';
+    }
+  }
 
   async isConfigured(): Promise<boolean> {
     const config = await this.getConfig();
@@ -37,7 +56,12 @@ class AIConfigService {
     try {
       const configStr = await AsyncStorage.getItem(STORAGE_KEY);
       if (configStr) {
-        this.config = JSON.parse(configStr);
+        const parsedConfig = JSON.parse(configStr);
+        // 确保加载的配置有合适的 baseURL
+        if (!parsedConfig.baseURL || parsedConfig.baseURL.trim() === '') {
+          parsedConfig.baseURL = this.getDefaultBaseURL(parsedConfig.provider);
+        }
+        this.config = parsedConfig;
       }
       return this.config;
     } catch (error) {
@@ -56,12 +80,19 @@ class AIConfigService {
         ...config
       };
       
+      // 确保 baseURL 有合适的默认值
+      let baseURL = mergedConfig.baseURL;
+      if (!baseURL || baseURL.trim() === '') {
+        // 根据 provider 设置默认 baseURL
+        baseURL = this.getDefaultBaseURL(mergedConfig.provider);
+      }
+      
       // 创建最终的配置对象，确保类型匹配
       const newConfig: AIConfig = {
         provider: mergedConfig.provider,
         apiKey: mergedConfig.apiKey || '',
         model: mergedConfig.model,
-        baseURL: mergedConfig.baseURL,
+        baseURL: baseURL,
         maxTokens: mergedConfig.maxTokens,
         temperature: mergedConfig.temperature
       };
@@ -153,9 +184,18 @@ class AIConfigService {
           });
           break;
         case 'custom':
-          // 自定义服务商，无法验证，直接返回true
-          console.log('自定义服务商，跳过验证');
-          return true;
+          // 自定义服务商，使用 OpenAI 兼容的验证方式
+          // 使用用户提供的 baseURL 或默认值
+          const customBaseURL = configToValidate.baseURL || this.getDefaultBaseURL('custom');
+          apiEndpoint = `${customBaseURL}/chat/completions`;
+          headers['Authorization'] = `Bearer ${configToValidate.apiKey}`;
+          method = 'POST';
+          body = JSON.stringify({
+            model: configToValidate.model || 'gpt-3.5-turbo',
+            messages: [{ role: 'user', content: 'Hello' }],
+            max_tokens: 5
+          });
+          break;
         default:
           console.error(`不支持的服务商: ${configToValidate.provider}`);
           return false;
@@ -206,9 +246,26 @@ class AIConfigService {
     }
   }
 
-  async getAvailableModels(): Promise<Array<{id: string, name: string}>> {
-    const config = await this.getConfig();
-    if (!config?.apiKey) return [];
+  async getAvailableModels(configParam?: Partial<AIConfig>): Promise<Array<{id: string, name: string}>> {
+    // 确定要使用的配置：优先使用传入的参数，否则使用存储的配置
+    let configToUse: AIConfig | null = null;
+    
+    if (configParam) {
+      // 从传入的参数构建一个完整的配置
+      const savedConfig = await this.getConfig();
+      configToUse = {
+        provider: configParam.provider || savedConfig?.provider || DEFAULT_CONFIG.provider,
+        apiKey: configParam.apiKey || savedConfig?.apiKey || '',
+        model: configParam.model || savedConfig?.model || DEFAULT_CONFIG.model,
+        baseURL: configParam.baseURL || savedConfig?.baseURL || DEFAULT_CONFIG.baseURL,
+        maxTokens: configParam.maxTokens || savedConfig?.maxTokens || DEFAULT_CONFIG.maxTokens,
+        temperature: configParam.temperature || savedConfig?.temperature || DEFAULT_CONFIG.temperature
+      };
+    } else {
+      configToUse = await this.getConfig();
+    }
+    
+    if (!configToUse?.apiKey) return [];
 
     try {
       let apiEndpoint: string;
@@ -217,34 +274,37 @@ class AIConfigService {
       };
 
       // 根据服务商设置API端点和认证头
-      switch (config.provider) {
+      switch (configToUse.provider) {
         case 'openai':
           apiEndpoint = 'https://api.openai.com/v1/models';
-          headers['Authorization'] = `Bearer ${config.apiKey}`;
+          headers['Authorization'] = `Bearer ${configToUse.apiKey}`;
           break;
         case 'anthropic':
           // Anthropic 使用 models 端点
           apiEndpoint = 'https://api.anthropic.com/v1/models';
-          headers['x-api-key'] = config.apiKey;
+          headers['x-api-key'] = configToUse.apiKey;
           headers['anthropic-version'] = '2023-06-01';
           break;
         case 'google':
           // Google Gemini API - 使用 models.list 端点
-          apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models?key=${config.apiKey}`;
+          apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models?key=${configToUse.apiKey}`;
           headers = {}; // Google 使用 URL 参数
           break;
         case 'deepseek':
           apiEndpoint = 'https://api.deepseek.com/v1/models';
-          headers['Authorization'] = `Bearer ${config.apiKey}`;
+          headers['Authorization'] = `Bearer ${configToUse.apiKey}`;
           break;
         case 'custom':
-          // 自定义服务商不支持API获取模型列表
-          return [];
+          // 自定义服务商，使用 OpenAI 兼容的端点获取模型列表
+          const customBaseURL = configToUse.baseURL || this.getDefaultBaseURL('custom');
+          apiEndpoint = `${customBaseURL}/models`;
+          headers['Authorization'] = `Bearer ${configToUse.apiKey}`;
+          break;
         default:
           return [];
       }
 
-      console.log(`获取 ${config.provider} 模型列表，端点: ${apiEndpoint}`);
+      console.log(`获取 ${configToUse.provider} 模型列表，端点: ${apiEndpoint}`);
       
       const response = await fetch(apiEndpoint, {
         method: 'GET',
@@ -258,13 +318,13 @@ class AIConfigService {
         });
         
         // 对于 Google，尝试备用端点
-        if (config.provider === 'google') {
+        if (configToUse.provider === 'google') {
           console.log('尝试备用 Google 模型端点...');
-          const fallbackEndpoint = 'https://generativelanguage.googleapis.com/v1/models?key=' + config.apiKey;
+          const fallbackEndpoint = 'https://generativelanguage.googleapis.com/v1/models?key=' + configToUse.apiKey;
           const fallbackResponse = await fetch(fallbackEndpoint, { method: 'GET' });
           if (fallbackResponse.ok) {
             const fallbackData = await fallbackResponse.json();
-            return this.parseModelsResponse(config.provider, fallbackData);
+            return this.parseModelsResponse(configToUse.provider, fallbackData);
           }
         }
         
@@ -272,7 +332,7 @@ class AIConfigService {
       }
 
       const data = await response.json();
-      return this.parseModelsResponse(config.provider, data);
+      return this.parseModelsResponse(configToUse.provider, data);
       
     } catch (error) {
       console.error('获取模型列表失败:', error);
@@ -284,6 +344,8 @@ class AIConfigService {
     try {
       switch (provider) {
         case 'openai':
+        case 'custom':
+          // 自定义供应商使用与 OpenAI 相同的解析逻辑，因为它们是 OpenAI 兼容的 API 接口
           if (data.data && Array.isArray(data.data)) {
             return data.data
               .filter((model: any) => 

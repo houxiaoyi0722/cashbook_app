@@ -11,6 +11,9 @@ import api from '../../services/api.ts';
 import {eventBus} from '../../navigation';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useTheme, getColors} from '../../context/ThemeContext';
+import AIConfigIcon from '../../components/icons/AIConfigIcon';
+// AIAssistantConfigService 是一个单例实例，直接调用其方法
+import AIAssistantConfigService from '../../services/AIAssistantConfigService';
 
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
@@ -37,6 +40,8 @@ const SettingsScreen: React.FC = () => {
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
 
   const [serverVersion, setServerVersion] = useState<string>('');
+  const [aiAssistantEnabled, setAiAssistantEnabled] = useState<boolean>(false);
+  const [isAIAssistantSwitchProcessing, setIsAIAssistantSwitchProcessing] = useState<boolean>(false);
 
   // 获取服务器配置
   const fetchServerConfig = async () => {
@@ -50,9 +55,82 @@ const SettingsScreen: React.FC = () => {
     }
   };
 
+  // 获取AI助手启用状态
+  const fetchAIAssistantEnabled = async () => {
+    try {
+      // AIAssistantConfigService 是一个单例实例，直接调用其方法
+      const enabled = await AIAssistantConfigService.isEnabled();
+      setAiAssistantEnabled(enabled);
+    } catch (error) {
+      console.error('获取AI助手启用状态失败', error);
+    }
+  };
+
+  // 处理AI助手开关切换
+  const handleAIAssistantToggle = async (value: boolean) => {
+    // 如果是要启用AI助手，显示确认对话框
+    if (value === true) {
+      // 设置处理状态为true，防止开关视觉上移动
+      setIsAIAssistantSwitchProcessing(true);
+      Alert.alert(
+        '启用AI助手',
+        '启用AI助手功能可能会带来以下风险：\n\n' +
+        '1. AI助手需要访问您的账本数据以提供智能建议\n' +
+        '2. 部分数据可能会被发送到外部AI服务进行处理\n' +
+        '3. 请确保您已备份重要数据\n\n' +
+        '强烈建议您在启用前，自行备份数据，或导出账本数据到安全位置 且定期备份数据。\n\n' +
+        '启用AI助手功能即表示您了解相关风险，并自行承担可能产生的后果。',
+        [
+          {
+            text: '取消',
+            style: 'cancel',
+            onPress: () => {
+              // 用户取消，重置处理状态，不更新aiAssistantEnabled
+              setIsAIAssistantSwitchProcessing(false);
+            }
+          },
+          {
+            text: '确定',
+            onPress: async () => {
+              try {
+                // AIAssistantConfigService 是一个单例实例，直接调用其方法
+                await AIAssistantConfigService.setEnabled(true);
+                setAiAssistantEnabled(true);
+              } catch (error) {
+                console.error('设置AI助手启用状态失败', error);
+                Alert.alert('错误', '无法更新AI助手设置');
+                // 恢复之前的状态
+                const currentState = await AIAssistantConfigService.isEnabled();
+                setAiAssistantEnabled(currentState);
+              } finally {
+                // 无论成功与否，都重置处理状态
+                setIsAIAssistantSwitchProcessing(false);
+              }
+            }
+          }
+        ],
+        { cancelable: true }
+      );
+    } else {
+      // 如果是禁用AI助手，直接执行
+      try {
+        // AIAssistantConfigService 是一个单例实例，直接调用其方法
+        await AIAssistantConfigService.setEnabled(false);
+        setAiAssistantEnabled(false);
+      } catch (error) {
+        console.error('设置AI助手启用状态失败', error);
+        Alert.alert('错误', '无法更新AI助手设置');
+        // 恢复之前的状态
+        const currentState = await AIAssistantConfigService.isEnabled();
+        setAiAssistantEnabled(currentState);
+      }
+    }
+  };
+
   // 监听全局加载事件
   useEffect(() => {
     fetchServerConfig();
+    fetchAIAssistantEnabled();
     const showLoadingListener = eventBus.addListener('showLoading', (message: string = '加载中...') => {
       setLoadingMessage(message);
       setIsGlobalLoading(true);
@@ -293,18 +371,43 @@ const SettingsScreen: React.FC = () => {
       </ListItem>
 
       <ListItem
-        onPress={() => navigation.navigate('AIConfig')}
         bottomDivider
-        key="ai-config"
+        key="ai-assistant-feature"
         containerStyle={{backgroundColor: colors.card}}
       >
-        <Icon name="robot" type="material" color={colors.primary} />
+        <Icon name="smart-toy" type="material" color={colors.primary} />
         <ListItem.Content>
-          <ListItem.Title style={{color: colors.text}}>AI助手配置</ListItem.Title>
+          <ListItem.Title style={{color: colors.text}}>AI助手功能</ListItem.Title>
+          <ListItem.Subtitle style={{color: colors.secondaryText}}>
+            开启后显示AI助手聊天页面和底部菜单项
+          </ListItem.Subtitle>
         </ListItem.Content>
-        <ListItem.Chevron color={colors.secondaryText} />
+        <Switch
+          value={aiAssistantEnabled}
+          onValueChange={handleAIAssistantToggle}
+          color={colors.primary}
+          disabled={isAIAssistantSwitchProcessing}
+        />
       </ListItem>
 
+      {/* AI助手配置 - 仅在AI助手启用时显示 */}
+      {aiAssistantEnabled && (
+        <ListItem
+          onPress={() => navigation.navigate('AIConfig')}
+          bottomDivider
+          key="ai-config"
+          containerStyle={{backgroundColor: colors.card}}
+        >
+          <AIConfigIcon color={colors.primary} size={24} />
+          <ListItem.Content>
+            <ListItem.Title style={{color: colors.text}}>AI助手配置</ListItem.Title>
+            <ListItem.Subtitle style={{color: colors.secondaryText}}>
+              配置API密钥、模型等参数
+            </ListItem.Subtitle>
+          </ListItem.Content>
+          <ListItem.Chevron color={colors.secondaryText} />
+        </ListItem>
+      )}
 
       <ListItem
         bottomDivider

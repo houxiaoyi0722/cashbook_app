@@ -4,7 +4,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {Icon} from '@rneui/themed';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StatusBar } from 'react-native';
+import { StatusBar, View, ActivityIndicator } from 'react-native';
 import { useTheme, getColors } from '../context/ThemeContext';
 
 // 认证相关屏幕
@@ -24,6 +24,9 @@ import SyncManagementScreen from '../screens/SyncManagementScreen';
 import AIConfigScreen from '../screens/ai/AIConfigScreen';
 import AIChatScreen from '../screens/ai/AIChatScreen';
 
+// 自定义图标组件
+import AINavigationIcon from '../components/icons/AINavigationIcon';
+
 // 上下文提供者
 import {AuthProvider} from '../context/AuthContext';
 import {BookProvider} from '../context/BookContext';
@@ -32,6 +35,8 @@ import {BookProvider} from '../context/BookContext';
 import {MainStackParamList, MainTabParamList} from './types';
 import {NativeEventEmitter} from 'react-native';
 import BudgetScreen from '../screens/main/BudgetScreen.tsx';
+// 导入 AI 助手配置服务
+import AIAssistantConfigService from '../services/AIAssistantConfigService';
 
 export const eventBus = new NativeEventEmitter();
 // 创建导航器
@@ -42,6 +47,53 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 const MainTabs = () => {
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
+  const [aiAssistantEnabled, setAiAssistantEnabled] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // 加载 AI 助手启用状态并监听变化
+  useEffect(() => {
+    const loadAIAssistantEnabled = async () => {
+      try {
+        const enabled = await AIAssistantConfigService.isEnabled();
+        setAiAssistantEnabled(enabled);
+      } catch (error) {
+        console.error('加载 AI 助手启用状态失败', error);
+        // 默认禁用
+        setAiAssistantEnabled(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAIAssistantEnabled();
+
+    // 监听 AI 助手启用状态变化事件
+    const handleAIAssistantEnabledChanged = (enabled: boolean) => {
+      setAiAssistantEnabled(enabled);
+    };
+
+    // 添加事件监听器
+    eventBus.addListener(
+      'ai_assistant_enabled_changed',
+      handleAIAssistantEnabledChanged
+    );
+
+    // 清理函数
+    return () => {
+      eventBus.removeAllListeners(
+        'ai_assistant_enabled_changed'
+      );
+    };
+  }, []);
+
+  // 如果正在加载，显示加载指示器
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <>
@@ -84,16 +136,19 @@ const MainTabs = () => {
             ),
           }}
         />
-        <Tab.Screen
-          name="AIChat"
-          component={AIChatScreen}
-          options={{
-            tabBarLabel: 'AI助手',
-            tabBarIcon: ({ color, size }) => (
-              <Icon name="robot" type="material" color={color} size={size} />
-            ),
-          }}
-        />
+        {/* 仅在 AI 助手启用时显示 AIChat 标签页 */}
+        {aiAssistantEnabled && (
+          <Tab.Screen
+            name="AIChat"
+            component={AIChatScreen}
+            options={{
+              tabBarLabel: 'AI助手',
+              tabBarIcon: ({ color, size }) => (
+                <AINavigationIcon color={color} size={size} />
+              ),
+            }}
+          />
+        )}
         <Tab.Screen
           name="Budget"
           component={BudgetScreen}

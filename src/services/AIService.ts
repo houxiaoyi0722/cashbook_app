@@ -1,9 +1,16 @@
-import { aiConfigService } from './AIConfigService';
 import { mcpBridge } from './MCPBridge';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import EventSource from 'react-native-sse';
+import {
+  Message,
+} from '../types';
+import { AIRecursiveService } from './AIRecursiveService';
+import {StreamMessageParser} from "./StreamMessageParser.ts";
+// AIConfigService will be imported dynamically in generatePromptSuggestions to avoid circular dependencies
 
 export interface AIResponse {
-  text: string;
+  messages?: Message[]; // 新增：结构化的消息数组
+  text?: string; // 改为可选，因为现在主要通过messages返回
   thinking?: string;
   toolCalls?: Array<{
     name: string;
@@ -13,15 +20,19 @@ export interface AIResponse {
   streamCallback?: (content: string, isComplete: boolean) => void;
 }
 
-class AIService {
+// 新的回调函数类型
+export type MessageStreamCallback = (message: Message, isComplete: boolean) => void;
+
+export class AIService {
   private conversationHistory: Array<{
     role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp: Date;
   }> = [];
 
-  private currentBookId: string | null = null;
-  private currentBookName: string | null = null;
+  currentBookId: string | null = null;
+  currentBookName: string | null = null;
+  streamParser: StreamMessageParser | undefined;
 
   // 更新当前账本信息
   updateBookInfo(bookId: string | null, bookName?: string | null) {
@@ -30,310 +41,15 @@ class AIService {
     console.log(`AIService: 当前账本已更新为 ${bookId} (${bookName})`);
   }
 
-  async sendMessage(userMessage: string, streamCallback?: (content: string, isComplete: boolean) => void): Promise<AIResponse> {
-    const config = await aiConfigService.getConfig();
-    if (!config?.apiKey) {
-      throw new Error('AI配置未完成，请先配置API Key');
-    }
-
-    this.addToHistory('user', userMessage);
-
-    try {
-      // 获取上下文信息
-      const appContext = await this.getContext();
-      const systemPrompt = this.buildSystemPrompt(appContext);
-
-      console.log('🤖 AI交互开始', {
-        userMessageLength: userMessage.length,
-        hasContext: !!appContext,
-        contextInfo: appContext,
-        currentBookId: this.currentBookId,
-        currentBookName: this.currentBookName,
-        streamMode: !!streamCallback,
-      });
-
-      // 初始化迭代变量
-      let currentIteration = 0;
-      const maxIterations = 100;
-      let currentUserMessage = userMessage;
-      let accumulatedResponse = '';
-      let lastAIResponse: AIResponse | null = null;
-
-      // 用于累积所有迭代的流式内容
-      let allStreamedContent = '';
-      // 用于跟踪当前迭代的流式内容
-      let currentIterationStreamedContent = '';
-
-      // 主迭代循环
-      while (currentIteration < maxIterations) {
-        currentIteration++;
-        console.log(`🔄 开始第 ${currentIteration} 次迭代`, {
-          remainingIterations: maxIterations - currentIteration,
-          currentUserMessageLength: currentUserMessage.length,
-          hasAccumulatedResponse: accumulatedResponse.length > 0,
-        });
-
-        // 重置当前迭代的流式内容
-        currentIterationStreamedContent = '';
-
-        // 内部流式回调函数
-        const internalStreamCallback = (content: string, isComplete: boolean) => {
-          if (content) {
-            // 累积到当前迭代的内容
-            currentIterationStreamedContent += content;
-            // 累积到总内容
-            allStreamedContent += content;
-          }
-
-          // 如果有外部回调，传递内容
-          if (streamCallback) {
-            // 对于流式响应，传递当前内容
-            const contentToSend = content || '';
-
-            // 判断是否是最终完成（最后一次迭代且工具调用完成）
-            const isFinalComplete = isComplete && currentIteration >= maxIterations;
-
-            // 发送内容
-            streamCallback(contentToSend, isFinalComplete);
-
-            // 如果是完成状态，并且不是最终完成，添加工具调用提示
-            if (isComplete && !isFinalComplete && contentToSend === '') {
-              // 工具调用即将开始，添加提示
-              const toolCallMsg = '\n\n🔄 正在执行工具调用...\n';
-              // 添加到累积内容中
-              allStreamedContent += toolCallMsg;
-              currentIterationStreamedContent += toolCallMsg;
-              streamCallback(toolCallMsg, false);
-            }
-          }
-        };
-
-        // 调用AI API
-        const aiResult = await this.callAIAPI(config, systemPrompt, currentUserMessage, internalStreamCallback);
-
-        // 更新迭代流式内容到aiResult
-        if (streamCallback && currentIterationStreamedContent) {
-          // 保留思考块信息，只更新文本内容
-          aiResult.text = currentIterationStreamedContent;
-          // 注意：思考块信息已经在aiResult.thinking中
-        }
-
-        // 保存最后一次AI响应
-        lastAIResponse = aiResult;
-
-        // 检查是否有工具调用
-        if (aiResult.toolCalls && aiResult.toolCalls.length > 0) {
-          console.log(`🔧 第 ${currentIteration} 次迭代检测到工具调用`, {
-            toolCount: aiResult.toolCalls.length,
-            toolNames: aiResult.toolCalls.map(t => t.name),
-            currentBookId: this.currentBookId,
-          });
-
-          // 检查是否有当前账本信息
-          if (!this.currentBookId) {
-            console.warn('⚠️ 没有当前账本信息，工具调用可能失败');
-          }
-
-          // 执行工具调用，并添加进度反馈
-          const toolResults = await this.executeToolCallsWithProgress(
-            aiResult.toolCalls,
-            streamCallback ?
-              (progressMsg: string) => {
-                streamCallback(progressMsg, false);
-                allStreamedContent += progressMsg;
-                currentIterationStreamedContent += progressMsg;
-              }
-              : undefined
-          );
-
-          // 记录工具执行结果
-          console.log(`📊 第 ${currentIteration} 次迭代工具执行结果`, {
-            successCount: toolResults.filter(r => r.success).length,
-            totalCount: toolResults.length,
-            toolResults: toolResults.map(r => ({ name: r.name, success: r.success })),
-          });
-
-          // 工具调用完成后，通过streamCallback发送完成提示
-          const successCount = toolResults.filter(r => r.success).length;
-          const toolCompleteMsg = `\n✅ 工具调用完成 (${successCount}/${toolResults.length} 成功)\n`;
-          // 添加到 allStreamedContent
-          allStreamedContent += toolCompleteMsg;
-          currentIterationStreamedContent += toolCompleteMsg;
-          if (streamCallback) {
-            streamCallback(toolCompleteMsg, false);
-          }
-
-          // 检查是否所有工具都执行成功
-          const allToolsSuccessful = toolResults.every(r => r.success);
-
-          if (allToolsSuccessful && currentIteration < maxIterations) {
-            // 构建工具执行结果消息，用于下一次迭代
-            const toolResultsMessage = this.buildToolResultsMessage(toolResults);
-
-            // 更新当前用户消息为工具执行结果，以便下一次迭代
-            currentUserMessage = toolResultsMessage;
-
-            // 将工具执行结果添加到历史记录中
-            this.addToHistory('user', toolResultsMessage);
-
-            // 继续下一次迭代
-            console.log(`⏭️ 准备第 ${currentIteration + 1} 次迭代`, {
-              toolResultsMessageLength: toolResultsMessage.length,
-            });
-            continue;
-          } else {
-            // 如果有工具执行失败，或者达到最大迭代次数，生成最终响应
-            const finalResponse = await this.generateFinalResponse(
-              userMessage,
-              aiResult,
-              toolResults,
-              config,
-              allStreamedContent // 传递所有流式内容
-            );
-
-            // 更新累积响应
-            accumulatedResponse = finalResponse;
-
-            // 确保allStreamedContent包含最终响应
-            if (!allStreamedContent.includes(finalResponse)) {
-              allStreamedContent += finalResponse;
-            }
-
-            // 确保当前迭代内容也包含最终响应
-            if (!currentIterationStreamedContent.includes(finalResponse)) {
-              currentIterationStreamedContent = finalResponse;
-            }
-
-            this.addToHistory('assistant', finalResponse);
-
-            console.log(`✅ AI交互完成 - 工具调用模式（第 ${currentIteration} 次迭代）`, {
-              finalResponseLength: finalResponse.length,
-              toolResults: toolResults.map(r => ({ name: r.name, success: r.success })),
-              usedBookId: this.currentBookId,
-              iteration: currentIteration,
-              reason: allToolsSuccessful ? '达到最大迭代次数' : '有工具执行失败',
-            });
-
-            // 发送最终的流式完成回调
-            if (streamCallback) {
-              // 确保所有内容都已发送
-              streamCallback('', true);
-            }
-
-            return {
-              text: finalResponse,
-              thinking: aiResult.thinking
-            };
-          }
-        } else {
-          // 没有工具调用，迭代结束
-          console.log(`✅ AI交互完成 - 直接回复模式（第 ${currentIteration} 次迭代）`, {
-            responseLength: aiResult.text.length,
-            currentBookId: this.currentBookId,
-            streamMode: !!streamCallback,
-            iteration: currentIteration,
-            accumulatedResponseLength: accumulatedResponse.length,
-            allStreamedContentLength: allStreamedContent.length,
-            currentIterationStreamedContentLength: currentIterationStreamedContent.length,
-          });
-
-          // 确保 currentIterationStreamedContent 包含 aiResult.text
-          // 如果流式回调已经处理了内容，currentIterationStreamedContent 应该已经包含了
-          // 但为了安全，如果 aiResult.text 不在其中，则添加
-          if (aiResult.text && !currentIterationStreamedContent.includes(aiResult.text)) {
-            currentIterationStreamedContent += aiResult.text;
-          }
-
-          // 确保 allStreamedContent 包含 currentIterationStreamedContent
-          // 检查是否已经包含，避免重复添加
-          if (currentIterationStreamedContent) {
-            // 检查 allStreamedContent 是否以 currentIterationStreamedContent 结尾
-            if (!allStreamedContent.endsWith(currentIterationStreamedContent)) {
-              // 检查是否已经包含
-              if (!allStreamedContent.includes(currentIterationStreamedContent)) {
-                allStreamedContent += currentIterationStreamedContent;
-              }
-            }
-          }
-
-          // 更新累积响应：将当前迭代的内容追加到累积响应中
-          if (aiResult.text) {
-            // 如果 accumulatedResponse 已经有内容，添加分隔符
-            if (accumulatedResponse) {
-              accumulatedResponse += '\n\n' + aiResult.text;
-            } else {
-              accumulatedResponse = aiResult.text;
-            }
-          }
-
-          // 使用累积响应作为最终响应
-          const finalResponse = accumulatedResponse || aiResult.text;
-
-          this.addToHistory('assistant', finalResponse);
-
-          // 发送最终的流式完成回调
-          if (streamCallback) {
-            // 确保所有内容都已发送
-            streamCallback('', true);
-          }
-
-          return {
-            text: finalResponse,
-            thinking: aiResult.thinking,
-            toolCalls: aiResult.toolCalls
-          };
-        }
-      }
-
-      // 达到最大迭代次数
-      console.warn(`⚠️ 达到最大迭代次数（${maxIterations}）`, {
-        lastAIResponse: lastAIResponse,
-        accumulatedResponseLength: accumulatedResponse.length,
-      });
-
-      // 生成超时响应
-      const timeoutResponse = `已达到最大处理次数（${maxIterations}）。\n\n${accumulatedResponse || '处理可能未完成。'}`;
-
-      this.addToHistory('assistant', timeoutResponse);
-
-      // 发送最终的流式完成回调
-      if (streamCallback) {
-        streamCallback('', true);
-      }
-
-      return {
-        text: timeoutResponse,
-        thinking: lastAIResponse?.thinking
-      };
-
-    } catch (error) {
-      console.error('❌ AI调用失败:', {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        userMessage: userMessage.substring(0, 100),
-        currentBookId: this.currentBookId,
-        streamMode: !!streamCallback,
-      });
-
-      // 如果错误与账本相关，提供更明确的错误信息
-      let errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('未选择账本') || errorMessage.includes('bookId')) {
-        errorMessage = `AI处理失败：${errorMessage}\n\n请确保已选择账本后再使用AI功能。`;
-      }
-
-      // 发送错误完成回调
-      if (streamCallback) {
-        streamCallback('', true);
-      }
-
-      return {
-        text: `抱歉，AI处理失败：${errorMessage}\n\n请检查网络连接或稍后重试。`,
-        error: errorMessage,
-      };
-    }
+  async sendMessage(userMessage: string, streamCallback?: MessageStreamCallback): Promise<AIResponse> {
+    this.streamParser = new StreamMessageParser();
+    // 创建递归服务实例
+    const recursiveService = new AIRecursiveService(this);
+    // 调用递归函数
+    return recursiveService.sendMessageRecursive(userMessage, streamCallback);
   }
 
-  private async getContext(): Promise<any> {
+  async getContext(): Promise<any> {
     try {
       // 获取用户信息
       const userInfoStr = await AsyncStorage.getItem('user_info');
@@ -408,7 +124,7 @@ class AIService {
     }
   }
 
-  private buildSystemPrompt(context: any): string {
+  buildSystemPrompt(context: any): string {
     const tools = mcpBridge.getTools();
 
     // 为每个工具创建详细的参数说明表格
@@ -495,7 +211,7 @@ class AIService {
           break;
         case 'create_flow':
           toolInfo += '\n**注意事项**:\n';
-          toolInfo += '1. money可以是正数（收入）或负数（支出）\n';
+          toolInfo += '1. money必须是正数\n';
           toolInfo += '2. 如果不提供date，使用当前日期\n';
           toolInfo += '3. industryType、payType、attribution都有默认值\n';
           toolInfo += '4. 金额单位是人民币（元）\n';
@@ -505,11 +221,56 @@ class AIService {
           toolInfo += '1. month格式必须为YYYY-MM\n';
           toolInfo += '2. 如果不提供month，使用当前月份\n';
           break;
-        case 'classify_flow':
+        case 'industryType_flow':
           toolInfo += '\n**注意事项**:\n';
-          toolInfo += '1. 根据流水名称中的关键词推荐行业分类\n';
-          toolInfo += '2. 金额会影响分类结果（大额可能被分类为投资）\n';
-          toolInfo += '3. 返回的confidence表示分类置信度\n';
+          toolInfo += '1. 根据用户输入在返回行业分类中选择\n';
+          break;
+        case 'get_belonger':
+          toolInfo += '\n**注意事项**:\n';
+          toolInfo += '1. 此工具返回当前登录用户的归属人信息，包括姓名和邮箱\n';
+          toolInfo += '2. 如果用户未登录，user字段将为null，isLoggedIn为false\n';
+          toolInfo += '3. 在需要获取当前用户身份时使用此工具，例如：记录流水时确定归属人\n';
+          toolInfo += '4. 返回信息可用于个性化回复或自动填充归属人字段\n';
+          break;
+        case 'get_duplicate_flows':
+          toolInfo += '\n**注意事项**:\n';
+          toolInfo += '1. criteria参数用于选择检查哪些字段的重复性，可以设置name、description、industryType、flowType、payType等字段\n';
+          toolInfo += '2. 默认检查全部字段，需要显式设置为true才会检查\n';
+          toolInfo += '3. 返回结果包含duplicateGroups（重复流水分组数组）、totalGroups（总组数）、totalDuplicates（总重复记录数）\n';
+          toolInfo += '4. 每组重复流水包含相同字段值的多条记录，便于用户识别和清理重复数据\n';
+          toolInfo += '5. 使用示例：{"criteria": {"name": true, "industryType": true}} 会同时检查名称和行业分类都相同的重复流水\n';
+          break;
+        case 'get_balance_candidates':
+          toolInfo += '\n**注意事项**:\n';
+          toolInfo += '1. 该工具用于查找可以相互抵消的支出和收入流水，帮助用户进行平账处理\n';
+          toolInfo += '2. 返回结果是一个candidates数组，每个元素包含out（支出流水对象）和in（收入流水对象）\n';
+          toolInfo += '3. 平账候选的匹配逻辑基于金额相等或接近，且发生在相近时间内的支出和收入流水\n';
+          toolInfo += '4. 系统会自动筛选出最有可能需要平账的流水对，减少手动查找的工作量\n';
+          toolInfo += '5. 返回的候选对需要用户确认后才能执行实际的平账操作\n';
+          break;
+        case 'confirm_balance':
+          toolInfo += '\n**注意事项**:\n';
+          toolInfo += '1. 平账操作的作用是将指定的支出流水和一条或多条收入流水进行抵消，标记为已平账状态\n';
+          toolInfo += '2. 必需参数：outId（支出流水ID，数字类型）、inIds（收入流水ID数组，至少包含一个ID）\n';
+          toolInfo += '3. 平账操作会影响账本的总余额计算，将抵消的金额从支出和收入中扣除\n';
+          toolInfo += '4. 平账成功后，相关流水会被标记为已平账，在统计报表中不再单独计算\n';
+          toolInfo += '5. 使用示例：{"outId": 123, "inIds": [456, 789]} 表示将ID为123的支出与ID为456和789的收入进行平账\n';
+          break;
+        case 'ignore_balance_item':
+          toolInfo += '\n**注意事项**:\n';
+          toolInfo += '1. 忽略平账项的作用是将指定流水标记为不需要平账，从平账候选列表中移除\n';
+          toolInfo += '2. 必需参数：id（流水ID，数字类型）\n';
+          toolInfo += '3. 忽略操作后，该流水将不再出现在get_balance_candidates的返回结果中\n';
+          toolInfo += '4. 适用于那些虽然是支出/收入对，但实际不需要进行平账处理的特殊情况\n';
+          break;
+        case 'delete_flow':
+          toolInfo += '\n**注意事项**:\n';
+          toolInfo += '1. 这是一个高风险操作，删除后数据无法恢复，必须谨慎使用,主要用于get_duplicate_flows后删除重复记录\n';
+          toolInfo += '2. 必需参数：id（流水记录ID，数字类型）\n';
+          toolInfo += '3. 确认参数：confirm（必须设置为true才能执行删除操作，这是安全保护机制）\n';
+          toolInfo += '4. 删除操作会影响账本的总余额和统计信息\n';
+          toolInfo += '5. 建议在删除前确认要删除的流水信息\n';
+          toolInfo += '6. 删除操作不可逆，请确保用户明确知道后果\n';
           break;
       }
 
@@ -558,9 +319,11 @@ ${contextInfo}
    - 如果用户没有明确指定日期，请使用当前日期或根据上下文推断
    - 日期参数名使用date（YYYY-MM-DD格式）
    - 月份参数名使用month（YYYY-MM格式）
+   - 固定支出需要startDate和可能的endDate
 3. **金额处理**: 
    - 金额单位是人民币（元）
    - 金额，不能小于0。
+   - 预算金额必须是正数
 4. **参数映射**: 当用户使用别名时，需要映射到正确的参数名：
    - amount → money
    - category → industryType
@@ -568,7 +331,74 @@ ${contextInfo}
    - desc/description → description
    - time/date → date
    - note → description
+   - budget → budget（预算）
+   - payment → payType（支付方式）
+   - owner → attribution（归属人）
 5. **参数补全**: 当用户输入中缺少必要参数时，需要根据上下文进行推断
+6. **安全操作**: 
+   - 删除操作（delete_fixed_flow、delete_flow）需要confirm参数为true
+   - 批量操作（ignore_all_balance_items）需要确认
+   - 更新操作前建议先查看当前状态
+7. **数据刷新**: 
+   - 大量数据操作后，可调用refresh_budget_usage刷新预算使用情况
+   - 获取列表数据（get_pay_types、get_attributions）可用于填充下拉选项
+
+### 新工具最佳实践指南
+#### 固定支出管理工具
+**使用时机**:
+- **add_fixed_flow**: 当用户需要添加周期性支出（如每月房租、订阅费）时使用
+- **update_fixed_flow**: 当用户需要修改现有固定支出的金额、周期或其他属性时使用
+- **delete_fixed_flow**: 当用户需要删除不再需要的固定支出时使用
+
+**安全考虑**:
+- 删除固定支出前，建议先查看相关记录，确认无误
+- 更新固定支出不会影响已生成的流水记录
+- 添加固定支出时，确保开始日期合理，避免创建过去的重复记录
+
+**集成建议**:
+- 在添加固定支出前，可先调用get_pay_types和get_attributions获取可用选项
+- 固定支出与普通流水记录分开管理，但会影响未来的预算计算
+
+#### 预算管理工具
+**使用时机**:
+- **update_budget**: 当用户需要设置或修改某个月份的预算时使用
+- **refresh_budget_usage**: 当用户进行了大量流水操作后，需要刷新预算使用情况时使用
+
+**参数推断规则**:
+- 如果用户提到"本月预算"，month参数应为当前月份（YYYY-MM格式）
+- 如果用户提到"下月预算"，month参数应为下个月份
+- 预算金额应从用户输入中提取数字，如"预算5000元" → budget=5000
+
+**集成建议**:
+- 更新预算后，可自动调用refresh_budget_usage确保数据准确
+- 预算工具与get_monthly_summary配合使用，提供完整的月度分析
+
+#### 平账管理工具
+**使用时机**:
+- **ignore_all_balance_items**: 当用户确认所有当前平账候选都不需要处理时使用
+
+**安全考虑**:
+- 这是批量操作，必须要求用户明确确认（confirm=true）
+- 操作前建议先调用get_balance_candidates查看候选列表
+- 忽略操作可以撤销，但需要重新运行平账候选查找
+
+**集成建议**:
+- 与get_balance_candidates和confirm_balance工具配合使用
+- 在用户清理完平账候选后使用，保持界面整洁
+
+#### 数据查询工具
+**使用时机**:
+- **get_pay_types**: 当用户需要查看可用支付方式，或在创建/更新流水时需要填充支付方式选项时使用
+- **get_attributions**: 当用户需要查看可用归属人，或在创建/更新流水时需要填充归属人选项时使用
+
+**使用模式**:
+- 这些工具通常不需要参数，直接调用即可
+- 结果可用于向用户展示选项，或自动选择默认值
+- 在表单填充场景中特别有用
+
+**集成建议**:
+- 在create_flow、update_flow、add_fixed_flow等工具调用前使用，确保参数值有效
+- 结果可以缓存以提高性能，但需要定期刷新以确保数据最新
 
 ## 参数推断指导
 ### 针对create_flow工具：
@@ -600,24 +430,90 @@ ${contextInfo}
 - "查看上周流水" → startDate=7天前，endDate=当前日期
 - "查看2024年流水" → startDate="2024-01-01"，endDate="2024-12-31"
 
+### 针对固定支出工具：
+**周期推断**:
+- "每月5号" → cycleType="每月", cycleDay=5
+- "每周一" → cycleType="每周"（系统会自动处理）
+- "每年1月1号" → cycleType="每年", 需要具体日期处理
+**开始日期推断**:
+- "从下个月开始" → startDate=下个月第一天
+- "立即开始" → startDate=当前日期
+- "从今天开始" → startDate=当前日期
+- "从2025年1月开始" → startDate="2025-01-01"
+**结束日期推断**:
+- "持续一年" → endDate=开始日期加一年
+- "无限期" → 不提供endDate
+- "到年底结束" → endDate=当前年份的12月31日
+- "持续6个月" → endDate=开始日期加6个月
+**金额推断**:
+- "每月3000元房租" → money=3000
+- "订阅费15元" → money=15
+**其他参数推断**:
+- 如果用户提到"房租"，industryType可推断为"住房物业"
+- 如果用户提到"订阅"，industryType可推断为"数码娱乐"或"其他"
+- payType和attribution可根据历史记录或默认值推断
+
+### 针对预算工具：
+**月份推断**:
+- "本月预算" → month=当前月份（YYYY-MM格式）
+- "下月预算" → month=下个月份
+- "12月预算" → month="当前年份-12"
+- "2025年3月预算" → month="2025-03"
+**金额推断**:
+- "预算5000" → budget=5000
+- "设为3000元" → budget=3000
+- "每月预算2000" → budget=2000
+
+### 针对平账管理工具：
+**参数推断**:
+- ignore_all_balance_items: 当用户说"忽略所有"、"全部跳过"时使用，必须设置confirm=true
+- 不需要其他参数推断
+
+### 针对数据查询工具：
+**参数推断**:
+- get_pay_types和get_attributions不需要参数推断，直接调用即可
+- 当用户询问"有哪些支付方式"、"归属人有哪些"时使用
+
+### 针对工具集成推断：
+**组合使用模式**:
+1. **创建流水前获取选项**:
+   - 用户说"记一笔支出" → 先调用get_pay_types和get_attributions获取可用选项
+   - 再调用create_flow，使用获取的选项作为参数建议
+2. **管理固定支出**:
+   - 用户说"修改我的固定支出" → 可能需要先查询现有固定支出（通过其他接口）
+   - 再调用update_fixed_flow进行修改
+3. **预算管理流程**:
+   - 用户设置预算后 → 可自动调用refresh_budget_usage确保数据准确
+   - 结合get_monthly_summary提供完整分析
+
 ## 常见错误避免
 1. **参数格式错误**:
    - 日期必须为YYYY-MM-DD格式
    - 月份必须为YYYY-MM格式
    - 金额必须是数字类型
+   - cycleDay必须在1-31范围内（当cycleType为"每月"时）
 
 2. **必需参数缺失**:
    - create_flow必须提供name、money、flowType
-   - get_analytics必须提供type参数
+   - add_fixed_flow必须提供name、money、flowType、industryType、payType、attribution、startDate、cycleType
+   - update_budget必须提供month和budget
+   - delete_fixed_flow必须提供id和confirm=true
 
 3. **枚举值错误**:
    - flowType只能是"收入"、"支出"、"不计收支"
+   - cycleType只能是"每月"、"每周"、"每年"
    - get_analytics的type只能是"attribution"、"payType"、"industryType"、"daily"
 
+4. **安全确认缺失**:
+   - delete_fixed_flow必须设置confirm=true
+   - ignore_all_balance_items必须设置confirm=true
+   - 批量操作前应提醒用户确认
+
 ## 工具调用示例
+<!-- 已更新最佳实践指南和参数推断指导，包含所有新工具 -->
 ### 示例1：创建流水记录
 用户输入："记一笔午餐消费50元"
-\`\`\`json
+<json>
 {
   "toolCalls": [
     {
@@ -635,11 +531,11 @@ ${contextInfo}
     }
   ]
 }
-\`\`\`
+</json>
 
 ### 示例2：查询本月流水
 用户输入："查看本月支出"
-\`\`\`json
+<json>
 {
   "toolCalls": [
     {
@@ -654,11 +550,11 @@ ${contextInfo}
     }
   ]
 }
-\`\`\`
+</json>
 
 ### 示例3：获取月度统计
 用户输入："查看12月统计"
-\`\`\`json
+<json>
 {
   "toolCalls": [
     {
@@ -669,11 +565,11 @@ ${contextInfo}
     }
   ]
 }
-\`\`\`
+</json>
 
 ### 示例4：更新流水记录
 用户输入："把ID为123的流水名称改为'晚餐消费'"
-\`\`\`json
+<json>
 {
   "toolCalls": [
     {
@@ -685,7 +581,353 @@ ${contextInfo}
     }
   ]
 }
-\`\`\`
+</json>
+
+### 示例5：查找重复流水记录
+用户输入："查找重复的流水记录"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "get_duplicate_flows",
+      "arguments": {
+        "criteria": {
+          "name": true,
+          "description": false,
+          "industryType": false,
+          "flowType": false,
+          "payType": false
+        }
+      }
+    }
+  ]
+}
+</json>
+
+### 示例6：查看平账候选
+用户输入："查看可以平账的流水"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "get_balance_candidates",
+      "arguments": {}
+    }
+  ]
+}
+</json>
+
+### 示例7：确认平账操作
+用户输入："将ID为123的支出与ID为456的收入进行平账"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "confirm_balance",
+      "arguments": {
+        "outId": 123,
+        "inIds": [456]
+      }
+    }
+  ]
+}
+</json>
+
+### 示例8：忽略平账项
+用户输入："忽略ID为789的平账项"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "ignore_balance_item",
+      "arguments": {
+        "id": 789
+      }
+    }
+  ]
+}
+</json>
+
+### 示例9：删除流水记录
+用户输入："删除ID为123的流水记录"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "delete_flow",
+      "arguments": {
+        "id": 123,
+        "confirm": true
+      }
+    }
+  ]
+}
+</json>
+
+### 示例10：添加固定支出
+用户输入："添加每月5号3000元的房租支出"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "add_fixed_flow",
+      "arguments": {
+        "name": "每月房租",
+        "money": 3000,
+        "flowType": "支出",
+        "industryType": "住房物业",
+        "payType": "银行转账",
+        "attribution": "默认",
+        "description": "每月5号交房租",
+        "startDate": "2024-12-01",
+        "cycleType": "每月",
+        "cycleDay": 5
+      }
+    }
+  ]
+}
+</json>
+
+### 示例11：更新固定支出
+用户输入："把ID为123的固定支出金额改为3500元"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "update_fixed_flow",
+      "arguments": {
+        "id": 123,
+        "money": 3500
+      }
+    }
+  ]
+}
+</json>
+
+### 示例12：删除固定支出
+用户输入："删除ID为456的固定支出"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "delete_fixed_flow",
+      "arguments": {
+        "id": 456,
+        "confirm": true
+      }
+    }
+  ]
+}
+</json>
+
+### 示例13：更新月度预算
+用户输入："把12月预算设为5000元"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "update_budget",
+      "arguments": {
+        "month": "2024-12",
+        "budget": 5000
+      }
+    }
+  ]
+}
+</json>
+
+### 示例14：刷新预算使用
+用户输入："刷新12月预算使用情况"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "refresh_budget_usage",
+      "arguments": {
+        "month": "2024-12"
+      }
+    }
+  ]
+}
+</json>
+
+### 示例15：忽略所有平账候选
+用户输入："忽略所有平账候选"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "ignore_all_balance_items",
+      "arguments": {
+        "confirm": true
+      }
+    }
+  ]
+}
+</json>
+
+### 示例16：获取支付方式列表
+用户输入："查看可用的支付方式"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "get_pay_types",
+      "arguments": {}
+    }
+  ]
+}
+</json>
+
+### 示例17：获取归属人列表
+用户输入："查看可用的归属人"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "get_attributions",
+      "arguments": {}
+    }
+  ]
+}
+</json>
+
+### 示例18：添加固定支出
+用户输入："添加每月5号3000元的房租支出，从2024-12-01开始"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "add_fixed_flow",
+      "arguments": {
+        "name": "每月房租",
+        "money": 3000,
+        "flowType": "支出",
+        "industryType": "住房物业",
+        "payType": "银行转账",
+        "attribution": "默认",
+        "description": "每月5号交房租",
+        "startDate": "2024-12-01",
+        "cycleType": "每月",
+        "cycleDay": 5
+      }
+    }
+  ]
+}
+</json>
+<!-- 说明：添加固定支出需要提供完整的参数，包括名称、金额、类型、行业分类、支付方式、归属人、描述、开始日期、周期类型和周期日。 -->
+
+### 示例19：更新固定支出
+用户输入："把ID为123的订阅费从15元改为20元"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "update_fixed_flow",
+      "arguments": {
+        "id": 123,
+        "money": 20,
+        "description": "更新后的订阅费用"
+      }
+    }
+  ]
+}
+</json>
+<!-- 说明：更新固定支出只需要提供ID和需要更新的字段，可以部分更新。 -->
+
+### 示例20：删除固定支出
+用户输入："删除ID为456的固定支出"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "delete_fixed_flow",
+      "arguments": {
+        "id": 456,
+        "confirm": true
+      }
+    }
+  ]
+}
+</json>
+<!-- 说明：删除固定支出需要提供ID和confirm参数为true，这是安全保护机制。 -->
+
+### 示例21：更新月度预算
+用户输入："把12月预算设为5000元"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "update_budget",
+      "arguments": {
+        "month": "2024-12",
+        "budget": 5000
+      }
+    }
+  ]
+}
+</json>
+<!-- 说明：更新预算需要提供月份（YYYY-MM格式）和预算金额。 -->
+
+### 示例22：刷新预算使用情况
+用户输入："刷新12月预算使用情况"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "refresh_budget_usage",
+      "arguments": {
+        "month": "2024-12"
+      }
+    }
+  ]
+}
+</json>
+<!-- 说明：刷新预算使用情况只需要提供月份，系统会重新计算该月的支出总额。 -->
+
+### 示例23：忽略所有平账候选
+用户输入："忽略所有平账候选"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "ignore_all_balance_items",
+      "arguments": {
+        "confirm": true
+      }
+    }
+  ]
+}
+</json>
+<!-- 说明：忽略所有平账候选需要confirm参数为true，这是批量操作的安全确认。 -->
+
+### 示例24：获取支付方式列表（用于表单填充）
+用户输入："查看可用的支付方式"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "get_pay_types",
+      "arguments": {}
+    }
+  ]
+}
+</json>
+<!-- 说明：获取支付方式列表不需要参数，返回当前账本可用的支付方式。 -->
+
+### 示例25：获取归属人列表（用于表单填充）
+用户输入："查看可用的归属人"
+<json>
+{
+  "toolCalls": [
+    {
+      "name": "get_attributions",
+      "arguments": {}
+    }
+  ]
+}
+</json>
+<!-- 说明：获取归属人列表不需要参数，返回当前账本可用的归属人。 -->
 
 ## 回复要求
 1. 尽量用简洁、友好的中文回复用户
@@ -705,7 +947,7 @@ ${contextInfo}
       anthropic: 'https://api.anthropic.com/v1/messages', // Anthropic原生端点，需要OpenAI兼容
       deepseek: 'https://api.deepseek.com/v1/chat/completions',
       google: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', // 需要OpenAI兼容
-      custom: '',
+      custom: '', // custom provider 使用用户提供的 baseURL
     };
 
     // 对于需要OpenAI兼容的供应商，我们可以使用兼容端点
@@ -719,7 +961,7 @@ ${contextInfo}
       anthropic: 'claude-3-haiku-20240307',
       deepseek: 'deepseek-chat',
       google: 'gemini-pro',
-      custom: '',
+      custom: 'gpt-3.5-turbo', // 为 custom provider 提供合理的默认值
     };
     return models[provider] || models.openai;
   }
@@ -742,7 +984,8 @@ ${contextInfo}
       // 这里暂时使用Bearer token，实际可能需要调整
       headers.Authorization = `Bearer ${config.apiKey}`;
     } else {
-      // OpenAI兼容格式（包括DeepSeek、OpenAI等）
+      // OpenAI兼容格式（包括DeepSeek、OpenAI、custom等）
+      // custom provider 也使用 Bearer token
       headers.Authorization = `Bearer ${config.apiKey}`;
     }
 
@@ -763,6 +1006,13 @@ ${contextInfo}
       stream: stream, // 使用传入的stream参数，但默认值为true
     };
 
+    // 优化建议生成API调用，考虑使用更小的模型或缓存结果以提高性能
+    // 对于生成建议的场景，可以使用更低的temperature和更少的max_tokens
+    if (!stream && messages.some(msg => msg.content.includes('提示建议生成器'))) {
+      requestBody.max_tokens = 200; // 建议生成不需要太多tokens
+      requestBody.temperature = 0.3; // 更低的随机性以获得更一致的输出
+    }
+
     // 对于特定供应商，可能需要调整参数
     if (config.provider === 'anthropic') {
       // Anthropic的OpenAI兼容端点可能需要特定参数
@@ -774,100 +1024,6 @@ ${contextInfo}
     // 其他供应商（openai, deepseek, custom）都使用相同的格式
 
     return requestBody;
-  }
-
-  private async makeAPIRequest(
-    endpoint: string,
-    headers: Record<string, string>,
-    body: any,
-    config: any,
-    retryCount = 0
-  ): Promise<Response> {
-    const maxRetries = 2;
-    const retryDelay = 1000; // 1 second
-
-    try {
-      const fetchOptions: RequestInit = {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(body),
-      };
-
-      console.log('📡 发送AI请求', {
-        endpoint,
-        provider: config.provider,
-        model: config.model,
-        retryAttempt: retryCount,
-        bodySize: JSON.stringify(body).length,
-      });
-
-      const response = await fetch(endpoint, fetchOptions);
-
-      if (!response.ok) {
-        // 如果是服务器错误（5xx）且还有重试次数，进行重试
-        if (response.status >= 500 && response.status < 600 && retryCount < maxRetries) {
-          console.log(`🔄 服务器错误 ${response.status}，第${retryCount + 1}次重试...`);
-          // @ts-ignore
-          await new Promise(resolve => setTimeout(resolve, retryDelay * (retryCount + 1)));
-          return this.makeAPIRequest(endpoint, headers, body, config, retryCount + 1);
-        }
-
-        const errorText = await response.text();
-        console.error('❌ AI API响应错误', {
-          status: response.status,
-          statusText: response.statusText,
-          endpoint,
-          errorPreview: errorText.substring(0, 300),
-        });
-
-        let errorMessage = this.getErrorMessage(response.status, errorText, config.provider);
-        throw new Error(errorMessage);
-      }
-
-      return response;
-    } catch (error) {
-      // 如果是网络错误且还有重试次数，进行重试
-      if (retryCount < maxRetries && error instanceof TypeError) {
-        console.log(`🌐 网络错误，第${retryCount + 1}次重试...`);
-        // @ts-ignore
-        await new Promise(resolve => setTimeout(resolve, retryDelay * (retryCount + 1)));
-        return this.makeAPIRequest(endpoint, headers, body, config, retryCount + 1);
-      }
-      throw error;
-    }
-  }
-
-  private getErrorMessage(status: number, errorText: string, provider: string): string {
-    // 尝试解析错误信息
-    let errorDetail = `API请求失败: ${status}`;
-    try {
-      const errorData = JSON.parse(errorText);
-      errorDetail = errorData.error?.message || errorData.message || errorDetail;
-    } catch (e) {
-      // 如果无法解析JSON，使用原始文本
-      if (errorText) {
-        errorDetail = `${errorDetail} - ${errorText.substring(0, 100)}`;
-      }
-    }
-
-    // 根据状态码提供更友好的错误信息
-    switch (status) {
-      case 401:
-        return `认证失败：请检查API Key是否正确（${provider}）`;
-      case 403:
-        return `权限不足：请检查API Key是否有足够的权限（${provider}）`;
-      case 404:
-        return `端点不存在：请检查API地址是否正确（${provider}）`;
-      case 429:
-        return `请求过于频繁：请稍后再试（${provider}）`;
-      case 500:
-      case 502:
-      case 503:
-      case 504:
-        return `服务器暂时不可用：请稍后再试（${provider}）`;
-      default:
-        return errorDetail;
-    }
   }
 
   private adjustEndpoint(baseURL: string, provider: string): string {
@@ -930,8 +1086,17 @@ ${contextInfo}
       }
 
       // 如果有路径但不是/v1相关
-      // 直接添加/v1/chat/completions到现有路径后
-      // 但为了兼容性，我们假设用户提供的路径是正确的
+      // 对于 custom provider，我们总是添加 /v1/chat/completions 以确保兼容性
+      if (provider === 'custom') {
+        const finalURL = `${cleanedURL}/v1/chat/completions`;
+        console.log('🔧 custom provider：添加/v1/chat/completions以确保兼容性', {
+          original: baseURL,
+          adjusted: finalURL,
+        });
+        return finalURL;
+      }
+
+      // 对于其他提供商，保持原样
       console.log('⚠️ 端点有自定义路径，保持原样', {
         original: baseURL,
         pathname: pathname,
@@ -966,7 +1131,13 @@ ${contextInfo}
     }
   }
 
-  private async callAIAPI(config: any, systemPrompt: string, userMessage: string, streamCallback?: (content: string, isComplete: boolean) => void): Promise<AIResponse> {
+  // 注意：所有API调用现在只支持流式模式，非流式调用已被移除
+  async callAIAPI(config: any, systemPrompt: string, userMessage: string, streamCallback: (content: string, reasoning_content: string, isComplete: boolean) => void): Promise<void> {
+    // 只支持流式调用，streamCallback 必须提供
+    if (!streamCallback) {
+      throw new Error('流式回调函数必须提供，接口调用只支持流式模式');
+    }
+
     const messages = [
       { role: 'system', content: systemPrompt },
       ...this.getRecentHistory(),
@@ -987,205 +1158,40 @@ ${contextInfo}
 
     const model = config.model || defaultModel;
 
-    // 记录端点信息
-    console.log('🌐 最终API端点信息', {
-      provider: config.provider,
-      originalBaseURL: config.baseURL || '未设置',
-      adjustedEndpoint: apiEndpoint,
-      isDefault: !config.baseURL,
-      model: model,
-      streamMode: !!streamCallback,
-    });
-
-    console.log('🚀 准备AI API调用', {
+    console.log('🚀 准备AI API调用（仅流式）', {
       provider: config.provider,
       endpoint: apiEndpoint,
       model: model,
       messageCount: messages.length,
       hasCustomEndpoint: !!config.baseURL,
-      isDeepSeek: config.provider === 'deepseek',
-      isOpenAI: config.provider === 'openai',
-      isAnthropic: config.provider === 'anthropic',
-      isGoogle: config.provider === 'google',
-      isCustom: config.provider === 'custom',
-      streamMode: !!streamCallback,
     });
 
-    try {
-      // 构建请求头和请求体
-      const headers = this.buildHeaders(config);
-      const useStream = !!streamCallback;
-      const requestBody = this.buildRequestBody(config, messages, useStream);
+    // 构建请求头和请求体
+    const headers = this.buildHeaders(config);
+    const requestBody = this.buildRequestBody(config, messages, true); // 总是使用流式
 
-      console.log('📦 请求体信息', {
-        provider: config.provider,
-        model: requestBody.model,
-        messageCount: requestBody.messages?.length || 0,
-        maxTokens: requestBody.max_tokens,
-        temperature: requestBody.temperature,
-        stream: requestBody.stream,
-      });
+    console.log('📦 请求体信息', {
+      provider: config.provider,
+      model: requestBody.model,
+      messageCount: requestBody.messages?.length || 0,
+      maxTokens: requestBody.max_tokens,
+      temperature: requestBody.temperature,
+      stream: requestBody.stream,
+    });
 
-      // 发送请求
-      if (useStream) {
-        // 流式响应处理
-        const content = await this.processStreamResponse(apiEndpoint, headers, requestBody, streamCallback);
-        const parsedResponse = this.parseAIResponse(content);
-        console.log('🌊 流式响应解析完成', {
-          contentLength: content.length,
-          hasThinking: !!parsedResponse.thinking,
-          thinkingLength: parsedResponse.thinking?.length || 0,
-          thinkingPreview: parsedResponse.thinking?.substring(0, 100) || '无',
-          hasToolCalls: !!(parsedResponse.toolCalls && parsedResponse.toolCalls.length > 0),
-          toolCallCount: parsedResponse.toolCalls?.length || 0,
-          textLength: parsedResponse.text.length,
-        });
-        return parsedResponse;
-      } else {
-        // 非流式响应处理
-        const response = await this.makeAPIRequest(apiEndpoint, headers, requestBody, config);
-
-        // 解析响应 - 统一使用OpenAI兼容格式
-        const data = await response.json();
-
-        // 检查是否有错误
-        if (data.error) {
-          throw new Error(`API错误: ${data.error.message || JSON.stringify(data.error)}`);
-        }
-
-        // 统一解析响应内容
-        let content = '';
-
-        // 尝试OpenAI兼容格式
-        if (data.choices && data.choices[0] && data.choices[0].message) {
-          content = data.choices[0].message.content || '';
-        }
-        // 尝试Anthropic兼容格式
-        else if (data.content && Array.isArray(data.content) && data.content[0] && data.content[0].text) {
-          content = data.content[0].text;
-        }
-        // 尝试Google兼容格式
-        else if (data.candidates && data.candidates[0] && data.candidates[0].content &&
-                 data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-          content = data.candidates[0].content.parts[0].text || '';
-        }
-        // 其他格式
-        else {
-          console.warn('无法识别的响应格式，尝试直接获取文本', {
-            dataKeys: Object.keys(data),
-            dataPreview: JSON.stringify(data).substring(0, 200),
-          });
-          // 尝试获取任何可能的文本字段
-          const textFields = ['text', 'message', 'content', 'result'];
-          for (const field of textFields) {
-            if (typeof data[field] === 'string') {
-              content = data[field];
-              break;
-            }
-          }
-        }
-
-        console.log('✅ AI API调用成功', {
-          responseLength: content.length,
-          hasContent: !!content,
-          provider: config.provider,
-          finishReason: data.choices?.[0]?.finish_reason || data.stop_reason || 'unknown',
-          modelUsed: data.model || 'unknown',
-          endpointUsed: apiEndpoint,
-          streamMode: false,
-        });
-
-        const parsedResponse = this.parseAIResponse(content);
-        console.log('🧠 解析后的AI响应', {
-          hasThinking: !!parsedResponse.thinking,
-          thinkingLength: parsedResponse.thinking?.length || 0,
-          thinkingPreview: parsedResponse.thinking?.substring(0, 100) || '无',
-          hasToolCalls: !!(parsedResponse.toolCalls && parsedResponse.toolCalls.length > 0),
-          toolCallCount: parsedResponse.toolCalls?.length || 0,
-          textLength: parsedResponse.text.length,
-          textPreview: parsedResponse.text.substring(0, 100),
-        });
-        return parsedResponse;
-      }
-
-    } catch (error) {
-      console.error('❌ AI API调用失败', {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        provider: config.provider,
-        endpoint: apiEndpoint,
-        model: config.model,
-        hasBaseURL: !!config.baseURL,
-        originalBaseURL: config.baseURL || '未设置',
-        timestamp: new Date().toISOString(),
-        streamMode: !!streamCallback,
-        isDeepSeek: config.provider === 'deepseek',
-      });
-
-      // 提供更具体的错误信息
-      if (error instanceof Error) {
-        if (error.message.includes('Failed to fetch') || error.message.includes('Network request failed')) {
-          throw new Error(`网络连接失败：请检查网络连接后重试（${config.provider}）`);
-        }
-        // 检查是否是特定供应商的错误
-        if (config.provider === 'deepseek') {
-          if (error.message.includes('404')) {
-            throw new Error(`DeepSeek端点未找到：请确保使用正确的API端点（当前：${apiEndpoint}）。DeepSeek官方端点是 https://api.deepseek.com/v1/chat/completions`);
-          }
-          if (error.message.includes('401')) {
-            throw new Error('DeepSeek认证失败：请检查API Key是否正确。DeepSeek API Key可以在官网获取');
-          }
-          if (error.message.includes('429')) {
-            throw new Error('DeepSeek请求频率限制：请稍后再试，或检查API Key的配额');
-          }
-          if (error.message.includes('流式请求失败')) {
-            throw new Error(`DeepSeek流式响应处理失败：${error.message}。请检查网络连接和API配置`);
-          }
-          // DeepSeek特定错误处理
-          console.log('🔍 DeepSeek特定错误诊断', {
-            endpoint: apiEndpoint,
-            expectedEndpoint: 'https://api.deepseek.com/v1/chat/completions',
-            isCorrectEndpoint: apiEndpoint === 'https://api.deepseek.com/v1/chat/completions',
-            hasModel: !!config.model,
-            model: config.model,
-          });
-        } else if (config.provider === 'anthropic') {
-          if (error.message.includes('404') || error.message.includes('Not Found')) {
-            throw new Error(`Anthropic端点未找到：请确保使用OpenAI兼容的端点或配置正确的baseURL（当前：${apiEndpoint}）`);
-          }
-          if (error.message.includes('401') || error.message.includes('403')) {
-            throw new Error('Anthropic认证失败：请检查API Key和端点配置');
-          }
-        } else if (config.provider === 'google') {
-          if (error.message.includes('404') || error.message.includes('Not Found')) {
-            throw new Error(`Google端点未找到：请确保使用OpenAI兼容的端点或配置正确的baseURL（当前：${apiEndpoint}）`);
-          }
-          if (error.message.includes('401') || error.message.includes('403')) {
-            throw new Error('Google认证失败：请检查API Key和端点配置');
-          }
-        } else if (config.provider === 'custom') {
-          if (error.message.includes('404') || error.message.includes('Not Found')) {
-            throw new Error(`自定义端点未找到：请检查baseURL配置是否正确（当前：${apiEndpoint}）`);
-          }
-          if (error.message.includes('401') || error.message.includes('403')) {
-            throw new Error('自定义端点认证失败：请检查API Key和端点配置');
-          }
-        }
-        throw error;
-      }
-      throw new Error(`未知错误：${String(error)}`);
-    }
+    // 只使用流式调用
+    await this.processStreamResponse(apiEndpoint, headers, requestBody, streamCallback);
   }
 
   private async processStreamResponse(
     endpoint: string,
     headers: Record<string, string>,
     body: any,
-    streamCallback: (content: string, isComplete: boolean) => void
+    streamCallback: (content: string, reasoning_content: string, isComplete: boolean) => void
   ): Promise<string> {
     return new Promise(async (resolve, reject) => {
       try {
-        console.log('🌊 开始处理流式响应', {
+        console.log('🌊 开始处理流式响应（使用react-native-sse）', {
           endpoint: endpoint,
           headers: headers,
           bodySize: JSON.stringify(body).length,
@@ -1193,13 +1199,7 @@ ${contextInfo}
           timestamp: new Date().toISOString(),
         });
 
-        const fetchOptions: RequestInit = {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(body),
-        };
-
-        console.log('📡 发送流式请求', {
+        console.log('📡 发送SSE请求', {
           method: 'POST',
           url: endpoint,
           headersCount: Object.keys(headers).length,
@@ -1207,45 +1207,131 @@ ${contextInfo}
           contentType: headers['Content-Type'],
         });
 
-        const response = await fetch(endpoint, fetchOptions);
-
-        // 记录响应状态和headers
-        console.log('📥 收到流式响应', {
-          status: response.status,
-          statusText: response.statusText,
-          ok: response.ok,
-          url: response.url,
-          redirected: response.redirected,
-          type: response.type,
-          bodyUsed: response.bodyUsed,
+        // 创建EventSource实例
+        const es = new EventSource(endpoint, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(body),
+          pollingInterval: 0, // 禁用轮询，使用真正的SSE
         });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('❌ 流式请求失败', {
-            status: response.status,
-            statusText: response.statusText,
-            errorText: errorText,
-            endpoint: endpoint,
-            headers: headers,
+        let hasError = false;
+
+        // 监听消息事件
+        es.addEventListener('message', (event) => {
+          try {
+            if (event.type === 'message') {
+              const data = event.data;
+
+              console.log('📝 收到SSE数据', {
+                data,
+              });
+              // 跳过结束标记
+              if (data === '[DONE]') {
+                console.log('🏁 收到SSE结束标记');
+                es.close();
+                es.removeAllEventListeners();
+                return;
+              }
+
+              if (!data) {
+                return;
+              }
+
+              // 解析JSON数据
+              const parsedData = JSON.parse(data);
+
+              // 提取内容：检查多个可能的字段
+              let delta = '';
+              let thinkingDelta = '';
+
+              // 1. 首先检查 reasoning_content（思考内容）
+              if (parsedData.choices?.[0]?.delta?.reasoning_content !== undefined) {
+                thinkingDelta = parsedData.choices[0].delta.reasoning_content || '';
+              }
+              // 2. 检查其他可能的思考字段
+              else if (parsedData.reasoning_content !== undefined) {
+                thinkingDelta = parsedData.reasoning_content || '';
+              }
+              else if (parsedData.choices?.[0]?.delta?.thinking !== undefined) {
+                thinkingDelta = parsedData.choices[0].delta.thinking || '';
+              }
+
+              // 3. 提取常规内容
+              if (parsedData.choices?.[0]?.delta?.content !== undefined) {
+                delta = parsedData.choices[0].delta.content || '';
+              } else if (parsedData.content !== undefined) {
+                delta = parsedData.content || '';
+              } else if (parsedData.result?.choices?.[0]?.delta?.content !== undefined) {
+                delta = parsedData.result.choices[0].delta.content || '';
+              } else if (parsedData.text !== undefined) {
+                delta = parsedData.text || '';
+              } else if (parsedData.message?.content !== undefined) {
+                delta = parsedData.message.content || '';
+              }
+
+              // 发送到流式回调
+              if (delta || thinkingDelta) {
+                streamCallback(delta,thinkingDelta, false);
+              }
+            }
+          } catch (parseError) {
+            console.warn('❌ 解析SSE数据失败', {
+              error: parseError instanceof Error ? parseError.message : String(parseError),
+              eventData: event.data?.substring(0, 200),
+            });
+          }
+        });
+
+        // 监听错误事件
+        es.addEventListener('error', (event) => {
+          console.error('❌ SSE连接错误', {
+            eventType: event.type,
+            event: JSON.stringify(event),
           });
-          reject(new Error(`流式请求失败: ${response.status} ${response.statusText} - ${errorText}`));
-          return;
-        }
 
-        // 检查response.body是否存在（React Native可能不支持）
-        // 使用类型断言来避免TypeScript错误
-        const responseAny = response as any;
+          if (!hasError) {
+            hasError = true;
+            es.close();
+            reject(new Error('SSE连接错误'));
+          }
+        });
 
-        if (responseAny.body && typeof responseAny.body.getReader === 'function') {
-          // 标准Web API方式：使用response.body
-          console.log('✅ 使用标准Web API流式处理（response.body）');
-          await this.processStreamWithBody(responseAny, streamCallback, resolve, reject);
-        } else {
-          // React Native备选方案：使用response.text()然后手动解析
-          console.log('⚠️ response.body不可用，使用React Native备选方案');
-          await this.processStreamWithText(response, streamCallback, resolve, reject);
-        }
+        // 监听打开事件
+        es.addEventListener('open', (event) => {
+          console.log('✅ SSE连接已建立', {
+            eventType: event.type,
+          });
+        });
+
+        // 监听关闭事件
+        es.addEventListener('close', (event) => {
+          console.log('🔒 SSE连接已关闭', {
+            eventType: event.type,
+          });
+
+          if (!hasError) {
+            // 正常关闭，完成流式处理
+            streamCallback('', '', true);
+
+            // 返回空字符串，因为内容已经通过回调处理
+            resolve('');
+          }
+        });
+
+        // 清理函数
+        const cleanup = () => {
+          es.close();
+          es.removeAllEventListeners();
+        };
+
+        // 确保在Promise解决或拒绝时清理资源
+        Promise.race([
+          new Promise((_) => {
+            // 错误处理已在error事件中完成
+          }),
+        ]).finally(cleanup);
+
       } catch (error) {
         console.error('❌ 流式响应处理失败', {
           error: error instanceof Error ? error.message : String(error),
@@ -1258,650 +1344,7 @@ ${contextInfo}
     });
   }
 
-  private async processStreamWithBody(
-    response: any,
-    streamCallback: (content: string, isComplete: boolean) => void,
-    resolve: (value: string) => void,
-    reject: (reason?: any) => void
-  ): Promise<void> {
-    try {
-      if (!response.body) {
-        console.error('❌ 响应体为空');
-        reject(new Error('响应体为空'));
-        return;
-      }
-
-      const reader = response.body.getReader();
-      // @ts-ignore
-      const decoder = new TextDecoder('utf-8');
-      let accumulatedContent = '';
-      let chunkCount = 0;
-      let lineCount = 0;
-      let dataCount = 0;
-
-      console.log('🔄 开始读取流式数据（标准Web API）');
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          chunkCount++;
-
-          if (done) {
-            console.log('✅ 流式响应完成', {
-              totalChunks: chunkCount,
-              totalLines: lineCount,
-              totalDataEvents: dataCount,
-              accumulatedLength: accumulatedContent.length,
-              finalContentPreview: accumulatedContent.substring(0, 100),
-            });
-            streamCallback('', true);
-            resolve(accumulatedContent);
-            break;
-          }
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
-          lineCount += lines.length;
-
-          console.log(`📦 收到流式数据块 ${chunkCount}`, {
-            chunkSize: value.length,
-            decodedLength: chunk.length,
-            linesInChunk: lines.length,
-            firstLinePreview: lines[0]?.substring(0, 50),
-          });
-
-          for (const line of lines) {
-            const trimmedLine = line.trim();
-
-            // 跳过空行和结束标记
-            if (!trimmedLine) {
-              continue;
-            }
-
-            // 处理不同的结束标记
-            if (trimmedLine === 'data: [DONE]' || trimmedLine === '[DONE]') {
-              console.log('🏁 收到流式结束标记');
-              continue;
-            }
-
-            // 处理不同的数据格式
-            let jsonStr = '';
-            if (trimmedLine.startsWith('data: ')) {
-              jsonStr = trimmedLine.substring(6);
-              dataCount++;
-            } else if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
-              // 直接JSON格式（某些API可能不包含"data: "前缀）
-              jsonStr = trimmedLine;
-              dataCount++;
-            } else {
-              // 非JSON数据，记录但跳过
-              console.log('⚠️ 跳过非JSON行', {
-                linePreview: trimmedLine.substring(0, 100),
-                lineLength: trimmedLine.length,
-              });
-              continue;
-            }
-
-            if (jsonStr.trim() === '') {
-              continue;
-            }
-
-            try {
-              const data = JSON.parse(jsonStr);
-
-              // 支持多种流式响应格式
-              let delta = '';
-
-              // 1. OpenAI兼容格式
-              if (data.choices?.[0]?.delta?.content !== undefined) {
-                delta = data.choices[0].delta.content || '';
-              }
-              // 2. 直接content字段（某些API）
-              else if (data.content !== undefined) {
-                delta = data.content || '';
-              }
-              // 3. 可能使用的格式
-              else if (data.result?.choices?.[0]?.delta?.content !== undefined) {
-                delta = data.result.choices[0].delta.content || '';
-              }
-              // 4. 直接text字段
-              else if (data.text !== undefined) {
-                delta = data.text || '';
-              }
-              // 5. 消息格式
-              else if (data.message?.content !== undefined) {
-                delta = data.message.content || '';
-              }
-
-              if (delta) {
-                accumulatedContent += delta;
-
-                // 在流式过程中尝试提取思考块
-                // 如果检测到思考块，可以提前通知UI
-                const tempParsed = this.parseAIResponse(accumulatedContent);
-                if (tempParsed.thinking && !tempParsed.thinking.includes('undefined')) {
-                  // 如果检测到思考块，可以通过streamCallback的特殊标记通知
-                  // 这里我们只是记录日志，实际处理在最终解析时完成
-                  if (dataCount === 1) {
-                    console.log('💭 流式过程中检测到思考块', {
-                      thinkingPreview: tempParsed.thinking.substring(0, 100),
-                      accumulatedLength: accumulatedContent.length,
-                    });
-                  }
-                }
-
-                streamCallback(delta, false);
-
-                // 记录详细的数据信息（仅前几次）
-                if (dataCount <= 5) {
-                  console.log('📝 解析流式数据成功', {
-                    dataCount: dataCount,
-                    deltaLength: delta.length,
-                    deltaPreview: delta.substring(0, 50),
-                    accumulatedLength: accumulatedContent.length,
-                    dataKeys: Object.keys(data),
-                    hasChoices: !!data.choices,
-                    hasResult: !!data.result,
-                    model: data.model || 'unknown',
-                  });
-                }
-              } else {
-                // 记录非内容数据（如工具调用等）
-                if (data.choices?.[0]?.delta?.tool_calls || data.choices?.[0]?.finish_reason) {
-                  console.log('🔧 非内容数据', {
-                    finishReason: data.choices[0].finish_reason,
-                    hasToolCalls: !!data.choices[0].delta?.tool_calls,
-                    dataPreview: JSON.stringify(data).substring(0, 200),
-                  });
-                }
-              }
-            } catch (parseError) {
-              console.warn('❌ 解析流式数据失败', {
-                error: parseError instanceof Error ? parseError.message : String(parseError),
-                jsonStr: jsonStr.substring(0, 200),
-                lineNumber: lineCount,
-                chunkNumber: chunkCount,
-              });
-            }
-          }
-        }
-      } catch (streamError) {
-        console.error('❌ 流式读取过程中发生错误', {
-          error: streamError instanceof Error ? streamError.message : String(streamError),
-          chunkCount: chunkCount,
-          lineCount: lineCount,
-          dataCount: dataCount,
-          accumulatedLength: accumulatedContent.length,
-        });
-        reject(streamError);
-      } finally {
-        reader.releaseLock();
-        console.log('🔒 流式读取器已释放', {
-          totalChunksProcessed: chunkCount,
-          totalContentLength: accumulatedContent.length,
-        });
-      }
-    } catch (error) {
-      console.error('❌ 标准Web API流式处理失败', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      reject(error);
-    }
-  }
-
-  private async processStreamWithText(
-    response: Response,
-    streamCallback: (content: string, isComplete: boolean) => void,
-    resolve: (value: string) => void,
-    reject: (reason?: any) => void
-  ): Promise<void> {
-    try {
-      console.log('📝 使用React Native备选方案处理流式响应');
-
-      // 获取完整的响应文本
-      const responseText = await response.text();
-
-      if (!responseText) {
-        console.error('❌ 响应文本为空');
-        reject(new Error('响应文本为空'));
-        return;
-      }
-
-      console.log('📄 收到完整响应文本', {
-        textLength: responseText.length,
-        preview: responseText.substring(0, 200),
-      });
-
-      let accumulatedContent = '';
-
-      // 按行分割响应文本
-      const lines = responseText.split('\n');
-      console.log(`📊 共 ${lines.length} 行数据`);
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const trimmedLine = line.trim();
-
-        // 跳过空行
-        if (!trimmedLine) {
-          continue;
-        }
-
-        // 处理结束标记
-        if (trimmedLine === 'data: [DONE]' || trimmedLine === '[DONE]') {
-          console.log('🏁 收到流式结束标记');
-          continue;
-        }
-
-        // 处理数据行
-        let jsonStr = '';
-        if (trimmedLine.startsWith('data: ')) {
-          jsonStr = trimmedLine.substring(6);
-        } else if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
-          jsonStr = trimmedLine;
-        } else {
-          // 非JSON数据，跳过
-          continue;
-        }
-
-        if (jsonStr.trim() === '') {
-          continue;
-        }
-
-        try {
-          const data = JSON.parse(jsonStr);
-
-          // 支持多种流式响应格式
-          let delta = '';
-
-          // 1. OpenAI兼容格式
-          if (data.choices?.[0]?.delta?.content !== undefined) {
-            delta = data.choices[0].delta.content || '';
-          }
-          // 2. 直接content字段（某些API）
-          else if (data.content !== undefined) {
-            delta = data.content || '';
-          }
-          // 3. DeepSeek可能使用的格式
-          else if (data.result?.choices?.[0]?.delta?.content !== undefined) {
-            delta = data.result.choices[0].delta.content || '';
-          }
-          // 4. 直接text字段
-          else if (data.text !== undefined) {
-            delta = data.text || '';
-          }
-          // 5. 消息格式
-          else if (data.message?.content !== undefined) {
-            delta = data.message.content || '';
-          }
-
-          if (delta) {
-            accumulatedContent += delta;
-
-            // 在流式过程中尝试提取思考块
-            const tempParsed = this.parseAIResponse(accumulatedContent);
-            if (tempParsed.thinking && !tempParsed.thinking.includes('undefined')) {
-              if (i === 0) {
-                console.log('💭 React Native流式过程中检测到思考块', {
-                  thinkingPreview: tempParsed.thinking.substring(0, 100),
-                  accumulatedLength: accumulatedContent.length,
-                });
-              }
-            }
-
-            // 模拟流式回调，立即调用
-            streamCallback(delta, false);
-
-            // 记录前几条数据
-            if (i < 5) {
-              console.log('📝 解析流式数据成功（React Native）', {
-                lineNumber: i + 1,
-                deltaLength: delta.length,
-                deltaPreview: delta.substring(0, 50),
-                accumulatedLength: accumulatedContent.length,
-              });
-            }
-          }
-        } catch (parseError) {
-          console.warn('❌ 解析流式数据失败（React Native）', {
-            error: parseError instanceof Error ? parseError.message : String(parseError),
-            jsonStr: jsonStr.substring(0, 200),
-            lineNumber: i + 1,
-          });
-        }
-      }
-
-      // 完成所有数据处理
-      console.log('✅ React Native流式处理完成', {
-        totalLines: lines.length,
-        accumulatedLength: accumulatedContent.length,
-        finalContentPreview: accumulatedContent.substring(0, 100),
-      });
-
-      resolve(accumulatedContent);
-
-    } catch (error) {
-      console.error('❌ React Native流式处理失败', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      reject(error);
-    }
-  }
-
-  private parseAIResponse(content: string): AIResponse {
-    // 首先，尝试提取思考块
-    let thinkingContent: string | undefined;
-    let remainingContent = content;
-
-    // 定义更全面的思考块正则表达式模式
-    const thinkingPatterns = [
-      // 中文模式
-      /思考[：:]\s*([\s\S]*?)(?=\n\n|\n(?:结论|所以|因此|回答|工具调用|```|$))/i,
-      /让我想想[：:]\s*([\s\S]*?)(?=\n\n|\n(?:结论|所以|因此|回答|工具调用|```|$))/i,
-      /让我分析一下[：:]\s*([\s\S]*?)(?=\n\n|\n(?:结论|所以|因此|回答|工具调用|```|$))/i,
-      /分析[：:]\s*([\s\S]*?)(?=\n\n|\n(?:结论|所以|因此|回答|工具调用|```|$))/i,
-      /首先[，,]\s*([\s\S]*?)(?=\n\n|\n(?:其次|然后|接着|最后|结论|所以|因此|回答|工具调用|```|$))/i,
-
-      // 英文模式
-      /Thinking[：:]\s*([\s\S]*?)(?=\n\n|\n(?:Conclusion|So|Therefore|Answer|Tool call|```|$))/i,
-      /thought[：:]\s*([\s\S]*?)(?=\n\n|\n(?:Conclusion|So|Therefore|Answer|Tool call|```|$))/i,
-      /analysis[：:]\s*([\s\S]*?)(?=\n\n|\n(?:Conclusion|So|Therefore|Answer|Tool call|```|$))/i,
-      /let me think[：:]\s*([\s\S]*?)(?=\n\n|\n(?:Conclusion|So|Therefore|Answer|Tool call|```|$))/i,
-
-      // 表情符号模式
-      /💭\s*([\s\S]*?)(?=\n\n|\n(?:💡|✨|🎯|🔧|```|$))/,
-      /🤔\s*([\s\S]*?)(?=\n\n|\n(?:💡|✨|🎯|🔧|```|$))/,
-
-      // 标记模式
-      /<thinking>([\s\S]*?)<\/thinking>/i,
-      /\[思考\]\s*([\s\S]*?)\[\/思考\]/i,
-      /\[thinking\]\s*([\s\S]*?)\[\/thinking\]/i,
-
-      // 通用模式：以思考相关词汇开头，后面跟着结论性词汇
-      /(?:思考|分析|让我想想|Thinking|Analysis)[：:]\s*([\s\S]*?)(?=\n\n|\n(?:所以|因此|结论|回答|工具调用|```|$))/i,
-    ];
-
-    // 尝试匹配思考块
-    for (const pattern of thinkingPatterns) {
-      const match = remainingContent.match(pattern);
-      if (match) {
-        // 获取匹配的内容（可能是第一个捕获组或整个匹配）
-        const matchedContent = match[1] || match[0];
-        if (matchedContent && matchedContent.trim()) {
-          thinkingContent = matchedContent.trim();
-
-          // 从原始内容中移除思考块，但保留其他内容
-          // 使用更精确的替换，只移除思考块部分
-          const fullMatch = match[0];
-          remainingContent = remainingContent.replace(fullMatch, '').trim();
-
-          console.log('💭 检测到思考块', {
-            pattern: pattern.toString().substring(0, 50),
-            thinkingLength: thinkingContent.length,
-            thinkingPreview: thinkingContent.substring(0, 150),
-            remainingLength: remainingContent.length,
-          });
-          break;
-        }
-      }
-    }
-
-    // 如果找到思考块但剩余内容为空，尝试从原始内容中提取非思考部分
-    if (thinkingContent && remainingContent.trim() === '') {
-      // 尝试找到思考块后的内容
-      const afterThinking = content.split(thinkingContent)[1];
-      if (afterThinking && afterThinking.trim()) {
-        remainingContent = afterThinking.trim();
-      }
-    }
-
-    // 清理剩余内容：移除多余的空行
-    remainingContent = remainingContent.replace(/\n{3,}/g, '\n\n').trim();
-
-    // 然后，尝试解析JSON工具调用
-    try {
-      const jsonMatch = remainingContent.match(/```json\s*([\s\S]*?)\s*```/);
-      if (jsonMatch) {
-        console.log('🔍 检测到JSON工具调用');
-        const parsed = JSON.parse(jsonMatch[1]);
-        if (parsed.toolCalls && Array.isArray(parsed.toolCalls)) {
-          console.log('✅ 解析工具调用成功', {
-            toolCallCount: parsed.toolCalls.length,
-            hasThinking: !!thinkingContent,
-            thinkingLength: thinkingContent?.length || 0,
-          });
-          return {
-            text: remainingContent.replace(/```json[\s\S]*?```/, '').trim(),
-            thinking: thinkingContent,
-            toolCalls: parsed.toolCalls,
-          };
-        }
-      }
-    } catch (error) {
-      console.log('⚠️ 非JSON响应或解析失败，返回纯文本', {
-        error: error instanceof Error ? error.message : String(error),
-        contentPreview: remainingContent.substring(0, 200),
-        hasThinking: !!thinkingContent,
-        thinkingPreview: thinkingContent?.substring(0, 100) || '无',
-      });
-    }
-
-    // 返回包含思考块和文本的响应
-    const result = {
-      text: remainingContent.trim(),
-      thinking: thinkingContent
-    };
-
-    console.log('📋 最终解析结果', {
-      hasThinking: !!result.thinking,
-      thinkingLength: result.thinking?.length || 0,
-      textLength: result.text.length,
-      textPreview: result.text.substring(0, 100),
-    });
-
-    return result;
-  }
-
-  private async executeToolCalls(toolCalls: Array<{name: string, arguments: any}>): Promise<Array<{
-    name: string;
-    success: boolean;
-    result?: any;
-    error?: string;
-  }>> {
-    return this.executeToolCallsWithProgress(toolCalls);
-  }
-
-  private async executeToolCallsWithProgress(
-    toolCalls: Array<{name: string, arguments: any}>,
-    progressCallback?: (progressMsg: string) => void
-  ): Promise<Array<{
-    name: string;
-    success: boolean;
-    result?: any;
-    error?: string;
-  }>> {
-    const results = [];
-
-    // 获取当前账本信息
-    let currentBookInfo = null;
-    if (this.currentBookId) {
-      currentBookInfo = {
-        bookId: this.currentBookId,
-        bookName: this.currentBookName || '当前账本',
-      };
-    }
-
-    // 如果没有账本信息，记录错误
-    if (!currentBookInfo) {
-      console.error('❌ 无法获取当前账本信息，工具调用可能失败');
-    } else {
-      console.log('📋 当前账本信息:', currentBookInfo);
-    }
-
-    for (let i = 0; i < toolCalls.length; i++) {
-      const toolCall = toolCalls[i];
-      const toolNumber = i + 1;
-      const totalTools = toolCalls.length;
-
-      // 发送进度提示
-      if (progressCallback) {
-        const progressMsg = `\n🔧 [${toolNumber}/${totalTools}] 正在执行 ${toolCall.name}...\n`;
-        progressCallback(progressMsg);
-      }
-
-      try {
-        console.log('🛠️ 执行工具调用', {
-          name: toolCall.name,
-          arguments: JSON.stringify(toolCall.arguments).substring(0, 200),
-          hasBookInfo: !!currentBookInfo,
-          bookId: currentBookInfo?.bookId,
-        });
-
-        // 传递当前账本信息给MCPBridge
-        const result = await mcpBridge.callTool(toolCall.name, toolCall.arguments, currentBookInfo!);
-
-        console.log('✅ 工具调用成功', {
-          name: toolCall.name,
-          resultType: typeof result.data,
-          hasData: !!result.data,
-          usedBookId: currentBookInfo?.bookId,
-        });
-
-        // 发送成功提示
-        if (progressCallback) {
-          const successMsg = `✅ [${toolNumber}/${totalTools}] ${toolCall.name} 执行成功\n`;
-          progressCallback(successMsg);
-        }
-
-        results.push({
-          name: toolCall.name,
-          success: true,
-          result: result.data,
-        });
-      } catch (error) {
-        console.error('❌ 工具调用失败', {
-          name: toolCall.name,
-          error: error instanceof Error ? error.message : String(error),
-          arguments: JSON.stringify(toolCall.arguments).substring(0, 200),
-          hasBookInfo: !!currentBookInfo,
-          bookId: currentBookInfo?.bookId,
-        });
-
-        // 如果错误是因为没有账本信息，提供更明确的错误信息
-        let errorMessage = error instanceof Error ? error.message : String(error);
-        if (errorMessage.includes('未选择账本') || errorMessage.includes('bookId')) {
-          errorMessage = `工具调用失败：${errorMessage}\n\n请确保已选择账本或提供账本信息。`;
-        }
-
-        // 发送失败提示
-        if (progressCallback) {
-          const errorMsg = `❌ [${toolNumber}/${totalTools}] ${toolCall.name} 执行失败: ${errorMessage.substring(0, 100)}\n`;
-          progressCallback(errorMsg);
-        }
-
-        results.push({
-          name: toolCall.name,
-          success: false,
-          error: errorMessage,
-        });
-      }
-    }
-
-    return results;
-  }
-
-  private buildToolResultsMessage(toolResults: Array<{
-    name: string;
-    success: boolean;
-    result?: any;
-    error?: string;
-  }>): string {
-    const messages = toolResults.map((result, index) => {
-      const toolNumber = index + 1;
-      if (result.success) {
-        return `工具调用 ${toolNumber} (${result.name}) 执行成功。结果：${JSON.stringify(result.result, null, 2)}`;
-      } else {
-        return `工具调用 ${toolNumber} (${result.name}) 执行失败。错误：${result.error || '未知错误'}`;
-      }
-    });
-
-    return `工具执行结果：\n${messages.join('\n\n')}\n\n请根据以上结果继续处理或给出最终回答。`;
-  }
-
-  private async generateFinalResponse(
-    userMessage: string,
-    initialAIResponse: AIResponse,
-    toolResults: any[],
-    config: any,
-    streamedContent: string // 新增参数：已流式显示的内容
-  ): Promise<string> {
-    // 统计工具执行结果
-    const successCount = toolResults.filter(r => r.success).length;
-    const totalCount = toolResults.length;
-
-    console.log('🔄 生成最终回复', {
-      toolResultsCount: totalCount,
-      successCount: successCount,
-      allSuccessful: successCount === totalCount,
-      streamedContentLength: streamedContent?.length || 0,
-      toolResults: toolResults.map(r => ({
-        name: r.name,
-        success: r.success,
-        result: r.result,
-      })),
-    });
-
-    // 如果没有工具需要执行，返回初始响应（包含流式内容）
-    if (totalCount === 0) {
-      console.log('⚠️ 没有工具需要执行，返回初始响应');
-      // 如果流式内容不为空，优先使用流式内容
-      if (streamedContent && streamedContent.trim()) {
-        return streamedContent;
-      }
-      return initialAIResponse.text;
-    }
-
-    // 构建工具执行结果摘要
-    const toolSummary = toolResults.map((result, index) => {
-      const status = result.success ? '✅' : '❌';
-      const toolName = result.name || `工具${index + 1}`;
-      const statusText = result.success ? '成功' : `失败: ${result.error || '未知错误'}`;
-      return `${status} ${toolName}: ${statusText}`;
-    }).join('\n');
-
-    // 根据执行情况生成不同的回复，追加到流式内容后面
-    let finalContent = streamedContent || initialAIResponse.text;
-
-    // 确保流式内容以换行结束
-    if (finalContent && !finalContent.endsWith('\n')) {
-      finalContent += '\n';
-    }
-
-    // 添加分隔线
-    finalContent += '\n---\n\n';
-
-    // 根据工具执行结果添加不同的总结
-    if (successCount === 0) {
-      // 所有工具都失败
-      finalContent += `抱歉，所有操作都失败了。\n\n执行情况：\n${toolSummary}\n\n请检查网络连接或稍后重试。`;
-    } else if (successCount < totalCount) {
-      // 部分成功
-      finalContent += `已完成部分操作。\n\n执行情况：\n${toolSummary}\n\n${successCount}/${totalCount} 个操作成功完成。`;
-    } else {
-      // 所有成功
-      finalContent += `✅ 所有操作已完成。\n\n执行情况：\n${toolSummary}\n\n${successCount}/${totalCount} 个操作成功完成。`;
-    }
-
-    console.log('✅ 最终回复已生成', {
-      finalContentLength: finalContent.length,
-      streamedContentLength: streamedContent?.length || 0,
-      addedSummaryLength: finalContent.length - (streamedContent?.length || 0),
-    });
-
-    return finalContent;
-  }
-
-  private addToHistory(role: 'user' | 'assistant' | 'system', content: string) {
+  addToHistory(role: 'user' | 'assistant' | 'system', content: string) {
     this.conversationHistory.push({
       role,
       content,
@@ -1930,6 +1373,283 @@ ${contextInfo}
 
   getHistory() {
     return [...this.conversationHistory];
+  }
+
+  // 检查是否可以生成AI建议
+  canGenerateSuggestions(): boolean {
+    // 这里需要检查AI配置是否已设置
+    // 在实际实现中，应该检查配置是否存在且有效
+    // 目前返回true，让调用者决定是否使用
+    return true;
+  }
+
+  // 生成AI驱动的提示建议
+  async generatePromptSuggestions(userInput: string, count: number = 3): Promise<string[]> {
+    try {
+      // 动态导入AIConfigService以避免循环依赖
+      let aiConfigModule;
+      try {
+        aiConfigModule = await import('./AIConfigService');
+      } catch (importError) {
+        console.error('导入AIConfigService失败:', importError);
+        return this.getFallbackSuggestions(userInput, count);
+      }
+
+      // 检查AI配置
+      const isConfigured = await aiConfigModule.aiConfigService.isConfigured();
+
+      if (!isConfigured) {
+        console.log('AI未配置，无法生成建议');
+        return this.getFallbackSuggestions(userInput, count);
+      }
+
+      // 设置超时
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('生成建议超时')), 10000); // 10秒超时
+      });
+
+      // 获取配置
+      const config = await aiConfigModule.aiConfigService.getConfig();
+      if (!config) {
+        return this.getFallbackSuggestions(userInput, count);
+      }
+
+      // 构建系统提示
+      const systemPrompt = `你是一个个人记账助手的提示建议生成器。
+      你的任务是根据用户的部分输入，生成${count}个相关的、简洁的完整提示建议。
+      
+      要求：
+      1. 每个建议应该是一个完整的、可执行的句子
+      2. 建议应该基于用户的输入进行扩展
+      3. 建议应该与记账应用相关，包括：记录交易、查询数据、分析趋势、预算管理等
+      4. 每个建议不超过20个字
+      5. 用中文回复
+      6. 返回纯文本，每行一个建议，不要编号
+      
+      用户输入：${userInput}
+      
+      请生成${count}个建议：`;
+
+      // 构建消息
+      const messages = [
+        { role: 'system' as const, content: systemPrompt },
+        { role: 'user' as const, content: `根据我的输入"${userInput}"，生成${count}个相关的记账提示建议。` }
+      ];
+
+      // 构建请求头
+      const headers = this.buildHeadersForSuggestions(config);
+
+      // 构建请求体
+      const requestBody = this.buildRequestBodyForSuggestions(config, messages);
+
+      // 获取端点
+      let apiEndpoint;
+      if (config.baseURL) {
+        apiEndpoint = this.adjustEndpointForSuggestions(config.baseURL, config.provider);
+      } else {
+        apiEndpoint = this.getDefaultEndpointForSuggestions(config.provider);
+      }
+
+      // 发送请求
+      const fetchPromise = fetch(apiEndpoint, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(requestBody),
+      });
+
+      const response = await Promise.race([fetchPromise, timeoutPromise]);
+
+      if (!response.ok) {
+        throw new Error(`API请求失败: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // 解析响应
+      let suggestionsText = '';
+      if (data.choices?.[0]?.message?.content) {
+        suggestionsText = data.choices[0].message.content;
+      } else if (data.content) {
+        suggestionsText = data.content;
+      } else if (data.result?.choices?.[0]?.message?.content) {
+        suggestionsText = data.result.choices[0].message.content;
+      } else if (data.message?.content) {
+        suggestionsText = data.message.content;
+      } else {
+        throw new Error('无法解析API响应');
+      }
+
+      // 处理建议文本
+      const suggestions = this.parseSuggestions(suggestionsText, count);
+      return suggestions.length > 0 ? suggestions : this.getFallbackSuggestions(userInput, count);
+
+    } catch (error) {
+      console.error('生成AI建议失败:', error);
+      return this.getFallbackSuggestions(userInput, count);
+    }
+  }
+
+  // 为建议生成构建请求头
+  private buildHeadersForSuggestions(config: any): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // 根据提供商设置认证头
+    if (config.provider === 'anthropic') {
+      headers['x-api-key'] = config.apiKey;
+      headers['anthropic-version'] = '2023-06-01';
+    } else if (config.provider === 'google') {
+      // Google可能使用API密钥作为查询参数，但这里仍然设置Authorization头
+      headers.Authorization = `Bearer ${config.apiKey}`;
+    } else {
+      // OpenAI兼容格式（包括DeepSeek、OpenAI、custom等）
+      headers.Authorization = `Bearer ${config.apiKey}`;
+    }
+
+    return headers;
+  }
+
+  // 为建议生成构建请求体
+  private buildRequestBodyForSuggestions(config: any, messages: any[]): any {
+    const requestBody: any = {
+      model: config.model || this.getDefaultModelForSuggestions(config.provider),
+      messages: messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+      })),
+      max_tokens: 200, // 建议生成不需要太多tokens
+      temperature: 0.3, // 更低的随机性以获得更一致的输出
+      stream: false, // 非流式
+    };
+
+    // 对于特定供应商，可能需要调整参数
+    if (config.provider === 'anthropic') {
+      // Anthropic可能需要特定参数
+      requestBody.max_tokens = 200;
+    } else if (config.provider === 'google') {
+      // Google可能需要特定参数
+      requestBody.max_tokens = 200;
+    }
+
+    return requestBody;
+  }
+
+  // 获取建议生成的默认端点
+  private getDefaultEndpointForSuggestions(provider: string): string {
+    const endpoints: Record<string, string> = {
+      openai: 'https://api.openai.com/v1/chat/completions',
+      anthropic: 'https://api.anthropic.com/v1/messages',
+      deepseek: 'https://api.deepseek.com/v1/chat/completions',
+      google: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+      custom: 'https://api.openai.com/v1/chat/completions', // 为custom提供默认值
+    };
+    return endpoints[provider] || endpoints.openai;
+  }
+
+  // 获取建议生成的默认模型
+  private getDefaultModelForSuggestions(provider: string): string {
+    const models: Record<string, string> = {
+      openai: 'gpt-3.5-turbo',
+      anthropic: 'claude-3-haiku-20240307',
+      deepseek: 'deepseek-chat',
+      google: 'gemini-pro',
+      custom: 'gpt-3.5-turbo',
+    };
+    return models[provider] || models.openai;
+  }
+
+  // 为建议生成调整端点
+  private adjustEndpointForSuggestions(baseURL: string, provider: string): string {
+    if (!baseURL || baseURL.trim() === '') {
+      return this.getDefaultEndpointForSuggestions(provider);
+    }
+
+    // 清理URL：去除末尾的斜杠
+    let cleanedURL = baseURL.trim();
+    if (cleanedURL.endsWith('/')) {
+      cleanedURL = cleanedURL.slice(0, -1);
+    }
+
+    // 检查是否需要添加路径
+    if (cleanedURL.includes('/chat/completions') || cleanedURL.includes('/messages')) {
+      return cleanedURL;
+    }
+
+    // 对于不同的提供商，添加不同的路径
+    if (provider === 'anthropic') {
+      // Anthropic使用/messages端点
+      if (cleanedURL.endsWith('/v1')) {
+        return `${cleanedURL}/messages`;
+      }
+      return `${cleanedURL}/v1/messages`;
+    } else {
+      // 其他提供商使用/chat/completions端点
+      if (cleanedURL.endsWith('/v1')) {
+        return `${cleanedURL}/chat/completions`;
+      }
+      return `${cleanedURL}/v1/chat/completions`;
+    }
+  }
+
+  // 解析建议文本
+  private parseSuggestions(text: string, expectedCount: number): string[] {
+    if (!text) return [];
+
+    // 按行分割，过滤空行
+    const lines = text.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    // 移除编号（如1.、2.等）
+    const cleanedLines = lines.map(line => {
+      // 移除开头的数字和标点
+      return line.replace(/^[\d一二三四五六七八九十]+[\.、)\]\s]*\s*/, '');
+    });
+
+    // 限制数量
+    return cleanedLines.slice(0, expectedCount);
+  }
+
+  // 获取备用建议（当AI不可用时）
+  private getFallbackSuggestions(userInput: string, count: number): string[] {
+    const defaultSuggestions = [
+      '记一笔餐饮支出50元',
+      '查看本月消费统计',
+      '分析餐饮类别的花费',
+      '设置本月预算3000元',
+      '查看最近的流水记录',
+      '统计年度收入总额',
+      '查找重复的流水记录',
+      '查看可以平账的流水',
+    ];
+
+    // 如果用户输入包含关键词，尝试匹配相关建议
+    const input = userInput.toLowerCase();
+    const filteredSuggestions = defaultSuggestions.filter(suggestion => {
+      if (input.includes('记') || input.includes('支出') || input.includes('收入')) {
+        return suggestion.includes('记一笔');
+      }
+      if (input.includes('查看') || input.includes('统计')) {
+        return suggestion.includes('查看') || suggestion.includes('统计');
+      }
+      if (input.includes('分析')) {
+        return suggestion.includes('分析');
+      }
+      if (input.includes('预算')) {
+        return suggestion.includes('预算');
+      }
+      if (input.includes('重复')) {
+        return suggestion.includes('重复');
+      }
+      if (input.includes('平账')) {
+        return suggestion.includes('平账');
+      }
+      return true;
+    });
+
+    // 返回指定数量的建议
+    return filteredSuggestions.slice(0, count);
   }
 }
 

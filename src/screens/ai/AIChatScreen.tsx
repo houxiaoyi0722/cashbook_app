@@ -1,51 +1,45 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  FlatList,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
   Alert,
-  StyleSheet,
-  SafeAreaView,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
   StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  Keyboard,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { aiService } from '../../services/AIService';
-import { aiConfigService } from '../../services/AIConfigService';
-import { useTheme, getColors } from '../../context/ThemeContext';
+import type {MessageStreamCallback} from '../../services/AIService';
+import {aiService} from '../../services/AIService';
+import {aiConfigService} from '../../services/AIConfigService';
+import {getColors, useTheme} from '../../context/ThemeContext';
 import BookSelector from '../../components/BookSelector';
+import MarkdownRenderer from '../../components/MarkdownRenderer';
 import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
-
-interface Message {
-  id: string;
-  text: string;
-  isUser: boolean;
-  timestamp: Date;
-  loading?: boolean;
-  error?: boolean;
-  // 新增字段
-  type?: 'text' | 'tool_call' | 'thinking' | 'tool_result';
-  toolDetails?: {
-    name: string;
-    arguments: any;
-    result?: any;
-    success?: boolean;
-    error?: string;
-    duration?: number;
-  };
-  thinkingContent?: string;
-  collapsed?: boolean;
-  metadata?: {
-    [key: string]: any;
-  };
-}
+import {
+  AIMessage,
+  BaseMessage,
+  createAIMessage,
+  createTextMessage,
+  createThinkingMessage,
+  createToolCallMessage,
+  createToolResultMessage,
+  Message,
+  TextMessage,
+  ThinkingMessage,
+  ToolCallMessage,
+  ToolResultMessage,
+} from '../../types';
 
 // 配置状态缓存
 const CONFIG_CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
+const DEFAULT_MESSAGE = '你好！我是你的记账助手，可以帮你：\n• 记录收支流水\n• 查询账单记录\n• 分析消费习惯\n• 平账于账本去重\n• 重新分类流水数据\n• 提供省钱建议\n• 其他app功能\n\n试试对我说："记一笔午餐支出50元" 或 "查看本月消费统计"';
 
 interface AIChatScreenProps {
   navigation?: any;
@@ -59,12 +53,14 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   const { currentBook } = useBookkeeping();
 
   const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: '你好！我是你的记账助手，可以帮你：\n• 记录收支流水\n• 查询账单记录\n• 分析消费习惯\n• 提供省钱建议\n\n试试对我说："记一笔午餐支出50元" 或 "查看本月消费统计"',
-      isUser: false,
-      timestamp: new Date(),
-    },
+    createTextMessage(
+      DEFAULT_MESSAGE,
+      false,
+      {
+        id: '1',
+        timestamp: new Date(),
+      }
+    ),
   ]);
 
   // 用于跟踪当前账本ID，防止重复加载
@@ -77,6 +73,10 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   const [configError, setConfigError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  // AI提示建议相关状态
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
+  const [lastInputForSuggestions, setLastInputForSuggestions] = useState('');
   const flatListRef = useRef<FlatList>(null);
   const shouldIgnoreResponseRef = useRef(false);
   const currentProcessingIdRef = useRef<string | null>(null);
@@ -106,16 +106,82 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     }
   }, []);
 
+  // 转换旧格式的AIMessage到新格式
+  const convertOldAIMessageToNew = useCallback((oldMsg: any): AIMessage => {
+    const messageList: BaseMessage[] = [];
+
+    // 如果有content，创建TextMessage
+    if (oldMsg.content && typeof oldMsg.content === 'string') {
+      const textMessage: TextMessage = createTextMessage(
+        oldMsg.content,
+        false,
+        {
+          id: `${oldMsg.id}_text`,
+          timestamp: new Date(oldMsg.timestamp),
+          metadata: oldMsg.metadata,
+        }
+      );
+      messageList.push(textMessage);
+    }
+
+    // 如果有thinking，创建ThinkingMessage
+    if (oldMsg.thinking && typeof oldMsg.thinking === 'string') {
+      const thinkingMessage: ThinkingMessage = createThinkingMessage(
+        oldMsg.thinking,
+        {
+          id: `${oldMsg.id}_thinking`,
+          timestamp: new Date(oldMsg.timestamp),
+          metadata: oldMsg.metadata,
+        }
+      );
+      messageList.push(thinkingMessage);
+    }
+
+    // 如果有toolCalls，创建ToolCallMessage(s)
+    if (oldMsg.toolCalls && Array.isArray(oldMsg.toolCalls)) {
+      oldMsg.toolCalls.forEach((toolCall: any, index: number) => {
+        if (toolCall && toolCall.name && toolCall.arguments) {
+          const toolCallMessage: ToolCallMessage = createToolCallMessage(
+            toolCall.name,
+            toolCall.arguments,
+            {
+              id: `${oldMsg.id}_tool_call_${index}`,
+              timestamp: new Date(oldMsg.timestamp),
+              metadata: oldMsg.metadata,
+              loading: false,
+            }
+          );
+          messageList.push(toolCallMessage);
+        }
+      });
+    }
+
+    // 创建新的AIMessage
+    return createAIMessage(
+      messageList,
+      {
+        id: oldMsg.id,
+        timestamp: new Date(oldMsg.timestamp),
+        metadata: oldMsg.metadata,
+        collapsed: oldMsg.collapsed,
+        error: oldMsg.error,
+        loading: oldMsg.loading,
+      }
+    );
+  }, []);
+
   // 加载指定账本的聊天记录
   const loadChatForBook = useCallback(async (bookId: string): Promise<Message[]> => {
     if (!bookId) {
       return [
-        {
-          id: '1',
-          text: '你好！我是你的记账助手，可以帮你：\n• 记录收支流水\n• 查询账单记录\n• 分析消费习惯\n• 提供省钱建议\n\n试试对我说："记一笔午餐支出50元" 或 "查看本月消费统计"',
-          isUser: false,
-          timestamp: new Date(),
-        },
+        createTextMessage(
+          DEFAULT_MESSAGE,
+          false,
+          {
+            id: '1',
+            timestamp: new Date(),
+          }
+        ),
       ];
     }
 
@@ -124,12 +190,90 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       const chatData = await AsyncStorage.getItem(storageKey);
 
       if (chatData) {
-        const parsedMessages: Message[] = JSON.parse(chatData);
+        const parsedMessages: any[] = JSON.parse(chatData);
         // 确保时间戳是Date对象
-        const messagesWithDates = parsedMessages.map(msg => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        }));
+        const messagesWithDates = parsedMessages.map(msg => {
+          // 根据消息类型重建消息对象
+          const timestamp = new Date(msg.timestamp);
+
+          // 检查是否是旧格式的AIMessage（有content、thinking、toolCalls字段但没有messageList）
+          const isOldAIMessage = msg.type === 'ai' &&
+            (msg.content !== undefined || msg.thinking !== undefined || msg.toolCalls !== undefined) &&
+            !msg.messageList;
+
+          if (isOldAIMessage) {
+            // 转换旧格式的AIMessage到新格式
+            console.log('检测到旧格式AIMessage，进行转换:', msg.id);
+            return convertOldAIMessageToNew(msg);
+          }
+
+          // 使用类型断言来访问type属性
+          const msgWithType = msg as any;
+          switch (msgWithType.type) {
+            case 'thinking':
+              return createThinkingMessage(
+                msgWithType.thinkingContent,
+                {
+                  id: msg.id,
+                  timestamp,
+                  metadata: msg.metadata,
+                  collapsed: msg.collapsed,
+                }
+              );
+            case 'tool_call':
+              return createToolCallMessage(
+                msgWithType.toolName,
+                msgWithType.arguments,
+                {
+                  id: msg.id,
+                  timestamp,
+                  metadata: msg.metadata,
+                  collapsed: msg.collapsed,
+                  loading: msgWithType.loading,
+                }
+              );
+            case 'tool_result':
+              return createToolResultMessage(
+                msgWithType.toolName,
+                msgWithType.success,
+                {
+                  id: msg.id,
+                  timestamp,
+                  metadata: msg.metadata,
+                  collapsed: msg.collapsed,
+                  result: msgWithType.result,
+                  error: msgWithType.error,
+                  duration: msgWithType.duration,
+                }
+              );
+            case 'ai':
+              // 确保messageList存在，如果不存在则使用空数组
+              const messageList = msgWithType.messageList || [];
+              return createAIMessage(
+                messageList,
+                {
+                  id: msg.id,
+                  timestamp,
+                  metadata: msg.metadata,
+                  collapsed: msg.collapsed,
+                  error: msgWithType.error,
+                  loading: msgWithType.loading,
+                }
+              );
+            default:
+              // 默认为文本消息
+              return createTextMessage(
+                msgWithType.content,
+                msgWithType.isUser,
+                {
+                  id: msg.id,
+                  timestamp,
+                  metadata: msg.metadata,
+                  collapsed: msg.collapsed,
+                }
+              );
+          }
+        });
         console.log(`已加载账本 ${bookId} 的聊天记录，消息数：${messagesWithDates.length}`);
         return messagesWithDates;
       }
@@ -139,14 +283,16 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
     // 如果没有保存的记录，返回默认消息
     return [
-      {
-        id: '1',
-        text: '你好！我是你的记账助手，可以帮你：\n• 记录收支流水\n• 查询账单记录\n• 分析消费习惯\n• 提供省钱建议\n\n试试对我说："记一笔午餐支出50元" 或 "查看本月消费统计"',
-        isUser: false,
-        timestamp: new Date(),
-      },
+      createTextMessage(
+        DEFAULT_MESSAGE,
+        false,
+        {
+          id: '1',
+          timestamp: new Date(),
+        }
+      ),
     ];
-  }, []);
+  }, [convertOldAIMessageToNew]);
 
   // 防抖函数
   const debounce = useCallback((func: Function, delay: number) => {
@@ -156,6 +302,81 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => func(...args), delay);
     };
+  }, []);
+
+  // 生成AI提示建议的防抖函数
+  const debouncedGenerateSuggestions = useCallback(
+    debounce(async (input: string) => {
+      // 如果输入为空或AI未配置，不生成建议
+      if (!input.trim() || !isConfigured) {
+        setSuggestions([]);
+        return;
+      }
+
+      // 如果输入与上次相同，不重复生成
+      if (input.trim() === lastInputForSuggestions) {
+        return;
+      }
+
+      console.log('开始生成AI提示建议，输入:', input);
+      setIsGeneratingSuggestions(true);
+      setLastInputForSuggestions(input.trim());
+
+      try {
+        // 调用AIService生成建议
+        const generatedSuggestions = await aiService.generatePromptSuggestions(input.trim(), 3);
+        console.log('AI提示建议生成成功:', generatedSuggestions);
+        setSuggestions(generatedSuggestions);
+      } catch (error) {
+        console.error('生成AI提示建议失败:', error);
+        // 生成失败时使用备用建议
+        setSuggestions(getFallbackSuggestions(input.trim()));
+      } finally {
+        setIsGeneratingSuggestions(false);
+      }
+    }, 500),
+    [isConfigured, lastInputForSuggestions, debounce]
+  );
+
+  // 获取备用建议（当AI不可用时）
+  const getFallbackSuggestions = useCallback((userInput: string): string[] => {
+    const defaultSuggestions = [
+      '记一笔餐饮支出50元',
+      '查看本月消费统计',
+      '分析餐饮类别的花费',
+      '设置本月预算3000元',
+      '查看最近的流水记录',
+      '统计年度收入总额',
+      '查找重复的流水记录',
+      '查看可以平账的流水',
+    ];
+
+    // 如果用户输入包含关键词，尝试匹配相关建议
+    const input = userInput.toLowerCase();
+    const filteredSuggestions = defaultSuggestions.filter(suggestion => {
+      if (input.includes('记') || input.includes('支出') || input.includes('收入')) {
+        return suggestion.includes('记一笔');
+      }
+      if (input.includes('查看') || input.includes('统计')) {
+        return suggestion.includes('查看') || suggestion.includes('统计');
+      }
+      if (input.includes('分析')) {
+        return suggestion.includes('分析');
+      }
+      if (input.includes('预算')) {
+        return suggestion.includes('预算');
+      }
+      if (input.includes('重复')) {
+        return suggestion.includes('重复');
+      }
+      if (input.includes('平账')) {
+        return suggestion.includes('平账');
+      }
+      return true;
+    });
+
+    // 返回指定数量的建议
+    return filteredSuggestions.slice(0, 3);
   }, []);
 
   // 检查AI配置 - 带缓存和重试逻辑
@@ -199,12 +420,14 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       setCheckingConfig(false);
 
       if (!configured) {
-        setMessages([{
-          id: '1',
-          text: '请先配置AI助手\n\n要使用AI助手功能，需要先设置API Key。点击下方按钮进行配置。',
-          isUser: false,
-          timestamp: new Date(),
-        }]);
+        setMessages([createTextMessage(
+          '请先配置AI助手\n\n要使用AI助手功能，需要先设置API Key。点击下方按钮进行配置。',
+          false,
+          {
+            id: '1',
+            timestamp: new Date(),
+          }
+        )]);
       }
 
       console.log(`AI配置检查完成：${configured ? '已配置' : '未配置'}`);
@@ -346,6 +569,44 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     debouncedCheckConfig(false);
   }, [debouncedCheckConfig]);
 
+  // 监听输入变化，生成AI提示建议
+  useEffect(() => {
+    if (inputText.trim() && isConfigured) {
+      debouncedGenerateSuggestions(inputText);
+    } else {
+      // 如果输入为空或AI未配置，清空建议
+      setSuggestions([]);
+    }
+  }, [inputText, isConfigured, debouncedGenerateSuggestions]);
+
+  // 键盘显示/隐藏监听
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        // 键盘显示时，滚动到底部
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    );
+
+    const keyboardDidHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        // 键盘隐藏时，调整滚动位置
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+
   // 屏幕聚焦时刷新配置（非阻塞）
   useEffect(() => {
     // 添加屏幕聚焦监听器
@@ -426,28 +687,18 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     shouldIgnoreResponseRef.current = false;
 
     // 生成唯一的消息ID
-    const userMsgId = Date.now().toString();
-    const aiMsgId = (Date.now() + 1).toString();
+    const userMsgId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     currentProcessingIdRef.current = aiMsgId;
 
     // 添加用户消息
-    const userMsg: Message = {
+    const userMsg = createTextMessage(userMessage, true, {
       id: userMsgId,
-      text: userMessage,
-      isUser: true,
       timestamp: new Date(),
-    };
+    });
 
-    // 添加AI加载消息，初始内容为空
-    const aiLoadingMsg: Message = {
-      id: aiMsgId,
-      text: '',
-      isUser: false,
-      timestamp: new Date(),
-      loading: true,
-    };
 
-    setMessages(prev => [...prev, userMsg, aiLoadingMsg]);
+    setMessages(prev => [...prev, userMsg]);
 
     try {
       // 确保AIService中的账本信息是最新的
@@ -457,40 +708,36 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
         aiService.updateBookInfo(bookId, bookName);
       }
 
-      // 创建流式回调函数来实时更新消息内容
-      const streamCallback = (content: string, isComplete: boolean) => {
+      // 创建结构化消息回调函数
+      const messageStreamCallback: MessageStreamCallback = (message: Message, isComplete: boolean) => {
         // 检查是否应该忽略响应（用户点击了终止按钮）
         if (shouldIgnoreResponseRef.current) {
           console.log('忽略流式响应内容，因为用户已终止');
           return;
         }
-        console.log('收到流式消息：', content);
 
-        // 更新AI消息的内容
-        setMessages(prev => prev.map(msg => {
-          msg.loading = false;
-          if (msg.id === aiMsgId) {
-            // 如果是完成状态，移除loading状态
-            if (isComplete) {}
-            return {
-              ...msg,
-              text: msg.text + content,
-              loading: false,
-            };
+        if (isComplete) {}
+
+        console.log('收到结构化消息：', JSON.stringify(message));
+        // 处理消息
+        setMessages(prev => {
+          let newMessages = [...prev];
+          // 如果是单个消息
+          // 检查是否已存在相同ID的消息（用于更新）
+          const existingIndex = newMessages.findIndex(msg => msg.id === message.id);
+          if (existingIndex !== -1) {
+            // 更新现有消息
+            newMessages[existingIndex] = message;
+          } else {
+            // 添加新消息
+            newMessages.push(message);
           }
-          return msg;
-        }));
-
-        // 滚动到底部以显示最新内容
-        if (content && flatListRef.current) {
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }, 50);
-        }
+          return newMessages;
+        });
       };
 
-      // 发送到AI服务，使用流式响应
-      const response = await aiService.sendMessage(userMessage, streamCallback);
+      // 发送到AI服务，使用结构化消息回调
+       await aiService.sendMessage(userMessage, messageStreamCallback);
 
       // 检查是否应该忽略响应（用户点击了终止按钮）
       if (shouldIgnoreResponseRef.current) {
@@ -499,58 +746,6 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
         setMessages(prev => prev.filter(msg => msg.id !== aiMsgId));
         return;
       }
-
-      // 注意：在流式响应中，response.text可能为空，因为内容已通过streamCallback更新
-      // 但我们仍然需要确保消息状态正确
-      setMessages(prev => {
-        const updated = prev.map(msg => {
-          if (msg.id === aiMsgId) {
-            const updatedMsg: Message = {
-              ...msg,
-              // 如果response.text有内容，使用它（作为后备），否则使用当前内容
-              text: response.text || msg.text,
-              loading: false,
-            };
-            // 如果有思考块，添加一个思考消息
-            if (response.thinking && response.thinking.trim()) {
-              // 在AI消息之前插入思考消息
-              const thinkingMsg: Message = {
-                id: `${aiMsgId}_thinking`,
-                text: response.thinking,
-                isUser: false,
-                timestamp: new Date(),
-                type: 'thinking',
-                thinkingContent: response.thinking,
-                collapsed: true, // 默认折叠
-              };
-              // 注意：这里不能直接修改数组，需要在外部处理
-            }
-            return updatedMsg;
-          }
-          return msg;
-        });
-
-        // 如果有思考块，插入思考消息
-        if (response.thinking && response.thinking.trim()) {
-          const thinkingMsg: Message = {
-            id: `${aiMsgId}_thinking`,
-            text: response.thinking,
-            isUser: false,
-            timestamp: new Date(),
-            type: 'thinking',
-            thinkingContent: response.thinking,
-            collapsed: true, // 默认折叠
-          };
-          // 找到AI消息的索引
-          const aiMsgIndex = updated.findIndex(msg => msg.id === aiMsgId);
-          if (aiMsgIndex !== -1) {
-            // 在AI消息之前插入思考消息
-            updated.splice(aiMsgIndex, 0, thinkingMsg);
-          }
-        }
-
-        return updated;
-      });
 
     } catch (error: any) {
       // 检查是否应该忽略错误（用户点击了终止按钮）
@@ -564,16 +759,18 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       console.error('发送消息失败:', error);
 
       // 更新为错误消息
-      setMessages(prev => prev.map(msg =>
-        msg.id === aiMsgId
-          ? {
-              ...msg,
-              text: `错误: ${error.message || '处理失败'}\n\n请检查网络连接或AI配置。`,
-              loading: false,
-              error: true,
-            }
-          : msg
-      ));
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === aiMsgId && msg.type === 'text') {
+          const textMsg = msg as TextMessage;
+          return {
+            ...textMsg,
+            content: `错误: ${error.message || '处理失败'}\n\n请检查网络连接或AI配置。`,
+            loading: false,
+            error: true,
+          };
+        }
+        return msg;
+      }));
 
       // 如果是配置问题，提示用户
       if (error.message.includes('配置') || error.message.includes('API')) {
@@ -643,13 +840,15 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             // 重置消息，只保留系统提示词
-            const defaultMessages = [
-              {
-                id: '1',
-                text: '你好！我是你的记账助手，可以帮你：\n• 记录收支流水\n• 查询账单记录\n• 分析消费习惯\n• 提供省钱建议\n\n试试对我说："记一笔午餐支出50元" 或 "查看本月消费统计"',
-                isUser: false,
-                timestamp: new Date(),
-              },
+            const defaultMessages: Message[] = [
+              createTextMessage(
+                DEFAULT_MESSAGE,
+                false,
+                {
+                  id: '1',
+                  timestamp: new Date(),
+                }
+              ),
             ];
 
             setMessages(defaultMessages);
@@ -673,6 +872,15 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
             setIsCancelling(false);
             shouldIgnoreResponseRef.current = false;
             currentProcessingIdRef.current = null;
+
+            // 清除AI服务的内部对话历史
+            try {
+                aiService.clearHistory();
+                console.log('AI服务内部对话历史已清除');
+            } catch (error) {
+                console.error('清除AI服务内部对话历史失败:', error);
+                // 不阻止后续操作，仅记录错误
+            }
 
             // 可选：滚动到顶部
             flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
@@ -707,49 +915,40 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     currentProcessingIdRef.current = null;
 
     // 添加一个系统提示消息
-    const cancelMsg: Message = {
+    const cancelMsg = createTextMessage('已终止AI处理。你可以开始新的对话。', false, {
       id: `cancel_${Date.now()}`,
-      text: '已终止AI处理。你可以开始新的对话。',
-      isUser: false,
       timestamp: new Date(),
-    };
+    });
     setMessages(prev => [...prev, cancelMsg]);
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
+    const isUser = item.isUser;
+    // 使用类型守卫来检查消息类型
+    const isAIMsg = isAIMessage(item);
+    const isToolCallMsg = isToolCallMessage(item);
+    const isThinkingMsg = isThinkingMessage(item);
+    const isToolResultMsg = isToolResultMessage(item);
+
     const messageStyle = [
       styles.messageContainer,
-      item.isUser ? styles.userMessage : styles.assistantMessage,
-      item.isUser ? {backgroundColor: colors.primary + '20'} : {backgroundColor: colors.card},
+      isUser ? styles.userMessage : styles.assistantMessage,
+      isUser ? {backgroundColor: colors.primary + '20'} : {backgroundColor: colors.card},
       item.error && styles.errorMessage,
       item.error && {backgroundColor: colors.error + '20', borderColor: colors.error},
-      item.type === 'tool_call' && styles.toolCallMessage,
-      item.type === 'thinking' && styles.thinkingMessage,
-      item.type === 'tool_result' && styles.toolResultMessage,
+      isToolCallMsg && styles.toolCallMessage,
+      isThinkingMsg && styles.thinkingMessage,
+      isToolResultMsg && styles.toolResultMessage,
     ];
 
     // 渲染消息内容
     const renderMessageContent = () => {
-      // 加载状态
-      if (item.loading) {
-        return (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={[styles.loadingText, {color: colors.secondaryText}]}>AI思考中...</Text>
-          </View>
-        );
-      }
-
       // 根据类型渲染不同内容
-      switch (item.type) {
-        case 'tool_call':
-          return renderToolCallMessage(item);
-        case 'thinking':
-          return renderThinkingMessage(item);
-        case 'tool_result':
-          return renderToolResultMessage(item);
-        default:
-          return renderTextMessage(item);
+      if (isAIMsg) {
+        return renderAIMessage(item);
+      } else {
+        // 默认为文本消息
+        return renderTextMessage(item as TextMessage);
       }
     };
 
@@ -757,10 +956,10 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       <View style={messageStyle}>
         <View style={styles.messageHeader}>
           <Text style={[styles.messageRole, {color: colors.text}]}>
-            {item.isUser ? '你' : 'AI助手'}
-            {item.type === 'tool_call' && ' 🔧'}
-            {item.type === 'thinking' && ' 💭'}
-            {item.type === 'tool_result' && ' 📊'}
+            {isUser ? '你' : 'AI助手'}
+            {isToolCallMsg && ' 🔧'}
+            {isThinkingMsg && ' 💭'}
+            {isToolResultMsg && ' 📊'}
           </Text>
           <Text style={[styles.messageTime, {color: colors.secondaryText}]}>
             {item.timestamp.toLocaleTimeString([], {
@@ -775,16 +974,215 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   };
 
   // 渲染文本消息
-  const renderTextMessage = (item: Message) => {
+  const renderTextMessage = (item: TextMessage) => {
+    const error = item.error;
+
+    if (error) {
+      return (
+        <>
+          <Text style={[
+            styles.messageText,
+            {color: colors.text},
+            error && {color: colors.error},
+          ]}>
+            {item.content}
+          </Text>
+          <TouchableOpacity
+            style={[styles.configureButton, {backgroundColor: colors.primary}]}
+            onPress={handleConfigure}
+          >
+            <Text style={styles.configureButtonText}>检查配置</Text>
+          </TouchableOpacity>
+        </>
+      );
+    }
+
+    // Use MarkdownRenderer for non-error messages
     return (
-      <>
-        <Text style={[
-          styles.messageText,
-          {color: colors.text},
-          item.error && {color: colors.error},
-        ]}>
-          {item.text}
-        </Text>
+      <MarkdownRenderer
+        content={item.content}
+        isDarkMode={isDarkMode}
+        containerStyle={styles.markdownContainer}
+        textStyle={{
+          ...styles.messageText,
+          color: colors.text,
+        }}
+      />
+    );
+  };
+
+  const isThinkingMessage = (msg: BaseMessage): msg is ThinkingMessage => {
+    return (msg as ThinkingMessage).type === 'thinking';
+  };
+
+  const isToolCallMessage = (msg: BaseMessage): msg is ToolCallMessage => {
+    return (msg as ToolCallMessage).type === 'tool_call';
+  };
+
+  const isToolResultMessage = (msg: BaseMessage): msg is ToolResultMessage => {
+    return (msg as ToolResultMessage).type === 'tool_result';
+  };
+
+  const isAIMessage = (msg: BaseMessage): msg is AIMessage => {
+    return (msg as AIMessage).type === 'ai';
+  };
+
+  // 渲染AI复合消息 - 按顺序循环渲染messageList中的消息
+  const renderAIMessage = (item: AIMessage) => {
+    // 获取折叠状态
+    return (
+      <View style={styles.aiMessageContainer}>
+        {/* 按顺序渲染messageList中的每个消息 */}
+        {item.messageList.map((msg) => {
+          // 为每个消息生成唯一的折叠状态key，使用消息ID而不是索引，提高稳定性
+          const isCollapsed = msg.collapsed;
+
+          // 根据消息类型渲染不同的UI
+          switch (msg.type) {
+            case 'thinking': {
+              const thinkingMsg = msg as ThinkingMessage;
+              return (
+                <View key={msg.id} style={styles.aiSection}>
+                  <View style={styles.aiSectionHeader}>
+                    <Text style={[styles.aiSectionTitle, {color: colors.text}]}>
+                      💭 思考过程
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => handleToggleMessageCollapse(item.id, msg.id)}
+                      style={styles.collapseButton}
+                    >
+                      <Text style={[styles.collapseButtonText, {color: colors.primary}]}>
+                        {isCollapsed ? '展开' : '折叠'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  {!isCollapsed && (
+                    <Text style={[styles.aiThinkingContent, {color: colors.secondaryText}]}>
+                      {thinkingMsg.thinkingContent}
+                    </Text>
+                  )}
+                </View>
+              );
+            }
+
+            case 'tool_call': {
+              const toolCallMsg = msg as ToolCallMessage;
+              // 查找对应的工具结果消息（在后面的消息中）
+              // 由于现在使用消息ID，我们需要找到当前消息在列表中的位置
+              const currentIndex = item.messageList.findIndex(m => m.id === msg.id);
+              const toolResultMsg = item.messageList.slice(currentIndex + 1).find(m =>
+                m.type === 'tool_result' && (m as ToolResultMessage).toolName === toolCallMsg.toolName
+              ) as ToolResultMessage | undefined;
+
+              return (
+                <View key={msg.id} style={styles.aiSection}>
+                  <View style={styles.aiSectionHeader}>
+                    <Text style={[styles.aiSectionTitle, {color: colors.text}]}>
+                      🔧 工具调用: {toolCallMsg.toolName}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => handleToggleMessageCollapse(item.id,msg.id)}
+                      style={styles.collapseButton}
+                    >
+                      <Text style={[styles.collapseButtonText, {color: colors.primary}]}>
+                        {isCollapsed ? '展开' : '折叠'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  {!isCollapsed && (
+                    <View style={[styles.toolCallItem, {backgroundColor: colors.card}]}>
+                      <View style={styles.toolCallHeader}>
+                        <Text style={[styles.toolCallName, {color: colors.text}]}>
+                          {toolCallMsg.toolName}
+                        </Text>
+                      </View>
+
+                      {/* 参数 */}
+                      {toolCallMsg.arguments && (
+                        <View style={styles.toolCallSection}>
+                          <Text style={[styles.toolCallSectionTitle, {color: colors.secondaryText}]}>
+                            参数:
+                          </Text>
+                          <Text style={[styles.toolCallContent, {color: colors.text}]}>
+                            {typeof toolCallMsg.arguments === 'string'
+                              ? toolCallMsg.arguments
+                              : JSON.stringify(toolCallMsg.arguments, null, 2)}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* 结果 */}
+                      {toolResultMsg?.result !== undefined && (
+                        <View style={styles.toolCallSection}>
+                          <Text style={[styles.toolCallSectionTitle, {color: colors.success}]}>
+                            结果:
+                          </Text>
+                          <Text style={[styles.toolCallContent, {color: colors.text}]}>
+                            {typeof toolResultMsg.result === 'string'
+                              ? toolResultMsg.result
+                              : JSON.stringify(toolResultMsg.result, null, 2)}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* 错误 */}
+                      {toolResultMsg?.errorMessage && (
+                        <View style={styles.toolCallSection}>
+                          <Text style={[styles.toolCallSectionTitle, {color: colors.error}]}>
+                            错误:
+                          </Text>
+                          <Text style={[styles.toolCallContent, {color: colors.text}]}>
+                            {toolResultMsg.errorMessage}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+              );
+            }
+
+            case 'tool_result': {
+              // 工具结果消息通常紧跟在工具调用消息后面，已经在工具调用消息中渲染
+              // 所以这里可以跳过渲染，避免重复
+              return null;
+            }
+
+            case 'text': {
+              const textMsg = msg as TextMessage;
+              // 用户消息不应该在这里出现，但为了安全起见，只渲染非用户消息
+              if (textMsg.isUser) {
+                return null;
+              }
+              return (
+                <View key={msg.id} style={styles.aiSection}>
+                  <MarkdownRenderer
+                    content={textMsg.content}
+                    isDarkMode={isDarkMode}
+                    containerStyle={styles.markdownContainer}
+                    textStyle={{
+                      ...styles.messageText,
+                      color: colors.text,
+                    }}
+                  />
+                </View>
+              );
+            }
+
+            default:
+              return null;
+          }
+        })}
+
+        {/* 加载状态 */}
+        {item.loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.loadingText, {color: colors.secondaryText}]}>AI思考中...</Text>
+          </View>
+        )}
+
+        {/* 错误状态 */}
         {item.error && (
           <TouchableOpacity
             style={[styles.configureButton, {backgroundColor: colors.primary}]}
@@ -793,167 +1191,38 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
             <Text style={styles.configureButtonText}>检查配置</Text>
           </TouchableOpacity>
         )}
-      </>
-    );
-  };
-
-  // 渲染工具调用消息
-  const renderToolCallMessage = (item: Message) => {
-    const toolName = item.toolDetails?.name || '未知工具';
-    const args = item.toolDetails?.arguments;
-
-    return (
-      <View style={styles.toolCallContainer}>
-        <View style={styles.toolCallHeader}>
-          <Text style={[styles.toolCallTitle, {color: colors.text}]}>
-            🔧 调用工具: {toolName}
-          </Text>
-          {item.collapsed !== undefined && (
-            <TouchableOpacity
-              onPress={() => handleToggleCollapse(item.id)}
-              style={styles.collapseButton}
-            >
-              <Text style={[styles.collapseButtonText, {color: colors.primary}]}>
-                {item.collapsed ? '展开' : '折叠'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {(!item.collapsed || !item.collapsed) && (
-          <>
-            {args && (
-              <View style={styles.toolCallSection}>
-                <Text style={[styles.toolCallSectionTitle, {color: colors.secondaryText}]}>
-                  参数:
-                </Text>
-                <Text style={[styles.toolCallContent, {color: colors.text}]}>
-                  {typeof args === 'string' ? args : JSON.stringify(args, null, 2)}
-                </Text>
-              </View>
-            )}
-            <Text style={[styles.toolCallStatus, {color: colors.primary}]}>
-              {item.loading ? '执行中...' : '等待结果...'}
-            </Text>
-          </>
-        )}
       </View>
     );
   };
 
-  // 渲染思考消息
-  const renderThinkingMessage = (item: Message) => {
-    const thinkingText = item.thinkingContent || item.text;
-
-    return (
-      <View style={styles.thinkingContainer}>
-        <View style={styles.thinkingHeader}>
-          <Text style={[styles.thinkingTitle, {color: colors.text}]}>
-            💭 AI思考过程
-          </Text>
-          {item.collapsed !== undefined && (
-            <TouchableOpacity
-              onPress={() => handleToggleCollapse(item.id)}
-              style={styles.collapseButton}
-            >
-              <Text style={[styles.collapseButtonText, {color: colors.primary}]}>
-                {item.collapsed ? '展开' : '折叠'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {(!item.collapsed || !item.collapsed) && (
-          <Text style={[styles.thinkingContent, {color: colors.secondaryText}]}>
-            {thinkingText}
-          </Text>
-        )}
-      </View>
-    );
-  };
-
-  // 渲染工具结果消息
-  const renderToolResultMessage = (item: Message) => {
-    const success = item.toolDetails?.success;
-    const result = item.toolDetails?.result;
-    const error = item.toolDetails?.error;
-    const duration = item.toolDetails?.duration;
-
-    return (
-      <View style={styles.toolResultContainer}>
-        <View style={styles.toolResultHeader}>
-          <Text style={[
-            styles.toolResultTitle,
-            {color: success ? colors.success : colors.error}
-          ]}>
-            {success ? '✅ 工具执行成功' : '❌ 工具执行失败'}
-          </Text>
-          {item.collapsed !== undefined && (
-            <TouchableOpacity
-              onPress={() => handleToggleCollapse(item.id)}
-              style={styles.collapseButton}
-            >
-              <Text style={[styles.collapseButtonText, {color: colors.primary}]}>
-                {item.collapsed ? '展开' : '折叠'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {(!item.collapsed || !item.collapsed) && (
-          <>
-            {duration && (
-              <Text style={[styles.toolResultMeta, {color: colors.secondaryText}]}>
-                耗时: {duration}ms
-              </Text>
-            )}
-            {error && (
-              <View style={styles.toolResultSection}>
-                <Text style={[styles.toolResultSectionTitle, {color: colors.error}]}>
-                  错误信息:
-                </Text>
-                <Text style={[styles.toolResultContent, {color: colors.text}]}>
-                  {error}
-                </Text>
-              </View>
-            )}
-            {result && (
-              <View style={styles.toolResultSection}>
-                <Text style={[styles.toolResultSectionTitle, {color: colors.success}]}>
-                  执行结果:
-                </Text>
-                <Text style={[styles.toolResultContent, {color: colors.text}]}>
-                  {typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
-                </Text>
-              </View>
-            )}
-          </>
-        )}
-      </View>
-    );
-  };
-
-  // 切换折叠状态
-  const handleToggleCollapse = (messageId: string) => {
-    setMessages(prev => prev.map(msg =>
-      msg.id === messageId
-        ? { ...msg, collapsed: !msg.collapsed }
-        : msg
-    ));
+  // 切换单个消息的折叠状态
+  const handleToggleMessageCollapse = (messageId: string, msgId: string) => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === messageId && isAIMessage(msg)) {
+        msg.messageList.map(msgItem => {
+          if (msgItem.id === msgId) {
+            msgItem.collapsed = !msgItem.collapsed;
+          }
+        });
+      }
+      return msg;
+    }));
   };
 
   // 配置检查中
   if (checkingConfig && isConfigured === null) {
     return (
-      <SafeAreaView style={[styles.centeredContainer, {backgroundColor: colors.background}]}>
+      <SafeAreaView style={[styles.centeredContainer, {backgroundColor: colors.background}]} edges={['top']}>
         <StatusBar
           barStyle={isDarkMode ? 'light-content' : 'dark-content'}
           backgroundColor={colors.background}
         />
-        <BookSelector />
-        <View style={[styles.headerContainer, {backgroundColor: colors.card}]}>
-          <View style={styles.headerTitleContainer}>
-            <Text style={[styles.headerTitle, {color: colors.text}]}>AI助手</Text>
+        <View style={styles.topSection}>
+          <BookSelector />
+          <View style={[styles.headerContainer, {backgroundColor: colors.card}]}>
+            <View style={styles.headerTitleContainer}>
+              <Text style={[styles.headerTitle, {color: colors.text}]}>AI助手</Text>
+            </View>
           </View>
         </View>
         <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20}}>
@@ -1107,124 +1376,153 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]}>
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top']}>
       <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={colors.background}
       />
 
-      {/* BookSelector */}
-      <BookSelector />
+      {/* 顶部区域：BookSelector和标题 */}
+      <View style={[styles.topSection, {backgroundColor: colors.background}]}>
+        {/* BookSelector - 确保在状态栏下方 */}
+        <BookSelector />
 
-      {/* 页面标题区域 */}
-      <View style={[styles.headerContainer, {backgroundColor: colors.card}]}>
-        <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, {color: colors.text}]}>AI助手</Text>
-        </View>
+        {/* 标题和操作按钮区域 */}
+        <View style={[styles.headerContainer, {backgroundColor: colors.card}]}>
+          <View style={styles.headerTitleContainer}>
+            <Text style={[styles.headerTitle, {color: colors.text}]}>AI助手</Text>
+          </View>
 
-        <View style={styles.headerActions}>
-          {/* 清除按钮 - 始终显示 */}
-          <TouchableOpacity
-            style={[styles.headerButton, {backgroundColor: colors.warning}]}
-            onPress={handleClearChat}
-            disabled={messages.length <= 1} // 只有系统消息时禁用
-          >
-            <Text style={styles.headerButtonText}>🗑️ 清除</Text>
-          </TouchableOpacity>
-
-          {/* 终止按钮（仅在处理时显示） */}
-          {isProcessing && (
+          <View style={styles.headerActions}>
+            {/* 清除按钮 */}
             <TouchableOpacity
-              style={[styles.headerButton, {backgroundColor: colors.error}]}
-              onPress={handleCancelProcessing}
-              disabled={isCancelling}
+              style={[styles.headerButton, {backgroundColor: colors.warning}]}
+              onPress={handleClearChat}
+              disabled={messages.length <= 1}
             >
-              {isCancelling ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.headerButtonText}>终止</Text>
-              )}
+              <Text style={styles.headerButtonText}>🗑️ 清除</Text>
             </TouchableOpacity>
-          )}
+
+            {/* 终止按钮 */}
+            {isProcessing && (
+              <TouchableOpacity
+                style={[styles.headerButton, {backgroundColor: colors.error}]}
+                onPress={handleCancelProcessing}
+                disabled={isCancelling}
+              >
+                {isCancelling ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.headerButtonText}>终止</Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
 
-      {/* 聊天区域 */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.messagesList}
-        onContentSizeChange={() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }}
-        style={{ flex: 1 }}
-      />
-
-      {/* 输入区域 */}
+      {/* 主内容区域：聊天列表和输入框 */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={[styles.inputContainer, {backgroundColor: colors.card, borderTopColor: colors.border}]}
+        style={styles.keyboardAvoidingView}
       >
-        <View style={styles.inputWrapper}>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.input,
-                color: colors.text,
-                borderColor: colors.border,
-              },
-            ]}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="输入你的问题或指令..."
-            placeholderTextColor={colors.secondaryText}
-            multiline
-            maxLength={500}
-            editable={!isProcessing}
-            onSubmitEditing={handleSend}
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              {backgroundColor: colors.primary},
-              (!inputText.trim() || isProcessing) && [styles.sendButtonDisabled, {backgroundColor: colors.secondaryText}],
-            ]}
-            onPress={handleSend}
-            disabled={!inputText.trim() || isProcessing}
-          >
-            {isProcessing ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.sendButtonText}>发送</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        {/* 聊天消息列表 */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={item => item.id}
+          contentContainerStyle={[
+            styles.messagesList,
+            { paddingBottom: Platform.select({ios: 150, android: 130}) }
+          ]}
+          onContentSizeChange={() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }}
+          onLayout={() => {
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: false });
+            }, 100);
+          }}
+          style={styles.flatList}
+          keyboardShouldPersistTaps="handled"
+        />
 
-        {/* 快捷提示 */}
-        <View style={styles.hintsContainer}>
-          <Text style={[styles.hintsText, {color: colors.secondaryText}]}>试试说：</Text>
-          {['记一笔交通支出30元', '本月花了多少钱', '分析餐饮消费'].map((hint, index) => (
+        {/* 输入区域 */}
+        <View style={[styles.inputContainer, {backgroundColor: colors.card, borderTopColor: colors.border}]}>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.input,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="输入你的问题或指令..."
+              placeholderTextColor={colors.secondaryText}
+              multiline
+              maxLength={500}
+              editable={!isProcessing}
+              onSubmitEditing={handleSend}
+            />
             <TouchableOpacity
-              key={index}
-              style={[styles.hintButton, {backgroundColor: colors.card, borderColor: colors.border}]}
-              onPress={() => setInputText(hint)}
-              disabled={isProcessing}
+              style={[
+                styles.sendButton,
+                {backgroundColor: colors.primary},
+                (!inputText.trim() || isProcessing) && [styles.sendButtonDisabled, {backgroundColor: colors.secondaryText}],
+              ]}
+              onPress={handleSend}
+              disabled={!inputText.trim() || isProcessing}
             >
-              <Text style={[styles.hintText, {color: colors.primary}]}>{hint}</Text>
+              {isProcessing ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.sendButtonText}>发送</Text>
+              )}
             </TouchableOpacity>
-          ))}
+          </View>
+
+          {/* AI提示建议 */}
+          <View style={styles.hintsContainer}>
+            <Text style={[styles.hintsText, {color: colors.secondaryText}]}>
+              {isGeneratingSuggestions ? 'AI正在生成建议...' : '试试说：'}
+            </Text>
+            {isGeneratingSuggestions ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <>
+                {(suggestions.length > 0 ? suggestions : getFallbackSuggestions(inputText)).map((hint, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.hintButton, {backgroundColor: colors.card, borderColor: colors.border}]}
+                    onPress={() => setInputText(hint)}
+                    disabled={isProcessing}
+                  >
+                    <Text style={[styles.hintText, {color: colors.primary}]}>{hint}</Text>
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
-    );
+  );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  topSection: {
+    // 顶部区域，包含BookSelector和标题
   },
   headerContainer: {
     flexDirection: 'row',
@@ -1362,12 +1660,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
+  flatList: {
+    flex: 1,
+  },
   messagesList: {
     paddingVertical: 16,
     paddingHorizontal: 12,
   },
   messageContainer: {
     maxWidth: '85%',
+    minWidth: '85%',
     marginBottom: 16,
     borderRadius: 12,
     padding: 12,
@@ -1394,6 +1696,146 @@ const styles = StyleSheet.create({
   toolResultMessage: {
     borderLeftWidth: 3,
     borderLeftColor: '#66BB6A',
+  },
+  aiMessageContainer: {
+    width: '100%',
+  },
+  aiSection: {
+    marginBottom: 16,
+  },
+  aiSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  aiSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  aiThinkingContent: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    lineHeight: 20,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    padding: 12,
+    borderRadius: 8,
+  },
+  aiContent: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  toolCallsContainer: {
+    gap: 12,
+  },
+  toolCallItem: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  toolCallHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  toolCallName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  toolCallStatus: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  toolCallSection: {
+    marginBottom: 8,
+  },
+  toolCallSectionTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  toolCallContent: {
+    fontSize: 12,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    padding: 8,
+    borderRadius: 6,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  toolCallContainer: {
+    marginTop: 8,
+  },
+  toolCallTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  thinkingContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: 8,
+  },
+  thinkingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  thinkingTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  thinkingContent: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    lineHeight: 16,
+  },
+  toolResultContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: 8,
+  },
+  toolResultHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  toolResultTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  toolResultMeta: {
+    fontSize: 11,
+    marginBottom: 4,
+  },
+  toolResultSection: {
+    marginTop: 6,
+  },
+  toolResultSectionTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  toolResultContent: {
+    fontSize: 12,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    padding: 6,
+    borderRadius: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  collapseButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  collapseButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   loadingContainer: {
     flexDirection: 'row',
@@ -1484,99 +1926,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
   },
-  // 新增样式
-  toolCallContainer: {
-    width: '100%',
-  },
-  toolCallHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  toolCallTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
-  },
-  toolCallSection: {
-    marginBottom: 8,
-  },
-  toolCallSectionTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  toolCallContent: {
-    fontSize: 14,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    padding: 8,
-    borderRadius: 6,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  toolCallStatus: {
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
-  thinkingContainer: {
-    width: '100%',
-  },
-  thinkingHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  thinkingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
-  },
-  thinkingContent: {
-    fontSize: 14,
-    fontStyle: 'italic',
-    lineHeight: 20,
-  },
-  toolResultContainer: {
-    width: '100%',
-  },
-  toolResultHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  toolResultTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
-  },
-  toolResultMeta: {
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  toolResultSection: {
-    marginBottom: 8,
-  },
-  toolResultSectionTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  toolResultContent: {
-    fontSize: 14,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    padding: 8,
-    borderRadius: 6,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  collapseButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  collapseButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
+  markdownContainer: {
+    marginTop: 4,
   },
 });
 

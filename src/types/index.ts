@@ -133,3 +133,189 @@ export interface DailyData {
     zeroSum: number;
   };
 }
+
+// ==================== AI 聊天消息类型 ====================
+
+// 基础消息接口
+export interface BaseMessage {
+  id: string;
+  isUser: boolean;
+  type: string;
+  timestamp: Date;
+  collapsed?: boolean;
+  error?: boolean;
+  loading?: boolean;
+}
+
+// 文本消息
+export interface TextMessage extends BaseMessage {
+  type: 'text';
+  content: string;
+}
+
+// 思考消息
+export interface ThinkingMessage extends BaseMessage {
+  type: 'thinking';
+  thinkingContent: string;
+}
+
+// 工具调用消息
+export interface ToolCallMessage extends BaseMessage {
+  type: 'tool_call';
+  toolName: string;
+  arguments: any;
+  loading?: boolean;
+}
+
+// 工具结果消息
+export interface ToolResultMessage extends BaseMessage {
+  type: 'tool_result';
+  toolName: string;
+  success: boolean;
+  result?: any;
+  errorMessage?: string;
+  duration?: number;
+}
+
+// AI复合消息 - 包含一次AI回复的所有部分
+export interface AIMessage extends BaseMessage {
+  type: 'ai';
+  messageList: Array<BaseMessage>; // 消息列表，包含文本、思考、工具调用等
+  collapsed?: boolean; // 是否折叠（用于思考内容和工具详情）
+}
+
+// 消息联合类型
+export type Message = TextMessage | ThinkingMessage | ToolCallMessage | ToolResultMessage | AIMessage;
+
+// 工厂函数
+
+// 创建文本消息
+export function createTextMessage(
+  content: string,
+  isUser: boolean,
+  options?: {
+    id?: string;
+    timestamp?: Date;
+    metadata?: Record<string, any>;
+    collapsed?: boolean;
+    error?: boolean;
+    loading?: boolean;
+  }
+): TextMessage {
+  return {
+    id: options?.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type: 'text',
+    isUser,
+    content,
+    timestamp: options?.timestamp || new Date(),
+    collapsed: options?.collapsed,
+    error: options?.error,
+    loading: options?.loading,
+  };
+}
+
+// 创建思考消息
+export function createThinkingMessage(
+  thinkingContent: string,
+  options?: {
+    id?: string;
+    timestamp?: Date;
+    metadata?: Record<string, any>;
+    collapsed?: boolean;
+    error?: boolean;
+    loading?: boolean;
+  }
+): ThinkingMessage {
+  return {
+    id: options?.id || `thinking_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type: 'thinking',
+    isUser: false,
+    thinkingContent,
+    timestamp: options?.timestamp || new Date(),
+    collapsed: options?.collapsed,
+    error: options?.error,
+    loading: options?.loading,
+  };
+}
+
+// 创建工具调用消息
+export function createToolCallMessage(
+  toolName: string,
+  arguments_: any,
+  options?: {
+    id?: string;
+    timestamp?: Date;
+    metadata?: Record<string, any>;
+    collapsed?: boolean;
+    loading?: boolean;
+    error?: boolean;
+  }
+): ToolCallMessage {
+  return {
+    id: options?.id || `tool_call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type: 'tool_call',
+    isUser: false,
+    toolName,
+    arguments: arguments_,
+    timestamp: options?.timestamp || new Date(),
+    collapsed: options?.collapsed,
+    loading: options?.loading,
+    error: options?.error,
+  };
+}
+
+// 创建工具结果消息
+export function createToolResultMessage(
+  toolName: string,
+  success: boolean,
+  options?: {
+    id?: string;
+    timestamp?: Date;
+    metadata?: Record<string, any>;
+    collapsed?: boolean;
+    result?: any;
+    errorMessage?: string;
+    duration?: number;
+    error?: boolean;
+    loading?: boolean;
+  }
+): ToolResultMessage {
+  return {
+    id: options?.id || `tool_result_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type: 'tool_result',
+    isUser: false,
+    toolName,
+    success,
+    timestamp: options?.timestamp || new Date(),
+    collapsed: options?.collapsed,
+    result: options?.result,
+    errorMessage: options?.errorMessage,
+    duration: options?.duration,
+    error: options?.error,
+    loading: options?.loading,
+  };
+}
+
+// 创建AI复合消息
+export function createAIMessage(
+  messageList: Array<BaseMessage>,
+  options?: {
+    id?: string;
+    timestamp?: Date;
+    metadata?: Record<string, any>;
+    collapsed?: boolean;
+    error?: boolean;
+    loading?: boolean;
+  }
+): AIMessage {
+  return {
+    id: options?.id || `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type: 'ai',
+    isUser: false,
+    messageList,
+    timestamp: options?.timestamp || new Date(),
+    collapsed: options?.collapsed,
+    error: options?.error,
+    loading: options?.loading,
+  };
+}
