@@ -1083,11 +1083,11 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                 if (toolCallMsg.loading) {
                   return '⏳'; // 执行中
                 }
-                
+
                 if (toolResultMsg) {
-                  return toolResultMsg.success ? '✅' : '❌';
+                  return toolResultMsg.success ? '🔧 ✅' : '🔧 ❌';
                 }
-                
+
                 return '🔧'; // 默认，未开始或状态未知
               };
 
