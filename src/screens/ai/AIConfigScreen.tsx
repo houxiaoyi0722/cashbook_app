@@ -22,8 +22,8 @@ const AIConfigScreen: React.FC = () => {
   const [config, setConfig] = useState<Partial<AIConfig>>({
     provider: 'openai',
     model: 'gpt-3.5-turbo',
-    maxTokens: 1000,
-    temperature: 0.7,
+    maxTokens: 5000,
+    temperature: 0,
     baseURL: 'https://api.openai.com/v1'
   });
   // 存储每个供应商的配置
@@ -195,8 +195,8 @@ const AIConfigScreen: React.FC = () => {
               apiKey: '',
               model: defaultModel,
               baseURL: defaultBaseURL,
-              maxTokens: 1000,
-              temperature: 0.7
+              maxTokens: 5000,
+              temperature: 0
             });
 
             // 更新 providerConfigs，将当前供应商的配置重置为默认值（API Key 为空）
@@ -207,8 +207,8 @@ const AIConfigScreen: React.FC = () => {
                 apiKey: '',
                 model: defaultModel,
                 baseURL: defaultBaseURL,
-                maxTokens: 1000,
-                temperature: 0.7
+                maxTokens: 5000,
+                temperature: 0
               }
             }));
 
@@ -277,8 +277,8 @@ const AIConfigScreen: React.FC = () => {
                  provider === 'google' ? 'gemini-pro' : '',
           // 只有在没有保存配置时才清空API Key
           apiKey: '',
-          maxTokens: 1000,
-          temperature: 0.7
+          maxTokens: 5000,
+          temperature: 0
         });
       }
 
@@ -469,7 +469,7 @@ const AIConfigScreen: React.FC = () => {
                   ))}
                 </View>
               )}
-              
+
               {/* 模型名称输入字段（始终显示） */}
               <View style={styles.manualInputContainer}>
                 <Text style={[styles.manualInputLabel, {color: colors.secondaryText}]}>
@@ -571,7 +571,7 @@ const AIConfigScreen: React.FC = () => {
                     setConfig((prev: any) => ({ ...prev, maxTokens: undefined }));
                   }
                 }}
-                placeholder="1000"
+                placeholder="5000"
                 placeholderTextColor={colors.hint}
                 keyboardType="numeric"
               />
@@ -600,7 +600,7 @@ const AIConfigScreen: React.FC = () => {
                     setConfig((prev: any) => ({ ...prev, temperature: undefined }));
                   }
                 }}
-                placeholder="0.7"
+                placeholder="0"
                 placeholderTextColor={colors.hint}
                 keyboardType="numeric"
               />
