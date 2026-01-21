@@ -536,10 +536,7 @@ export class AIRecursiveService {
         state.aiMessage = updatedAiMessage;
         state.allStreamedContent += currentIterationStreamedContent;
 
-        // 检查是否所有工具都执行成功
-        const allToolsSuccessful = results.every(r => r.success);
-
-        if (allToolsSuccessful && state.currentIteration < state.maxIterations) {
+        if (state.currentIteration < state.maxIterations) {
           // 构建工具执行结果消息，用于下一次迭代
           const toolResultsMessage = this.buildToolResultsMessage(results);
           state.currentUserMessage = toolResultsMessage;
