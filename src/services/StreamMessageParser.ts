@@ -218,7 +218,12 @@ export class StreamMessageParser {
             console.warn('解析工具调用JSON失败:', error, {
               blockContentPreview: blockContent.substring(0, 200),
             });
-            this.accumulatedContent = '解析工具调用失败' + blockContent;
+            // 使用Markdown友好格式显示错误信息
+            this.accumulatedContent = '❗解析工具调用失败,无法解析AI返回的工具调用\n\n' +
+              '**原始内容**:\n```json\n' +
+              blockContent +
+              '\n```\n\n' +
+              '请检查AI配置。';
           }
         }
         break;
