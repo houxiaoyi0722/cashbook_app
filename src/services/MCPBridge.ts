@@ -559,7 +559,7 @@ class MCPBridge {
     // 获取固定支出
     this.registerTool({
       name: 'get_fixed_flows',
-      description: '获取指定月份的固定支出列表，固定支出是指每月定期发生的支出，例如：房租、房贷、订阅服务费等',
+      description: '**注意: 固定支出不会生成流水记录**获取指定月份的固定支出列表，固定支出是指每月定期发生的支出，例如：房租、房贷、订阅服务费',
       inputSchema: {
         type: 'object',
         properties: {
@@ -1156,7 +1156,7 @@ class MCPBridge {
     // 添加固定支出
     this.registerTool({
       name: 'add_fixed_flow',
-      description: '添加一个新的固定支出记录。固定支出是指每月定期发生的支出，例如：房租、房贷、订阅服务费等。需要提供名称、金额、归属人、开始月份和结束月份等必需信息。',
+      description: '**注意: 固定支出不会生成流水记录** 添加一个新的固定支出记录。固定支出是指每月定期发生的支出，例如：房租、房贷、订阅服务费等。需要提供名称、金额、归属人、开始月份和结束月份等必需信息。',
       inputSchema: {
         type: 'object',
         properties: {
@@ -1272,7 +1272,7 @@ class MCPBridge {
     // 更新固定支出
     this.registerTool({
       name: 'update_fixed_flow',
-      description: '更新现有的固定支出记录。可以修改固定支出的名称、金额、归属人、开始月份、结束月份、描述等信息。',
+      description: '**注意: 固定支出不会生成流水记录**更新现有的固定支出记录。可以修改固定支出的名称、金额、归属人、开始月份、结束月份、描述等信息。',
       inputSchema: {
         type: 'object',
         properties: {
