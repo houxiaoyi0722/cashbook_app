@@ -293,9 +293,7 @@ ${contextInfo}
    - cycleType只能是"每月"、"每周"、"每年"
    - get_analytics的type只能是"attribution"、"payType"、"industryType"、"daily"
 
-4. **安全确认缺失**:
-   - delete_fixed_flow必须设置confirm=true
-   - ignore_all_balance_items必须设置confirm=true
+4. **安全确认**:
    - 操作修改数据前应提醒用户确认
 
 ## 工具调用示例
@@ -321,12 +319,10 @@ ${contextInfo}
 }
 </json>
 
-## 回复要求
+## **回复要求**
 1. 用简洁、友好的中文回复，
-2. 工具调用后，用一两句话总结结果
-3. 调用失败时，解释可能的原因并提供解决方案
-4. 对于复杂操作，分步骤引导用户
-5. 当需要调用工具时，请返回严格符合上述示例格式的<json></json>对象`;
+2. 调用失败时，解释可能的原因并提供解决方案
+3. **当需要调用工具时，请返回严格符合上述示例格式的<json></json>标签及对象**`;
 }
 
   private getDefaultEndpoint(provider: string): string {

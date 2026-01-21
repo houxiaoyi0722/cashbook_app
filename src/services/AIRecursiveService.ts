@@ -459,7 +459,7 @@ export class AIRecursiveService {
     // 内部流式回调
     const internalStreamCallback = async (content: string, reasoning_content: string, isComplete: boolean) => {
       if (content || reasoning_content || isComplete) {
-        if (content) {
+        if (content || isComplete) {
           // 使用解析器处理数据块
           const result = streamParser!.processChunk(content || '', isComplete);
           console.log('解析到内容',result);

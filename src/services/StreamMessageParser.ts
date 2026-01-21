@@ -147,14 +147,14 @@ export class StreamMessageParser {
           this.processBuffer(isFinal);
         }
       } else if (isFinal) {
-        // 如果是最终块且没有结束标记，将剩余内容作为块内容
+        // 如果是最终块且没有结束标记，将剩余内容作为块内容 尝试解析
         if (this.buffer.trim()) {
           this.currentBlockBuffer += this.buffer;
         }
 
         // 处理完整的块内容
         if (this.currentBlockBuffer.trim()) {
-          this.processCompleteBlock(this.currentBlockBuffer, false);
+          this.processCompleteBlock(this.currentBlockBuffer, true);
         }
 
         // 重置状态
@@ -163,7 +163,6 @@ export class StreamMessageParser {
       } else {
         // 没有找到结束标记，将整个缓冲区添加到块缓冲区
         this.currentBlockBuffer += this.buffer;
-        // 实时返回思考消息
         if (this.currentBlockBuffer.trim()) {
           this.processCompleteBlock(this.currentBlockBuffer, false);
         }
@@ -219,6 +218,7 @@ export class StreamMessageParser {
             console.warn('解析工具调用JSON失败:', error, {
               blockContentPreview: blockContent.substring(0, 200),
             });
+            this.accumulatedContent = '解析工具调用失败' + blockContent;
           }
         }
         break;
