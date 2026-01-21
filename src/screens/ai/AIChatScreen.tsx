@@ -80,6 +80,38 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   const flatListRef = useRef<FlatList>(null);
   const shouldIgnoreResponseRef = useRef(false);
   const currentProcessingIdRef = useRef<string | null>(null);
+  // 控制是否应该自动滚动到底部
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  // 使用 ref 来获取最新的 shouldAutoScroll 值，避免闭包问题
+  const shouldAutoScrollRef = useRef(shouldAutoScroll);
+  // 跟踪用户是否在底部
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  // 用于防抖的定时器引用
+  // @ts-ignore
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // 用于跟踪是否正在滚动到底部，防止按钮闪烁
+  const isScrollingToBottomRef = useRef(false);
+
+  // 滚动到底部的函数
+  const scrollToBottom = () => {
+    // 设置标志位，表示正在滚动到底部
+    isScrollingToBottomRef.current = true;
+    
+    // 立即设置 isAtBottom 为 true，防止按钮在滚动过程中消失
+    setIsAtBottom(true);
+    
+    setShouldAutoScroll(true);
+    shouldAutoScrollRef.current = true;
+    
+    flatListRef.current?.scrollToEnd({
+      animated: true,
+    });
+    
+    // 滚动完成后重置标志位
+    setTimeout(() => {
+      isScrollingToBottomRef.current = false;
+    }, 500);
+  };
 
   // 使用 useRef 缓存配置状态和检查时间
   const configCacheRef = useRef<{
@@ -531,6 +563,11 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
         }
       };
       saveBeforeUnmount();
+
+      // 清理防抖定时器
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
     };
   }, [messages, saveChatForCurrentBook]);
 
@@ -579,14 +616,22 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     }
   }, [inputText, isConfigured, debouncedGenerateSuggestions]);
 
+  // 更新 shouldAutoScrollRef 当 shouldAutoScroll 变化时
+  useEffect(() => {
+    shouldAutoScrollRef.current = shouldAutoScroll;
+  }, [shouldAutoScroll]);
+
   // 键盘显示/隐藏监听
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       () => {
-        // 键盘显示时，滚动到底部
+        // 键盘显示时，确保可以自动滚动并滚动到底部
+        setShouldAutoScroll(true);
         setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
+          if (shouldAutoScrollRef.current) {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }
         }, 100);
       }
     );
@@ -594,9 +639,12 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     const keyboardDidHideListener = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       () => {
-        // 键盘隐藏时，调整滚动位置
+        // 键盘隐藏时，确保可以自动滚动并调整滚动位置
+        setShouldAutoScroll(true);
         setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
+          if (shouldAutoScrollRef.current) {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }
         }, 100);
       }
     );
@@ -802,9 +850,12 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       }
       currentProcessingIdRef.current = null;
 
-      // 滚动到底部
+      // 确保可以自动滚动，并滚动到底部
+      setShouldAutoScroll(true);
       setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
+        if (shouldAutoScrollRef.current) {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }
       }, 100);
     }
   };
@@ -884,6 +935,8 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
             // 可选：滚动到顶部
             flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+            // 确保可以自动滚动
+            setShouldAutoScroll(true);
 
             console.log('聊天记录已清除');
           },
@@ -924,6 +977,8 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       timestamp: new Date(),
     });
     setMessages(prev => [...prev, cancelMsg]);
+    // 确保可以自动滚动
+    setShouldAutoScroll(true);
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
@@ -1216,6 +1271,10 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
   // 切换单个消息的折叠状态
   const handleToggleMessageCollapse = (messageId: string, msgId: string) => {
+    // 暂时禁用自动滚动，防止展开/折叠时滚动到底部
+    setShouldAutoScroll(false);
+    shouldAutoScrollRef.current = false;
+
     setMessages(prev => prev.map(msg => {
       if (msg.id === messageId && isAIMessage(msg)) {
         msg.messageList.map(msgItem => {
@@ -1226,6 +1285,12 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       }
       return msg;
     }));
+
+    // 短暂延迟后重新启用自动滚动（用于其他情况）
+    setTimeout(() => {
+      setShouldAutoScroll(true);
+      shouldAutoScrollRef.current = true;
+    }, 500);
   };
 
   // 配置检查中
@@ -1455,16 +1520,48 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
             styles.messagesList,
             { paddingBottom: Platform.select({ios: 150, android: 130}) },
           ]}
+          onScroll={(event) => {
+            // 如果正在滚动到底部，不更新 isAtBottom 状态
+            if (isScrollingToBottomRef.current) {
+              return;
+            }
+            
+            const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+            // 判断是否接近底部（距离底部50像素以内）
+            const isCloseToBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 50;
+
+            // 使用防抖逻辑，避免频繁更新状态
+            // 清除之前的定时器
+            if (scrollTimeoutRef.current) {
+              clearTimeout(scrollTimeoutRef.current);
+            }
+
+            // 设置新的定时器，延迟更新状态
+            scrollTimeoutRef.current = setTimeout(() => {
+              // 只有在不在滚动到底部的过程中才更新状态
+              if (!isScrollingToBottomRef.current) {
+                setIsAtBottom(isCloseToBottom);
+              }
+            }, 100);
+          }}
           onContentSizeChange={() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
+            // 只在应该自动滚动时才滚动到底部
+            if (shouldAutoScrollRef.current) {
+              flatListRef.current?.scrollToEnd({ animated: true });
+              // 滚动到底部后，更新isAtBottom状态
+              setIsAtBottom(true);
+            }
           }}
           onLayout={() => {
             setTimeout(() => {
-              flatListRef.current?.scrollToEnd({ animated: false });
+              if (shouldAutoScrollRef.current) {
+                flatListRef.current?.scrollToEnd({ animated: false });
+              }
             }, 100);
           }}
           style={styles.flatList}
           keyboardShouldPersistTaps="handled"
+          scrollEventThrottle={16}
         />
 
         {/* 输入区域 */}
@@ -1529,6 +1626,17 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {/* 回到底部浮动按钮 */}
+      {!isAtBottom && (
+        <TouchableOpacity
+          style={[styles.scrollToBottomButton, { backgroundColor: colors.primary }]}
+          onPress={scrollToBottom}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.scrollToBottomButtonIcon}>↓</Text>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 };
@@ -1678,6 +1786,36 @@ const styles = StyleSheet.create({
   hintText: {
     fontSize: 14,
     textAlign: 'center',
+  },
+  scrollToBottomButton: {
+    position: 'absolute',
+    bottom: 170, // 调整到输入框上方，避免与发送按钮重叠
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    // 移除阴影效果，参考账本列表页面的customFab样式
+    shadowColor: 'transparent',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+    zIndex: 1000,
+  },
+  scrollToBottomButtonIcon: {
+    fontSize: 24,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  scrollToBottomButtonText: {
+    fontSize: 12,
+    color: '#fff',
+    marginTop: 2,
   },
   flatList: {
     flex: 1,
