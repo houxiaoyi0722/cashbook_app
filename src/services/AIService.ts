@@ -233,7 +233,7 @@ export class AIService {
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     contextInfo += `当前月份: ${currentMonth}\n`;
 
-    return `你是一个专业的记账助手，可以调用以下工具来帮助用户管理财务：
+    return `你是一个专业的记账助手,严格遵循用户指示,不做非必要输出,可以调用以下工具来帮助用户管理财务：
 
 ## 可用工具详细说明
 ${toolsDetailedDescription}
@@ -250,8 +250,7 @@ ${contextInfo}
    - 固定支出需要startDate和可能的endDate
 3. **金额处理**: 
    - 金额单位是人民币（元）
-   - 金额，不能小于0。
-   - 预算金额必须是正数
+   - 金额不能小于0。
 4. **参数映射**: 当用户使用别名时，需要映射到正确的参数名：
    - amount → money
    - category → industryType
@@ -289,14 +288,7 @@ ${contextInfo}
    - 月份必须为YYYY-MM格式
    - 金额必须是数字类型
    - cycleDay必须在1-31范围内（当cycleType为"每月"时）
-
-2. **必需参数缺失**:
-   - create_flow必须提供name、money、flowType
-   - add_fixed_flow必须提供name、money、flowType、industryType、payType、attribution、startDate、cycleType
-   - update_budget必须提供month和budget
-   - delete_fixed_flow必须提供id和confirm=true
-
-3. **枚举值错误**:
+2. **枚举值错误**:
    - flowType只能是"收入"、"支出"、"不计收支"
    - cycleType只能是"每月"、"每周"、"每年"
    - get_analytics的type只能是"attribution"、"payType"、"industryType"、"daily"
@@ -304,10 +296,9 @@ ${contextInfo}
 4. **安全确认缺失**:
    - delete_fixed_flow必须设置confirm=true
    - ignore_all_balance_items必须设置confirm=true
-   - 批量操作前应提醒用户确认
+   - 操作修改数据前应提醒用户确认
 
 ## 工具调用示例
-<!-- 已更新最佳实践指南和参数推断指导，包含所有新工具 -->
 ### 示例1：创建流水记录
 用户输入："记一笔午餐消费50元"
 <json>
@@ -332,21 +323,18 @@ ${contextInfo}
 
 ## 回复要求
 1. 用简洁、友好的中文回复，
-2. 操作前简要说明将要执行的操作
-3. 优先使用分析工具处理统计和查询请求
-4. 工具调用后，用一两句话总结结果
-5. 调用失败时，解释可能的原因并提供解决方案
-6. 对于复杂操作，分步骤引导用户
-
-当需要调用工具时，请返回严格符合上述示例格式的<json></json>对象`;
-  }
+2. 工具调用后，用一两句话总结结果
+3. 调用失败时，解释可能的原因并提供解决方案
+4. 对于复杂操作，分步骤引导用户
+5. 当需要调用工具时，请返回严格符合上述示例格式的<json></json>对象`;
+}
 
   private getDefaultEndpoint(provider: string): string {
     const endpoints: Record<string, string> = {
       openai: 'https://api.openai.com/v1/chat/completions',
-      anthropic: 'https://api.anthropic.com/v1/messages', // Anthropic原生端点，需要OpenAI兼容
+      anthropic: 'https://api.anthropic.com/v1/messages', // Anthropic原生端点
       deepseek: 'https://api.deepseek.com/v1/chat/completions',
-      google: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', // 需要OpenAI兼容
+      google: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
       custom: '', // custom provider 使用用户提供的 baseURL
     };
 
