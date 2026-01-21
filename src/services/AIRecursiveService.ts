@@ -390,6 +390,13 @@ export class AIRecursiveService {
     streamCallback?: MessageStreamCallback,
     state?: RecursiveIterationState
   ): Promise<AIResponse> {
+    // 检查是否正在取消操作
+    if (this.aiService.isCancelling()) {
+      console.log('🛑 检测到取消操作，停止递归迭代');
+      // 返回空的响应
+      return { messages: [], text: '操作已取消' };
+    }
+
     const config = await aiConfigService.getConfig();
     if (!config?.apiKey) {
       throw new Error('AI配置未完成，请先配置API Key');
@@ -458,6 +465,12 @@ export class AIRecursiveService {
     const streamParser = this.aiService.streamParser;
     // 内部流式回调
     const internalStreamCallback = async (content: string, reasoning_content: string, isComplete: boolean) => {
+      // 检查是否正在取消操作
+      if (this.aiService.isCancelling()) {
+        console.log('🛑 检测到取消操作，停止流式处理');
+        return;
+      }
+
       if (content || reasoning_content || isComplete) {
         if (content || isComplete) {
           // 使用解析器处理数据块
@@ -511,6 +524,26 @@ export class AIRecursiveService {
 
       // 流式响应完成后，检查是否有工具调用
       if (detectedToolCalls.length > 0) {
+        // 检查是否正在取消操作
+        if (this.aiService.isCancelling()) {
+          console.log('🛑 检测到取消操作，停止工具调用执行');
+          // 返回当前状态
+          const finalAiMessage: AIMessage = {
+            ...state.aiMessage,
+            loading: false,
+            messageList: [...state.aiMessage.messageList],
+          };
+
+          if (state.streamCallback) {
+            state.streamCallback(finalAiMessage, true);
+          }
+
+          return {
+            messages: [finalAiMessage],
+            text: state.allStreamedContent || '操作已取消',
+          };
+        }
+
         console.log(`🔧 第 ${state.currentIteration} 次迭代检测到工具调用，开始执行`);
 
         // 添加工具调用消息
@@ -537,6 +570,26 @@ export class AIRecursiveService {
         state.allStreamedContent += currentIterationStreamedContent;
 
         if (state.currentIteration < state.maxIterations) {
+          // 检查是否正在取消操作
+          if (this.aiService.isCancelling()) {
+            console.log('🛑 检测到取消操作，停止后续迭代');
+            // 返回当前状态
+            const finalAiMessage: AIMessage = {
+              ...state.aiMessage,
+              loading: false,
+              messageList: [...state.aiMessage.messageList],
+            };
+
+            if (state.streamCallback) {
+              state.streamCallback(finalAiMessage, true);
+            }
+
+            return {
+              messages: [finalAiMessage],
+              text: state.allStreamedContent || '操作已取消',
+            };
+          }
+
           // 构建工具执行结果消息，用于下一次迭代
           const toolResultsMessage = this.buildToolResultsMessage(results);
           state.currentUserMessage = toolResultsMessage;

@@ -5,7 +5,7 @@ import {
   Message,
 } from '../types';
 import { AIRecursiveService } from './AIRecursiveService';
-import {StreamMessageParser} from "./StreamMessageParser.ts";
+import {StreamMessageParser} from './StreamMessageParser.ts';
 // AIConfigService will be imported dynamically in generatePromptSuggestions to avoid circular dependencies
 
 export interface AIResponse {
@@ -33,6 +33,10 @@ export class AIService {
   currentBookId: string | null = null;
   currentBookName: string | null = null;
   streamParser: StreamMessageParser | undefined;
+  cancelling: boolean = false;
+
+  // 保存当前活动的EventSource实例，用于支持用户终止SSE连接
+  currentEventSource: EventSource | null = null;
 
   // 更新当前账本信息
   updateBookInfo(bookId: string | null, bookName?: string | null) {
@@ -42,6 +46,8 @@ export class AIService {
   }
 
   async sendMessage(userMessage: string, streamCallback?: MessageStreamCallback): Promise<AIResponse> {
+    // 重置取消标志，因为用户开始了新的对话
+    this.cancelling = false;
     this.streamParser = new StreamMessageParser();
     // 创建递归服务实例
     const recursiveService = new AIRecursiveService(this);
@@ -515,11 +521,100 @@ ${contextInfo}
     }
   }
 
+  // 检查是否有活动的SSE连接
+  hasActiveStream(): boolean {
+    return this.currentEventSource !== null;
+  }
+
+  // 检查是否正在取消操作
+  isCancelling(): boolean {
+    return this.cancelling;
+  }
+
+  cancelCurrentStream(): void {
+    // 防止重复调用
+    if (this.cancelling) {
+      console.log('⚠️ 取消操作正在进行中，跳过重复调用');
+      return;
+    }
+
+    // 检查是否有活动的连接
+    if (!this.currentEventSource) {
+      console.log('🛑 没有活动的SSE连接可终止');
+      return;
+    }
+
+    // 设置取消标志
+    this.cancelling = true;
+
+    try {
+      console.log('🛑 用户请求终止，正在关闭SSE连接...');
+
+      // 保存引用然后清空，防止重复调用
+      const es = this.currentEventSource;
+      this.currentEventSource = null;
+
+      // 关闭连接
+      es.close();
+
+      // 移除所有事件监听器
+      es.removeAllEventListeners();
+
+      console.log('✅ SSE连接已成功关闭');
+
+    } catch (error) {
+      console.error('❌ 关闭SSE连接时发生错误:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString(),
+      });
+
+      // 确保引用被清空
+      this.currentEventSource = null;
+    } finally {
+      // 注意：这里不重置取消标志，让标志保持为true直到用户下一次发送消息
+
+      // 清理流解析器状态
+      if (this.streamParser) {
+        try {
+          this.streamParser.reset();
+          console.log('🔄 流解析器状态已重置');
+        } catch (parserError) {
+          console.warn('⚠️ 重置流解析器时发生警告:', parserError);
+        }
+      }
+
+      // 清理对话历史中的临时状态
+      this.cleanupTemporaryStates();
+
+      console.log('🧹 所有相关状态已清理完成');
+    }
+  }
+
+  // 清理临时状态
+  private cleanupTemporaryStates(): void {
+    // 这里可以添加其他需要清理的状态
+    // 例如：重置任何正在进行的操作标志等
+
+    // 记录清理操作
+    console.log('🧽 正在清理临时状态...', {
+      hasStreamParser: !!this.streamParser,
+      conversationHistoryLength: this.conversationHistory.length,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   // 注意：所有API调用现在只支持流式模式，非流式调用已被移除
   async callAIAPI(config: any, systemPrompt: string, userMessage: string, streamCallback: (content: string, reasoning_content: string, isComplete: boolean) => void): Promise<void> {
     // 只支持流式调用，streamCallback 必须提供
     if (!streamCallback) {
       throw new Error('流式回调函数必须提供，接口调用只支持流式模式');
+    }
+
+    // 确保没有其他活动的SSE连接
+    if (this.hasActiveStream()) {
+      console.log('⚠️ 检测到已有活动的SSE连接，正在终止...');
+      this.cancelCurrentStream();
     }
 
     const messages = [
@@ -591,13 +686,16 @@ ${contextInfo}
           contentType: headers['Content-Type'],
         });
 
-        // 创建EventSource实例
+        // 创建EventSource实例并保存引用
         const es = new EventSource(endpoint, {
           method: 'POST',
           headers: headers,
           body: JSON.stringify(body),
           pollingInterval: 0, // 禁用轮询，使用真正的SSE
         });
+
+        // 保存当前EventSource实例
+        this.currentEventSource = es;
 
         let hasError = false;
 
@@ -615,6 +713,7 @@ ${contextInfo}
                 console.log('🏁 收到SSE结束标记');
                 es.close();
                 es.removeAllEventListeners();
+                this.currentEventSource = null;
                 return;
               }
 
@@ -677,6 +776,8 @@ ${contextInfo}
           if (!hasError) {
             hasError = true;
             es.close();
+            es.removeAllEventListeners();
+            this.currentEventSource = null;
             reject(new Error('SSE连接错误'));
           }
         });
@@ -697,7 +798,8 @@ ${contextInfo}
           if (!hasError) {
             // 正常关闭，完成流式处理
             streamCallback('', '', true);
-
+            // 清理引用
+            this.currentEventSource = null;
             // 返回空字符串，因为内容已经通过回调处理
             resolve('');
           }
@@ -707,6 +809,7 @@ ${contextInfo}
         const cleanup = () => {
           es.close();
           es.removeAllEventListeners();
+          this.currentEventSource = null;
         };
 
         // 确保在Promise解决或拒绝时清理资源
@@ -723,6 +826,8 @@ ${contextInfo}
           endpoint: endpoint,
           timestamp: new Date().toISOString(),
         });
+        // 确保清理引用
+        this.currentEventSource = null;
         reject(error);
       }
     });
@@ -817,7 +922,7 @@ ${contextInfo}
       // 构建消息
       const messages = [
         { role: 'system' as const, content: systemPrompt },
-        { role: 'user' as const, content: `根据我的输入"${userInput}"，生成${count}个相关的记账提示建议。` }
+        { role: 'user' as const, content: `根据我的输入"${userInput}"，生成${count}个相关的记账提示建议。` },
       ];
 
       // 构建请求头
@@ -903,8 +1008,8 @@ ${contextInfo}
         content: msg.content,
       })),
       max_tokens: 200, // 建议生成不需要太多tokens
-      temperature: 0.3, // 更低的随机性以获得更一致的输出
-      stream: false, // 非流式
+      temperature: 1,
+      stream: false,
     };
 
     // 对于特定供应商，可能需要调整参数
@@ -978,7 +1083,7 @@ ${contextInfo}
 
   // 解析建议文本
   private parseSuggestions(text: string, expectedCount: number): string[] {
-    if (!text) return [];
+    if (!text) {return [];}
 
     // 按行分割，过滤空行
     const lines = text.split('\n')

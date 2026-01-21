@@ -903,6 +903,10 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     setIsCancelling(true);
     shouldIgnoreResponseRef.current = true;
 
+    // 断开SSE连接
+    console.log('正在断开SSE连接...');
+    aiService.cancelCurrentStream();
+
     // 找到当前正在加载的消息并移除它
     if (currentProcessingIdRef.current) {
       setMessages(prev => prev.filter(msg =>
@@ -1434,7 +1438,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           keyExtractor={item => item.id}
           contentContainerStyle={[
             styles.messagesList,
-            { paddingBottom: Platform.select({ios: 150, android: 130}) }
+            { paddingBottom: Platform.select({ios: 150, android: 130}) },
           ]}
           onContentSizeChange={() => {
             flatListRef.current?.scrollToEnd({ animated: true });
