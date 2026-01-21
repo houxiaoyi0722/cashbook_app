@@ -1,19 +1,19 @@
-import { aiConfigService } from './AIConfigService';
-import { mcpBridge } from './MCPBridge';
+import {aiConfigService} from './AIConfigService';
+import {mcpBridge} from './MCPBridge';
 import {
-  BaseMessage,
-  TextMessage,
-  ThinkingMessage,
-  ToolCallMessage,
-  ToolResultMessage,
   AIMessage,
+  BaseMessage,
+  createAIMessage,
   createTextMessage,
   createThinkingMessage,
   createToolCallMessage,
   createToolResultMessage,
-  createAIMessage,
+  TextMessage,
+  ThinkingMessage,
+  ToolCallMessage,
+  ToolResultMessage,
 } from '../types';
-import { AIService, AIResponse, MessageStreamCallback } from './AIService';
+import {AIResponse, AIService, MessageStreamCallback} from './AIService';
 
 export interface RecursiveIterationState {
   currentIteration: number;
@@ -188,6 +188,7 @@ export class AIRecursiveService {
     duration?: number
   ): ToolResultMessage {
     let targetToolCallMessage: ToolCallMessage | null = null;
+    let targetIndex = -1;
 
     for (let i = messageList.length - 1; i >= 0; i--) {
       const msg = messageList[i];
@@ -202,6 +203,7 @@ export class AIRecursiveService {
         }
         if (!hasResult) {
           targetToolCallMessage = msg;
+          targetIndex = i;
           break;
         }
       }
@@ -222,6 +224,14 @@ export class AIRecursiveService {
       );
       messageList.push(toolResultMessage);
       return toolResultMessage;
+    }
+
+    // 更新工具调用消息的loading状态为false
+    if (targetToolCallMessage && targetIndex >= 0) {
+      messageList[targetIndex] = {
+        ...targetToolCallMessage,
+        loading: false,
+      };
     }
 
     const toolResultMessage: ToolResultMessage = createToolResultMessage(

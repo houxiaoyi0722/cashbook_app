@@ -1078,11 +1078,26 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                 m.type === 'tool_result' && (m as ToolResultMessage).toolName === toolCallMsg.toolName
               ) as ToolResultMessage | undefined;
 
+              // 获取工具调用状态图标
+              const getToolCallStatusIcon = () => {
+                if (toolCallMsg.loading) {
+                  return '⏳'; // 执行中
+                }
+                
+                if (toolResultMsg) {
+                  return toolResultMsg.success ? '✅' : '❌';
+                }
+                
+                return '🔧'; // 默认，未开始或状态未知
+              };
+
+              const statusIcon = getToolCallStatusIcon();
+
               return (
                 <View key={msg.id} style={styles.aiSection}>
                   <View style={styles.aiSectionHeader}>
                     <Text style={[styles.aiSectionTitle, {color: colors.text}]}>
-                      🔧 工具调用: {toolCallMsg.toolName}
+                      {statusIcon} 工具调用: {toolCallMsg.toolName}
                     </Text>
                     <TouchableOpacity
                       onPress={() => handleToggleMessageCollapse(item.id,msg.id)}
@@ -1097,7 +1112,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                     <View style={[styles.toolCallItem, {backgroundColor: colors.card}]}>
                       <View style={styles.toolCallHeader}>
                         <Text style={[styles.toolCallName, {color: colors.text}]}>
-                          {toolCallMsg.toolName}
+                          {statusIcon} {toolCallMsg.toolName}
                         </Text>
                       </View>
 
