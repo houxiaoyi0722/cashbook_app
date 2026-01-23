@@ -13,6 +13,10 @@ import {
   View,
   Keyboard,
 } from 'react-native';
+// 尝试导入Clipboard，如果不可用则使用备用方案
+import Clipboard from '@react-native-clipboard/clipboard';
+// 导入ToastAndroid用于Android提示
+import { ToastAndroid } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {MessageStreamCallback} from '../../services/AIService';
@@ -695,8 +699,26 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     }
   }, [navigation, checkAIConfig]);
 
-  // 处理发送消息
+  // 处理复制消息到剪贴板
+  const handleCopyMessage = useCallback((content: string) => {
+    if (!content || content.trim() === '') {
+      return;
+    }
 
+    // 复制到剪贴板
+    if (Clipboard && Clipboard.setString) {
+      try {
+        Clipboard.setString(content.trim());
+        Alert.alert('已复制到剪贴板');
+      } catch (error) {
+        Alert.alert('复制失败');
+      }
+    } else {
+      Alert.alert('提示', '剪贴板功能不可用');
+    }
+  }, []);
+
+  // 处理发送消息
   const handleSend = async () => {
     // 如果配置状态未知，先检查配置
     if (isConfigured === null) {
@@ -1038,35 +1060,48 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
     if (error) {
       return (
-        <>
-          <Text style={[
-            styles.messageText,
-            {color: colors.text},
-            error && {color: colors.error},
-          ]}>
-            {item.content}
-          </Text>
-          <TouchableOpacity
-            style={[styles.configureButton, {backgroundColor: colors.primary}]}
-            onPress={handleConfigure}
-          >
-            <Text style={styles.configureButtonText}>检查配置</Text>
-          </TouchableOpacity>
-        </>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onLongPress={() => handleCopyMessage(item.content)}
+          delayLongPress={500}
+        >
+          <>
+            <Text style={[
+              styles.messageText,
+              {color: colors.text},
+              error && {color: colors.error},
+            ]}>
+              {item.content}
+            </Text>
+            <TouchableOpacity
+              style={[styles.configureButton, {backgroundColor: colors.primary}]}
+              onPress={handleConfigure}
+            >
+              <Text style={styles.configureButtonText}>检查配置</Text>
+            </TouchableOpacity>
+          </>
+        </TouchableOpacity>
       );
     }
 
     // Use MarkdownRenderer for non-error messages
     return (
-      <MarkdownRenderer
-        content={item.content}
-        isDarkMode={isDarkMode}
-        containerStyle={styles.markdownContainer}
-        textStyle={{
-          ...styles.messageText,
-          color: colors.text,
-        }}
-      />
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onLongPress={() => handleCopyMessage(item.content)}
+        delayLongPress={500}
+        style={styles.messageTouchable}
+      >
+        <MarkdownRenderer
+          content={item.content}
+          isDarkMode={isDarkMode}
+          containerStyle={styles.markdownContainer}
+          textStyle={{
+            ...styles.messageText,
+            color: colors.text,
+          }}
+        />
+      </TouchableOpacity>
     );
   };
 
@@ -1116,9 +1151,16 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                     </TouchableOpacity>
                   </View>
                   {!isCollapsed && (
-                    <Text style={[styles.aiThinkingContent, {color: colors.secondaryText}]}>
-                      {thinkingMsg.thinkingContent}
-                    </Text>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onLongPress={() => handleCopyMessage(thinkingMsg.thinkingContent)}
+                      delayLongPress={500}
+                      style={styles.messageTouchable}
+                    >
+                      <Text style={[styles.aiThinkingContent, {color: colors.secondaryText}]}>
+                        {thinkingMsg.thinkingContent}
+                      </Text>
+                    </TouchableOpacity>
                   )}
                 </View>
               );
@@ -1167,7 +1209,17 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
                       {/* 参数 */}
                       {toolCallMsg.arguments && (
-                        <View style={styles.toolCallSection}>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onLongPress={() => {
+                            const contentToCopy = typeof toolCallMsg.arguments === 'string'
+                              ? toolCallMsg.arguments
+                              : JSON.stringify(toolCallMsg.arguments, null, 2);
+                            handleCopyMessage(contentToCopy);
+                          }}
+                          delayLongPress={500}
+                          style={styles.toolCallSection}
+                        >
                           <Text style={[styles.toolCallSectionTitle, {color: colors.secondaryText}]}>
                             参数:
                           </Text>
@@ -1176,12 +1228,22 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                               ? toolCallMsg.arguments
                               : JSON.stringify(toolCallMsg.arguments, null, 2)}
                           </Text>
-                        </View>
+                        </TouchableOpacity>
                       )}
 
                       {/* 结果 */}
                       {toolCallMsg.resultMessage?.result !== undefined && (
-                        <View style={styles.toolCallSection}>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onLongPress={() => {
+                            const contentToCopy = typeof toolCallMsg.resultMessage?.result === 'string'
+                              ? toolCallMsg.resultMessage.result
+                              : JSON.stringify(toolCallMsg.resultMessage?.result, null, 2);
+                            handleCopyMessage(contentToCopy);
+                          }}
+                          delayLongPress={500}
+                          style={styles.toolCallSection}
+                        >
                           <Text style={[styles.toolCallSectionTitle, {color: colors.success}]}>
                             结果:
                           </Text>
@@ -1190,19 +1252,24 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                               ? toolCallMsg.resultMessage.result
                               : JSON.stringify(toolCallMsg.resultMessage.result, null, 2)}
                           </Text>
-                        </View>
+                        </TouchableOpacity>
                       )}
 
                       {/* 错误 */}
                       {toolCallMsg.resultMessage?.errorMessage && (
-                        <View style={styles.toolCallSection}>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onLongPress={() => handleCopyMessage(toolCallMsg.resultMessage?.errorMessage || '')}
+                          delayLongPress={500}
+                          style={styles.toolCallSection}
+                        >
                           <Text style={[styles.toolCallSectionTitle, {color: colors.error}]}>
                             错误:
                           </Text>
                           <Text style={[styles.toolCallContent, {color: colors.text}]}>
                             {toolCallMsg.resultMessage.errorMessage}
                           </Text>
-                        </View>
+                        </TouchableOpacity>
                       )}
                     </View>
                   )}
@@ -1217,17 +1284,25 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                 return null;
               }
               return (
-                <View key={msg.id} style={styles.aiSection}>
-                  <MarkdownRenderer
-                    content={textMsg.content}
-                    isDarkMode={isDarkMode}
-                    containerStyle={styles.markdownContainer}
-                    textStyle={{
-                      ...styles.messageText,
-                      color: colors.text,
-                    }}
-                  />
-                </View>
+                <TouchableOpacity
+                  key={msg.id}
+                  activeOpacity={0.7}
+                  onLongPress={() => handleCopyMessage(textMsg.content)}
+                  delayLongPress={500}
+                  style={styles.aiSectionTouchable}
+                >
+                  <View style={styles.aiSection}>
+                    <MarkdownRenderer
+                      content={textMsg.content}
+                      isDarkMode={isDarkMode}
+                      containerStyle={styles.markdownContainer}
+                      textStyle={{
+                        ...styles.messageText,
+                        color: colors.text,
+                      }}
+                    />
+                  </View>
+                </TouchableOpacity>
               );
             }
 
@@ -1632,6 +1707,12 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  messageTouchable: {
+    // 确保TouchableOpacity不会影响布局
+  },
+  aiSectionTouchable: {
+    // 确保TouchableOpacity不会影响布局
   },
   keyboardAvoidingView: {
     flex: 1,
