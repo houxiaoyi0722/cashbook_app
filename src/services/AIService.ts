@@ -328,7 +328,7 @@ ${contextInfo}
 ## **回复要求**
 1. 用简洁、友好的中文回复，
 2. 调用失败时，解释可能的原因并提供解决方案
-3. **当需要调用工具时，请返回严格符合上述示例格式的<json></json>标签及对象**`;
+3. **当需要调用工具时，请返回严格符合上述示例格式的<json></json>标签及对象,不需要调用工具时请勿返回**`;
 }
 
   private getDefaultEndpoint(provider: string): string {
@@ -620,9 +620,8 @@ ${contextInfo}
     const messages = [
       { role: 'system', content: systemPrompt },
       ...this.getRecentHistory(),
-      { role: 'user', content: userMessage },
     ];
-    console.log('发送ai的记录:',messages);
+    console.log('发送ai的记录:',JSON.stringify(messages));
     // 获取端点和模型
     const defaultEndpoint = this.getDefaultEndpoint(config.provider);
     const defaultModel = this.getDefaultModel(config.provider);
