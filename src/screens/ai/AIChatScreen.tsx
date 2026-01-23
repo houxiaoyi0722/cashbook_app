@@ -788,7 +788,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
         if (isComplete) {}
 
-        console.log('收到结构化消息：', JSON.stringify(message));
+        // console.log('收到结构化消息：', JSON.stringify(message));
         // 处理消息
         setMessages(prev => {
           let newMessages = [...prev];
