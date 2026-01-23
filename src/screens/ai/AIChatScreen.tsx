@@ -96,17 +96,17 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   const scrollToBottom = () => {
     // 设置标志位，表示正在滚动到底部
     isScrollingToBottomRef.current = true;
-    
+
     // 立即设置 isAtBottom 为 true，防止按钮在滚动过程中消失
     setIsAtBottom(true);
-    
+
     setShouldAutoScroll(true);
     shouldAutoScrollRef.current = true;
-    
+
     flatListRef.current?.scrollToEnd({
       animated: true,
     });
-    
+
     // 滚动完成后重置标志位
     setTimeout(() => {
       isScrollingToBottomRef.current = false;
@@ -1126,12 +1126,6 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
             case 'tool_call': {
               const toolCallMsg = msg as ToolCallMessage;
-              // 查找对应的工具结果消息（在后面的消息中）
-              // 由于现在使用消息ID，我们需要找到当前消息在列表中的位置
-              const currentIndex = item.messageList.findIndex(m => m.id === msg.id);
-              const toolResultMsg = item.messageList.slice(currentIndex + 1).find(m =>
-                m.type === 'tool_result' && (m as ToolResultMessage).toolName === toolCallMsg.toolName
-              ) as ToolResultMessage | undefined;
 
               // 获取工具调用状态图标
               const getToolCallStatusIcon = () => {
@@ -1139,8 +1133,8 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                   return '⏳'; // 执行中
                 }
 
-                if (toolResultMsg) {
-                  return toolResultMsg.success ? '🔧 ✅' : '🔧 ❌';
+                if (toolCallMsg.resultMessage) {
+                  return toolCallMsg.resultMessage.success ? '🔧 ✅' : '🔧 ❌';
                 }
 
                 return '🔧'; // 默认，未开始或状态未知
@@ -1155,7 +1149,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                       {statusIcon} 工具调用: {toolCallMsg.toolName}
                     </Text>
                     <TouchableOpacity
-                      onPress={() => handleToggleMessageCollapse(item.id,msg.id)}
+                      onPress={() => handleToggleMessageCollapse(item.id, msg.id)}
                       style={styles.collapseButton}
                     >
                       <Text style={[styles.collapseButtonText, {color: colors.primary}]}>
@@ -1186,27 +1180,27 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                       )}
 
                       {/* 结果 */}
-                      {toolResultMsg?.result !== undefined && (
+                      {toolCallMsg.resultMessage?.result !== undefined && (
                         <View style={styles.toolCallSection}>
                           <Text style={[styles.toolCallSectionTitle, {color: colors.success}]}>
                             结果:
                           </Text>
                           <Text style={[styles.toolCallContent, {color: colors.text}]}>
-                            {typeof toolResultMsg.result === 'string'
-                              ? toolResultMsg.result
-                              : JSON.stringify(toolResultMsg.result, null, 2)}
+                            {typeof toolCallMsg.resultMessage.result === 'string'
+                              ? toolCallMsg.resultMessage.result
+                              : JSON.stringify(toolCallMsg.resultMessage.result, null, 2)}
                           </Text>
                         </View>
                       )}
 
                       {/* 错误 */}
-                      {toolResultMsg?.errorMessage && (
+                      {toolCallMsg.resultMessage?.errorMessage && (
                         <View style={styles.toolCallSection}>
                           <Text style={[styles.toolCallSectionTitle, {color: colors.error}]}>
                             错误:
                           </Text>
                           <Text style={[styles.toolCallContent, {color: colors.text}]}>
-                            {toolResultMsg.errorMessage}
+                            {toolCallMsg.resultMessage.errorMessage}
                           </Text>
                         </View>
                       )}
@@ -1214,12 +1208,6 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                   )}
                 </View>
               );
-            }
-
-            case 'tool_result': {
-              // 工具结果消息通常紧跟在工具调用消息后面，已经在工具调用消息中渲染
-              // 所以这里可以跳过渲染，避免重复
-              return null;
             }
 
             case 'text': {
@@ -1525,7 +1513,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
             if (isScrollingToBottomRef.current) {
               return;
             }
-            
+
             const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
             // 判断是否接近底部（距离底部50像素以内）
             const isCloseToBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 50;

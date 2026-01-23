@@ -622,7 +622,7 @@ ${contextInfo}
       ...this.getRecentHistory(),
       { role: 'user', content: userMessage },
     ];
-
+    console.log('发送ai的记录:',messages);
     // 获取端点和模型
     const defaultEndpoint = this.getDefaultEndpoint(config.provider);
     const defaultModel = this.getDefaultModel(config.provider);
@@ -841,13 +841,12 @@ ${contextInfo}
     });
 
     if (this.conversationHistory.length > 20) {
-      this.conversationHistory = this.conversationHistory.slice(-20);
+      this.conversationHistory = this.conversationHistory.slice(-100);
     }
   }
 
   private getRecentHistory() {
     return this.conversationHistory
-      .slice(-10)
       .filter(msg => msg.role !== 'system')
       .map(msg => ({
         role: msg.role,

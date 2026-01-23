@@ -165,6 +165,7 @@ export interface ToolCallMessage extends BaseMessage {
   toolName: string;
   arguments: any;
   loading?: boolean;
+  resultMessage? : ToolResultMessage
 }
 
 // 工具结果消息

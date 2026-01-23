@@ -155,87 +155,21 @@ export class AIRecursiveService {
     }
   }
 
-  // 辅助函数：添加工具调用消息（从AIService复制）
-  private addToolCallMessages(messageList: BaseMessage[], toolCalls: Array<{name: string, arguments: any}>): ToolCallMessage[] {
-    const toolCallMessages: ToolCallMessage[] = [];
-
-    toolCalls.forEach((toolCall, i) => {
-      const uniqueId = `tool_call_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 9)}`;
-      const toolCallMessage: ToolCallMessage = createToolCallMessage(
-        toolCall.name,
-        toolCall.arguments,
-        {
-          id: uniqueId,
-          timestamp: new Date(),
-          loading: true,
-          collapsed: true,
-        }
-      );
-      messageList.push(toolCallMessage);
-      toolCallMessages.push(toolCallMessage);
-    });
-
-    return toolCallMessages;
-  }
-
   // 辅助函数：更新工具调用结果（从AIService复制）
   private updateToolCallResult(
-    messageList: BaseMessage[],
+    targetToolCallMessage: ToolCallMessage,
+    aiMessage: AIMessage,
     toolName: string,
     result: any,
     success: boolean,
     error?: string,
-    duration?: number
-  ): ToolResultMessage {
-    let targetToolCallMessage: ToolCallMessage | null = null;
-    let targetIndex = -1;
+    duration?: number,
+    streamCallback?: MessageStreamCallback
+  ) : ToolCallMessage {
 
-    for (let i = messageList.length - 1; i >= 0; i--) {
-      const msg = messageList[i];
-      if (this.isToolCallMessage(msg) && msg.toolName === toolName) {
-        let hasResult = false;
-        for (let j = i + 1; j < messageList.length; j++) {
-          const laterMsg = messageList[j];
-          if (this.isToolResultMessage(laterMsg) && laterMsg.toolName === toolName) {
-            hasResult = true;
-            break;
-          }
-        }
-        if (!hasResult) {
-          targetToolCallMessage = msg;
-          targetIndex = i;
-          break;
-        }
-      }
-    }
-
-    if (!targetToolCallMessage) {
-      const toolResultMessage: ToolResultMessage = createToolResultMessage(
-        toolName,
-        success,
-        {
-          id: `tool_result_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          timestamp: new Date(),
-          result,
-          errorMessage: error,
-          duration,
-          collapsed: true,
-        }
-      );
-      messageList.push(toolResultMessage);
-      return toolResultMessage;
-    }
-
-    // 更新工具调用消息的loading状态为false
-    if (targetToolCallMessage && targetIndex >= 0) {
-      messageList[targetIndex] = {
-        ...targetToolCallMessage,
-        loading: false,
-      };
-    }
-
+    // 创建工具结果消息
     const toolResultMessage: ToolResultMessage = createToolResultMessage(
-      targetToolCallMessage.toolName,
+      toolName,
       success,
       {
         id: `tool_result_${Date.now()}_${targetToolCallMessage.id}_${Math.random().toString(36).substr(2, 9)}`,
@@ -247,21 +181,31 @@ export class AIRecursiveService {
       }
     );
 
-    messageList.push(toolResultMessage);
-    return toolResultMessage;
+    targetToolCallMessage = {
+      ...targetToolCallMessage,
+      loading: false,
+      resultMessage: toolResultMessage,
+    };
+
+    const index = aiMessage.messageList.findIndex(message => message.id === targetToolCallMessage.id);
+    aiMessage.messageList[index] = targetToolCallMessage;
+
+    if (streamCallback) {
+      streamCallback(aiMessage, false);
+    }
+    return targetToolCallMessage;
   }
 
   // 执行工具调用（从AIService复制并调整）
   private async executeToolCalls(
-    toolCalls: Array<{name: string, arguments: any}>,
+    detectedToolCalls: Array<{name: string, arguments: any; id?: string}>,
     aiMessage: AIMessage,
     streamCallback?: MessageStreamCallback
   ): Promise<{
-    results: Array<{name: string; success: boolean; result?: any; error?: string}>;
+    results: ToolCallMessage[];
     updatedAiMessage: AIMessage;
   }> {
     const results = [];
-    let currentAiMessage = aiMessage;
 
     // 获取当前账本信息
     let currentBookInfo = null;
@@ -272,126 +216,67 @@ export class AIRecursiveService {
       };
     }
 
-    for (let i = 0; i < toolCalls.length; i++) {
-      const toolCall = toolCalls[i];
+    for (const toolCall of detectedToolCalls) {
+      const i = detectedToolCalls.indexOf(toolCall);
+      // 为每个工具调用生成唯一ID，如果还没有的话
+      const toolCallId = toolCall.id || `tool_call_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 9)}`;
 
-      // 更新工具调用消息的loading状态
-      let targetToolCallMessage: ToolCallMessage | null = null;
-      let targetIndex = -1;
-
-      for (let j = currentAiMessage.messageList.length - 1; j >= 0; j--) {
-        const msg = currentAiMessage.messageList[j];
-        if (this.isToolCallMessage(msg) && msg.toolName === toolCall.name) {
-          let hasResult = false;
-          for (let k = j + 1; k < currentAiMessage.messageList.length; k++) {
-            const laterMsg = currentAiMessage.messageList[k];
-            if (this.isToolResultMessage(laterMsg) && laterMsg.toolName === toolCall.name) {
-              hasResult = true;
-              break;
-            }
-          }
-          if (!hasResult) {
-            targetToolCallMessage = msg;
-            targetIndex = j;
-            break;
-          }
-        }
-      }
-
-      if (targetToolCallMessage && targetIndex >= 0) {
-        const updatedMessageList = [...currentAiMessage.messageList];
-        const updatedToolCall: ToolCallMessage = {
-          ...targetToolCallMessage,
+      // 创建工具调用消息，注意新结构包含 result 字段
+      let toolCallMessage: ToolCallMessage = createToolCallMessage(
+        toolCall.name,
+        toolCall.arguments,
+        {
+          id: toolCallId,
+          timestamp: new Date(),
           loading: true,
-        };
-        updatedMessageList[targetIndex] = updatedToolCall;
-
-        currentAiMessage = {
-          ...currentAiMessage,
-          messageList: updatedMessageList,
-        };
-        if (streamCallback) {
-          streamCallback(currentAiMessage, false);
+          collapsed: true,
         }
+      );
+
+      // 将消息添加到列表
+      aiMessage.messageList.push(toolCallMessage);
+      if (streamCallback) {
+        streamCallback(aiMessage, false);
       }
 
       try {
         const result = await mcpBridge.callTool(toolCall.name, toolCall.arguments, currentBookInfo!);
 
-        // 添加工具结果消息
-        this.updateToolCallResult(
-          currentAiMessage.messageList,
+        // 更新工具调用消息的result字段，传递工具调用ID
+        results.push(this.updateToolCallResult(
+          toolCallMessage,
+          aiMessage,
           toolCall.name,
           result.data,
           true,
           undefined,
-          0
-        );
-
-        currentAiMessage = {
-          ...currentAiMessage,
-          messageList: [...currentAiMessage.messageList],
-        };
-        if (streamCallback) {
-          streamCallback(currentAiMessage, false);
-        }
-
-        results.push({
-          name: toolCall.name,
-          success: true,
-          result: result.data,
-        });
+          0,
+          streamCallback
+        ));
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
 
-        this.updateToolCallResult(
-          currentAiMessage.messageList,
+        results.push(this.updateToolCallResult(
+          toolCallMessage,
+          aiMessage,
           toolCall.name,
           undefined,
           false,
           errorMessage,
-          0
-        );
-
-        currentAiMessage = {
-          ...currentAiMessage,
-          messageList: [...currentAiMessage.messageList],
-        };
-        if (streamCallback) {
-          streamCallback(currentAiMessage, false);
-        }
-
-        results.push({
-          name: toolCall.name,
-          success: false,
-          error: errorMessage,
-        });
+          0,
+          streamCallback
+        ));
       }
     }
-
     return {
       results,
-      updatedAiMessage: currentAiMessage,
+      updatedAiMessage: aiMessage,
     };
   }
 
   // 构建工具结果消息（从AIService复制）
-  private buildToolResultsMessage(toolResults: Array<{
-    name: string;
-    success: boolean;
-    result?: any;
-    error?: string;
-  }>): string {
-    const messages = toolResults.map((result, index) => {
-      const toolNumber = index + 1;
-      if (result.success) {
-        return `工具调用 ${toolNumber} (${result.name}) 执行成功。结果：${JSON.stringify(result.result, null, 2)}`;
-      } else {
-        return `工具调用 ${toolNumber} (${result.name}) 执行失败。错误：${result.error || '未知错误'}`;
-      }
-    });
-
-    return `工具执行结果：\n${messages.join('\n\n')}\n\n请根据以上结果继续处理或给出最终回答。`;
+  private buildToolResultsMessage(toolResults: ToolCallMessage[]): string {
+    return `工具执行结果：\n${JSON.stringify(toolResults)}\n\n请根据以上结果继续处理或给出最终回答。`;
   }
 
   // 主递归函数
@@ -555,20 +440,6 @@ export class AIRecursiveService {
         }
 
         console.log(`🔧 第 ${state.currentIteration} 次迭代检测到工具调用，开始执行`);
-
-        // 添加工具调用消息
-        this.addToolCallMessages(state.aiMessage.messageList, detectedToolCalls);
-
-        const updatedAiMessageWithToolCalls: AIMessage = {
-          ...state.aiMessage,
-          messageList: [...state.aiMessage.messageList],
-        };
-
-        if (state.streamCallback) {
-          state.streamCallback(updatedAiMessageWithToolCalls, false);
-        }
-        state.aiMessage = updatedAiMessageWithToolCalls;
-
         // 执行工具调用
         const { results, updatedAiMessage } = await this.executeToolCalls(
           detectedToolCalls,
