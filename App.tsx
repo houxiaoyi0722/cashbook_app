@@ -118,9 +118,7 @@ const AppContent = () => {
 const App = () => {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <AppContent/>
     </ThemeProvider>
   );
 };

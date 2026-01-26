@@ -4,8 +4,8 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {Icon} from '@rneui/themed';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StatusBar, View, ActivityIndicator } from 'react-native';
-import { useTheme, getColors } from '../context/ThemeContext';
+import {StatusBar, View, ActivityIndicator} from 'react-native';
+import {useTheme, getColors} from '../context/ThemeContext';
 
 // 认证相关屏幕
 import ServerListScreen from '../screens/auth/ServerListScreen';
@@ -26,10 +26,6 @@ import AIChatScreen from '../screens/ai/AIChatScreen';
 
 // 自定义图标组件
 import AINavigationIcon from '../components/icons/AINavigationIcon';
-
-// 上下文提供者
-import {AuthProvider} from '../context/AuthContext';
-import {BookProvider} from '../context/BookContext';
 
 // 导航类型
 import {MainStackParamList, MainTabParamList} from './types';
@@ -226,88 +222,84 @@ const AppNavigator = () => {
     return null; // 或者显示加载指示器
   }
 
-  return (
-    <NavigationContainer>
-      <AuthProvider>
-        <BookProvider>
-          <Stack.Navigator
-            initialRouteName={initialRoute}
-            screenOptions={{
-              headerStyle: {
-                backgroundColor: colors.primary,
-              },
-              headerTintColor: '#fff',
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-              // 确保标题栏不会延伸到状态栏
-              headerTransparent: false,
-              headerShadowVisible: false,
-              // 设置内容样式
-              contentStyle: {
-                backgroundColor: colors.background,
-              },
-            }}
-          >
-            {/* 认证相关屏幕 */}
-            <Stack.Screen
-              name="ServerList"
-              component={ServerListScreen}
-              options={{ title: '服务器列表' }}
-            />
-            <Stack.Screen
-              name="ServerForm"
-              component={ServerFormScreen}
-              options={({ route }) => ({
-                title: route.params?.serverId ? '编辑服务器' : '添加服务器',
-              })}
-            />
-            {/* 主应用屏幕 */}
-            <Stack.Screen
-              name="MainTabs"
-              component={MainTabs}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="BookList"
-              component={BookListScreen}
-              options={{ title: '账本列表' }}
-            />
-            <Stack.Screen
-              name="BookForm"
-              component={BookFormScreen}
-              options={({ route }) => ({
-                title: route.params?.bookId ? '编辑账本' : '创建账本',
-              })}
-            />
-            <Stack.Screen
-              name="FlowForm"
-              component={FlowFormScreen}
-              options={({ route }) => ({
-                title: route.params?.currentFlow ? '编辑流水' : '添加流水',
-              })}
-            />
-            <Stack.Screen
-              name="Logs"
-              component={LogsScreen}
-              options={{ title: '日志' }}
-            />
-            <Stack.Screen
-              name="SyncManagement"
-              component={SyncManagementScreen}
-              options={{ title: '同步管理' }}
-            />
-            {/* AI相关屏幕 */}
-            <Stack.Screen
-              name="AIConfig"
-              component={AIConfigScreen}
-              options={{ title: 'AI助手配置' }}
-            />
-          </Stack.Navigator>
-        </BookProvider>
-      </AuthProvider>
-    </NavigationContainer>
-  );
+	return (
+		<NavigationContainer>
+			<Stack.Navigator
+				initialRouteName={initialRoute}
+				screenOptions={{
+					headerStyle: {
+						backgroundColor: colors.primary,
+					},
+					headerTintColor: '#fff',
+					headerTitleStyle: {
+						fontWeight: 'bold',
+					},
+					// 确保标题栏不会延伸到状态栏
+					headerTransparent: false,
+					headerShadowVisible: false,
+					// 设置内容样式
+					contentStyle: {
+						backgroundColor: colors.background,
+					},
+				}}
+			>
+				{/* 认证相关屏幕 */}
+				<Stack.Screen
+					name="ServerList"
+					component={ServerListScreen}
+					options={{title: '服务器列表'}}
+				/>
+				<Stack.Screen
+					name="ServerForm"
+					component={ServerFormScreen}
+					options={({route}) => ({
+						title: route.params?.serverId ? '编辑服务器' : '添加服务器',
+					})}
+				/>
+				{/* 主应用屏幕 */}
+				<Stack.Screen
+					name="MainTabs"
+					component={MainTabs}
+					options={{headerShown: false}}
+				/>
+				<Stack.Screen
+					name="BookList"
+					component={BookListScreen}
+					options={{title: '账本列表'}}
+				/>
+				<Stack.Screen
+					name="BookForm"
+					component={BookFormScreen}
+					options={({route}) => ({
+						title: route.params?.bookId ? '编辑账本' : '创建账本',
+					})}
+				/>
+				<Stack.Screen
+					name="FlowForm"
+					component={FlowFormScreen}
+					options={({route}) => ({
+						title: route.params?.currentFlow ? '编辑流水' : '添加流水',
+					})}
+				/>
+				<Stack.Screen
+					name="Logs"
+					component={LogsScreen}
+					options={{title: '日志'}}
+				/>
+				<Stack.Screen
+					name="SyncManagement"
+					component={SyncManagementScreen}
+					options={{title: '同步管理'}}
+				/>
+				{/* AI相关屏幕 */}
+				<Stack.Screen
+					name="AIConfig"
+					component={AIConfigScreen}
+					options={{title: 'AI助手配置'}}
+				/>
+			</Stack.Navigator>
+		</NavigationContainer>
+	);
 };
 
 export default AppNavigator;
