@@ -279,7 +279,8 @@ ${contextInfo}
    - get_analytics的type只能是"attribution"、"payType"、"industryType"、"daily"
 3. 功能混淆:
    - 用户说'添加流水时'调用flow相关工具,'添加固定支出时'调用fixed_flow相关工具,固定支出和流水记录为互相独立的功能互不影响请勿混淆
-
+4. 使用旧工具输出:
+   - 需要数据时优先选择调用工具获取
 工具调用示例
 示例1：创建流水记录
 用户输入："记一笔午餐消费50元"
