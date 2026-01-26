@@ -38,6 +38,7 @@
     "react-native-sse": "^1.2.1",
     "react-native-svg": "^15.11.2",
     "react-native-swipe-list-view": "^3.2.9",
+    "react-native-url-polyfill": "^3.0.0",
     "react-native-vector-icons": "^10.2.0",
     "react-native-webview": "^13.13.4"
   },

@@ -6,6 +6,7 @@ import {
 } from '../types';
 import { AIRecursiveService } from './AIRecursiveService';
 import {StreamMessageParser} from './StreamMessageParser.ts';
+import 'react-native-url-polyfill/auto';
 // AIConfigService will be imported dynamically in generatePromptSuggestions to avoid circular dependencies
 
 export interface AIResponse {
@@ -259,16 +260,19 @@ ${contextInfo}
 5. 参数补全: 当用户输入中缺少必要参数时，需要根据上下文进行推断
 
 针对工具集成推断：
-组合使用模式:
+组合使用模式示例:
 1. 创建-更新流水前获取选项:
-   - 用户说"记一笔支出" → 先调用get_pay_types和get_attributions获取可用选项,再调用create_flow，使用获取的选项作为参数建议
-   - 用户说"更新记录" → 先调用get_flows 获取数据,可选通过get_pay_types和get_attributions获取可用选项,再调用update_flow或batch_update_flows
+   - 用户未指定归属人时默认使用重要上下文信息中的用户名称,用户指定时使用用户指定名称
+   - 如上下文中已经获取过get_pay_types、get_belonger、industryType_flow,可直接使用
+   - 示例:用户说"记一笔支出|收入" → 先调用get_pay_types、get_belonger、industryType_flow获取可用选项,再调用create_flow，使用获取的选项作为参数建议
+   - 示例:用户说"更新记录" → 先调用get_flows 获取数据,可选通过get_pay_types、get_belonger、industryType_flow获取可用选项,再调用update_flow或batch_update_flows
 2. 管理固定支出:
    - 用户说"修改我的固定支出" → 可能需要先查询现有固定支出（通过其他接口）
    - 再调用update_fixed_flow进行修改
 3. 预算管理流程:
    - 用户设置预算后 → 可自动调用refresh_budget_usage确保数据准确
    - 结合get_monthly_summary提供完整分析,或者get_flows获取数据后进行分析,可自由判断
+4. 其他情况自行推断调用
 
 常见错误避免
 1. 参数格式错误:
@@ -279,8 +283,7 @@ ${contextInfo}
    - get_analytics的type只能是"attribution"、"payType"、"industryType"、"daily"
 3. 功能混淆:
    - 用户说'添加流水时'调用flow相关工具,'添加固定支出时'调用fixed_flow相关工具,固定支出和流水记录为互相独立的功能互不影响请勿混淆
-4. 使用旧工具输出:
-   - 需要数据时优先选择调用工具获取
+4. 需要数据时优先选择调用工具
 工具调用示例
 示例1：创建流水记录
 用户输入："记一笔午餐消费50元"
@@ -294,10 +297,10 @@ ${contextInfo}
         "money": 50,
         "flowType": "支出",
         "industryType": "餐饮美食",
-        "payType": "其他",
-        "attribution": "默认",
+        "payType": "现金",
+        "attribution": "${context.user ? context.user.name : '默认'}",
         "date": "2024-12-09",
-        "description": "用户记录：午餐消费50元"
+        "description": "午餐消费50元"
       }
     }
   ]
@@ -308,7 +311,8 @@ ${contextInfo}
 1. 用简洁、友好的中文回复，
 2. 调用失败时，解释可能的原因并提供解决方案
 3. 多次迭代中不要重复输出内容(不包括toolcall)
-4. 当需要调用工具时，请返回严格符合上述示例格式的<json></json>标签及对象,不需要调用工具时请勿返回`;
+4. 调用工具时返回<json></json>标签对包裹参数
+5. 严格遵循上述要求`;
 }
 
   private getDefaultEndpoint(provider: string): string {
@@ -600,7 +604,6 @@ ${contextInfo}
     const messages = [
       { role: 'system', content: systemPrompt },
       ...this.getRecentHistory(),
-      { role: 'system', content: '调用工具务必添加<json></json>标签对' },
     ];
     console.log('发送ai的记录:',JSON.stringify(messages));
     // 获取端点和模型
@@ -830,27 +833,20 @@ ${contextInfo}
     messages.forEach(topMsg => {
       if (topMsg.type === 'ai') {
         let content = '';
+        let tool_content = '';
         topMsg.messageList.forEach(message => {
           switch (message.type) {
             case 'text':
               const textMessage = message as TextMessage;
-              content += textMessage.content;
-              content += '\n';
+              content += `${textMessage.content}\n`;
               break;
             case 'thinking':
               const thinkingMessage = message as ThinkingMessage;
-              content += thinkingMessage.thinkingContent;
-              content += '\n';
+              content += `${thinkingMessage.thinkingContent}\n`;
               break;
             case 'tool_call':
               const toolCallMessage = message as ToolCallMessage;
-              content += JSON.stringify({
-                type: 'tool_call',
-                toolName: toolCallMessage.toolName,
-                arguments: toolCallMessage.arguments,
-                result: toolCallMessage.resultMessage ? toolCallMessage.resultMessage.success ?  toolCallMessage.resultMessage.result : toolCallMessage.resultMessage.errorMessage : undefined,
-              });
-              content += '\n';
+              tool_content += `工具调用结果: ${toolCallMessage.toolName}\n 参数: ${JSON.stringify(toolCallMessage.arguments)}\n 返回值: ${JSON.stringify(toolCallMessage.resultMessage ? toolCallMessage.resultMessage.success ?  toolCallMessage.resultMessage.result : toolCallMessage.resultMessage.errorMessage : undefined)}\n`;
               break;
           }
         });
@@ -859,6 +855,13 @@ ${contextInfo}
           content: content,
           timestamp: topMsg.timestamp,
         });
+        if (tool_content && tool_content.length > 0) {
+          this.conversationHistory.push({
+            role: 'system',
+            content: tool_content,
+            timestamp: topMsg.timestamp,
+          });
+        }
       } else {
         let textMessage = topMsg as TextMessage;
 
@@ -878,7 +881,6 @@ ${contextInfo}
 
   private getRecentHistory() {
     return this.conversationHistory
-      .filter(msg => msg.role !== 'system')
       .map(msg => ({
         role: msg.role,
         content: msg.content,
@@ -926,20 +928,68 @@ ${contextInfo}
       }
 
       // 构建系统提示
-      const systemPrompt = `你是一个个人记账助手的提示建议生成器。
-      你的任务是根据用户的部分输入，生成${count}个相关的、简洁的完整提示建议。
+      const systemPrompt = `你是一个记账APP Cashbook AI助手的提示建议生成器。
+      
+      你的任务是根据用户的部分输入，结合Cashbook App的实际功能和AI可调用的工具，生成${count}个相关的、具体可执行的完整提示建议。
+      
+      Cashbook App的核心功能和AI可调用工具包括：
+      1. 流水记录管理：
+         - create_flow: 创建流水记录
+         - update_flow: 更新流水记录
+         - batch_update_flows: 批量更新流水
+         - get_flows: 查询流水记录
+      
+      2. 固定支出管理：
+         - create_fixed_flow: 创建固定支出
+         - update_fixed_flow: 更新固定支出
+         - get_fixed_flows: 查询固定支出
+      
+      3. 统计分析：
+         - get_monthly_summary: 获取月度统计
+         - get_analytics: 获取分析数据（按类型、日期等）
+         - get_flows: 结合筛选条件进行统计分析
+      
+      4. 预算管理：
+         - create_budget: 创建预算
+         - update_budget: 更新预算
+         - get_budgets: 查询预算
+         - refresh_budget_usage: 刷新预算使用情况
+      
+      5. 数据查询与筛选：
+         - get_pay_types: 获取支付方式列表
+         - get_attributions: 获取归属人列表
+         - get_industry_types: 获取行业类型列表
+      
+      6. 高级功能：
+         - find_duplicate_flows: 查找重复流水
+         - find_balance_flows: 查找可以平账的流水
       
       要求：
-      1. 每个建议应该是一个完整的、可执行的句子
-      2. 建议应该基于用户的输入进行扩展
-      3. 建议应该与记账应用相关，包括：记录交易、查询数据、分析趋势、预算管理等
-      4. 每个建议不超过20个字
-      5. 用中文回复
-      6. 返回纯文本，每行一个建议，不要编号
+      1. 每个建议应该是一个完整的、可执行的命令，用户可以直接复制使用
+      2. 建议应该基于用户的输入进行扩展，但必须具体、可操作
+      3. 建议应包含必要的参数信息（金额、日期、类型等），使用合理的示例值
+      4. 每个建议应明确对应一个具体的工具调用或功能操作
+      5. 建议应涵盖流水记录、预算管理、统计分析、平账处理、重复检测等核心功能
+      6. 用中文回复，建议清晰明了
+      7. 返回纯文本，每行一个建议，不要编号
+      8. 优先生成与用户输入最相关的建议，同时考虑功能的多样性
+      
+      示例：
+      用户输入："记一笔"
+      建议：
+      记一笔午餐支出50元，使用微信支付，分类为餐饮美食
+      查看本月餐饮类别的消费统计
+      设置本月餐饮预算800元
+      
+      用户输入："查看统计"
+      建议：
+      查看2024年12月的月度收支统计
+      分析本月各支付方式的消费占比
+      统计今年餐饮类别的总支出
       
       用户输入：${userInput}
       
-      请生成${count}个建议：`;
+      请生成${count}个具体、可操作的提示建议：`;
 
       // 构建消息
       const messages = [
@@ -1124,43 +1174,177 @@ ${contextInfo}
 
   // 获取备用建议（当AI不可用时）
   private getFallbackSuggestions(userInput: string, count: number): string[] {
+    // 全面覆盖所有主要功能模块的默认建议
     const defaultSuggestions = [
-      '记一笔餐饮支出50元',
-      '查看本月消费统计',
-      '分析餐饮类别的花费',
-      '设置本月预算3000元',
-      '查看最近的流水记录',
-      '统计年度收入总额',
-      '查找重复的流水记录',
-      '查看可以平账的流水',
+      // 流水记录相关（包含具体参数）
+      '记一笔午餐支出68元，使用支付宝支付，分类为餐饮美食，日期2024-12-26',
+      '记一笔工资收入8500元，使用银行转账，分类为工资收入，归属人自己',
+      '记一笔交通出行支出25元，使用微信支付，分类为交通出行，描述"地铁通勤"',
+      '记一笔购物支出299元，使用信用卡支付，分类为购物消费，日期今天',
+
+      // 查询与查看相关
+      '查看本月所有流水记录，按时间倒序排列',
+      '查看2024年12月的餐饮类别消费统计',
+      '查看最近30天的支出总额和收入总额',
+      '查看使用微信支付的最近10笔交易',
+
+      // 统计分析相关
+      '分析本月各行业类型的消费占比',
+      '统计本季度收入与支出的对比情况',
+      '分析今年每月消费趋势变化',
+      '查看支付方式使用频率统计',
+
+      // 预算管理相关
+      '设置本月总预算5000元',
+      '设置餐饮类别月度预算1500元',
+      '查看本月预算使用进度和剩余额度',
+      '调整12月交通出行预算为800元',
+
+      // 固定支出管理
+      '添加每月房租固定支出2800元，支付方式银行转账',
+      '查看所有固定支出项目及下次扣款日期',
+      '更新手机话费固定支出为每月158元',
+
+      // 高级功能
+      '查找金额相同的重复流水记录',
+      '查找可以互相抵消平账的流水记录',
+      '批量更新上个月餐饮分类为"日常饮食"',
+      '导出本月所有流水记录为Excel格式',
+
+      // 数据筛选与选项
+      '查看所有可用的支付方式列表',
+      '查看所有归属人选项',
+      '查看所有行业分类选项',
+      '按日期范围筛选流水：2024-12-01到2024-12-31',
+
+      // 综合操作
+      '先查看本月消费统计，然后设置下月预算',
+      '查找大额支出（金额大于1000元）的记录',
+      '对比本月与上月的消费差异',
+      '预测本月剩余时间的消费趋势'
     ];
 
-    // 如果用户输入包含关键词，尝试匹配相关建议
-    const input = userInput.toLowerCase();
-    const filteredSuggestions = defaultSuggestions.filter(suggestion => {
-      if (input.includes('记') || input.includes('支出') || input.includes('收入')) {
-        return suggestion.includes('记一笔');
+    // 改进关键词匹配逻辑
+    const input = userInput.toLowerCase().trim();
+
+    // 如果输入为空或很短，返回通用建议
+    if (input.length <= 1) {
+      return defaultSuggestions.slice(0, count);
+    }
+
+    // 定义关键词到建议类别的映射
+    const keywordCategories = [
+      {
+        keywords: ['记', '记录', '添加', '新建', '创建', '支出', '收入', '消费', '花钱'],
+        filter: (suggestion: string) => suggestion.includes('记一笔')
+      },
+      {
+        keywords: ['查看', '查询', '搜索', '找', '显示', '列表'],
+        filter: (suggestion: string) => suggestion.includes('查看') || suggestion.includes('所有')
+      },
+      {
+        keywords: ['统计', '分析', '趋势', '占比', '比例', '图表'],
+        filter: (suggestion: string) => suggestion.includes('分析') || suggestion.includes('统计') ||
+                                        suggestion.includes('占比') || suggestion.includes('趋势')
+      },
+      {
+        keywords: ['预算', '额度', '限额', '计划'],
+        filter: (suggestion: string) => suggestion.includes('预算')
+      },
+      {
+        keywords: ['固定', '定期', '每月', '周期'],
+        filter: (suggestion: string) => suggestion.includes('固定支出')
+      },
+      {
+        keywords: ['重复', '相同', '类似'],
+        filter: (suggestion: string) => suggestion.includes('重复')
+      },
+      {
+        keywords: ['平账', '抵消', '对冲'],
+        filter: (suggestion: string) => suggestion.includes('平账')
+      },
+      {
+        keywords: ['餐饮', '吃饭', '午餐', '晚餐', '美食'],
+        filter: (suggestion: string) => suggestion.includes('餐饮') || suggestion.includes('午餐') ||
+                                        suggestion.includes('晚餐') || suggestion.includes('美食')
+      },
+      {
+        keywords: ['交通', '出行', '地铁', '公交', '打车'],
+        filter: (suggestion: string) => suggestion.includes('交通') || suggestion.includes('出行') ||
+                                        suggestion.includes('地铁') || suggestion.includes('公交')
+      },
+      {
+        keywords: ['工资', '收入', '薪水', '报酬'],
+        filter: (suggestion: string) => suggestion.includes('工资') || suggestion.includes('收入')
       }
-      if (input.includes('查看') || input.includes('统计')) {
-        return suggestion.includes('查看') || suggestion.includes('统计');
+    ];
+
+    // 计算每个建议的匹配分数
+    const scoredSuggestions = defaultSuggestions.map(suggestion => {
+      let score = 0;
+
+      // 检查是否匹配任何关键词类别
+      for (const category of keywordCategories) {
+        const hasKeyword = category.keywords.some(keyword => input.includes(keyword));
+        if (hasKeyword && category.filter(suggestion)) {
+          score += 10; // 主要匹配加分
+        }
       }
-      if (input.includes('分析')) {
-        return suggestion.includes('分析');
+
+      // 额外加分：建议中包含输入中的词汇
+      const words = input.split(/[\s,，、]+/).filter(word => word.length > 1);
+      for (const word of words) {
+        if (suggestion.includes(word)) {
+          score += 5;
+        }
       }
-      if (input.includes('预算')) {
-        return suggestion.includes('预算');
-      }
-      if (input.includes('重复')) {
-        return suggestion.includes('重复');
-      }
-      if (input.includes('平账')) {
-        return suggestion.includes('平账');
-      }
-      return true;
+
+      return { suggestion, score };
     });
 
-    // 返回指定数量的建议
-    return filteredSuggestions.slice(0, count);
+    // 按分数排序，分数相同的保持原顺序
+    scoredSuggestions.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      // 分数相同时保持原数组顺序
+      return defaultSuggestions.indexOf(a.suggestion) - defaultSuggestions.indexOf(b.suggestion);
+    });
+
+    // 获取分数最高的建议，但确保多样性
+    const topSuggestions: string[] = [];
+    const seenCategories = new Set<string>();
+
+    for (const item of scoredSuggestions) {
+      if (topSuggestions.length >= count) break;
+
+      // 确定建议的主要类别
+      let category = '其他';
+      for (const cat of keywordCategories) {
+        if (cat.filter(item.suggestion)) {
+          category = cat.keywords[0];
+          break;
+        }
+      }
+
+      // 如果该类别还没有被选择，或者分数很高，则添加
+      if (!seenCategories.has(category) || item.score > 5) {
+        topSuggestions.push(item.suggestion);
+        seenCategories.add(category);
+      }
+    }
+
+    // 如果还不够，添加分数最高的其他建议
+    if (topSuggestions.length < count) {
+      for (const item of scoredSuggestions) {
+        if (topSuggestions.length >= count) break;
+        if (!topSuggestions.includes(item.suggestion)) {
+          topSuggestions.push(item.suggestion);
+        }
+      }
+    }
+
+    return topSuggestions.slice(0, count);
   }
 }
 

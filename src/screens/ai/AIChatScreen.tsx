@@ -1233,14 +1233,6 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           barStyle={isDarkMode ? 'light-content' : 'dark-content'}
           backgroundColor={colors.background}
         />
-        <View style={styles.topSection}>
-          <BookSelector />
-          <View style={[styles.headerContainer, {backgroundColor: colors.card}]}>
-            <View style={styles.headerTitleContainer}>
-              <Text style={[styles.headerTitle, {color: colors.text}]}>AI助手</Text>
-            </View>
-          </View>
-        </View>
         <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20}}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, {color: colors.text, marginTop: 16}]}>检查AI配置...</Text>

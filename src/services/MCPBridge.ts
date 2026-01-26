@@ -314,19 +314,19 @@ class MCPBridge {
           flowType: {
             type: 'string',
             enum: ['收入', '支出', '不计收支'],
-            description: '流水类型：收入（资金流入）、支出（资金流出）、不计收支（转账等不影响总余额的操作）',
+            description: '流水类型',
           },
           industryType: {
             type: 'string',
-            description: '行业分类 通过industryType_flow获取可选项，默认为"其他"',
+            description: '行业分类 通过industryType_flow获取可选项',
           },
           payType: {
             type: 'string',
-            description: '支付方式，通过get_pay_types获取可选项，默认为"其他"',
+            description: '支付方式，通过get_pay_types获取可选项',
           },
           attribution: {
             type: 'string',
-            description: '归属人,用户未说明通过get_belonger工具获取',
+            description: '归属人,用户未指定通过get_belonger工具获取',
           },
           description: {
             type: 'string',
@@ -369,6 +369,12 @@ class MCPBridge {
           }
         }
 
+        const userInfo = await authManager.getCurrentUser();
+        let attribution = '默认';
+        if (userInfo) {
+          attribution = userInfo.name;
+        }
+
         const flowData: Omit<Flow, 'id' | 'createdAt' | 'updatedAt'> = {
           bookId,
           name: args.name.trim(),
@@ -376,7 +382,7 @@ class MCPBridge {
           flowType: args.flowType,
           industryType: args.industryType?.trim() || '其他',
           payType: args.payType?.trim() || '其他',
-          attribution: args.attribution?.trim() || '默认',
+          attribution: args.attribution?.trim() || attribution,
           description: args.description?.trim() || '',
           day: day,
         };
@@ -732,11 +738,11 @@ class MCPBridge {
           },
           industryType: {
             type: 'string',
-            description: '行业分类 通过industryType_flow获取可选项，默认为"其他"',
+            description: '行业分类 通过industryType_flow获取可选项',
           },
           payType: {
             type: 'string',
-            description: '支付方式，通过get_pay_types获取可选项，默认为"其他"',
+            description: '支付方式，通过get_pay_types获取可选项',
           },
           attribution: {
             type: 'string',
@@ -1335,7 +1341,7 @@ class MCPBridge {
           flowType: {
             type: 'string',
             enum: ['收入', '支出', '不计收支'],
-            description: '流水类型,默认为"支出"',
+            description: '流水类型',
             default: '支出',
           },
           industryType: {
@@ -1695,10 +1701,10 @@ class MCPBridge {
       },
     });
 
-    // 获取归属人信息
+    // 获取默认归属人
     this.registerTool({
       name: 'get_belonger',
-      description: '获取当前登录用户的归属人信息。如果用户未登录，返回空信息。',
+      description: '获取当前登录用户信息做为默认归属人。如果用户未登录，返回空信息。',
       inputSchema: {
         type: 'object',
         properties: {},
