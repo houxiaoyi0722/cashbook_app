@@ -625,7 +625,7 @@ const AIConfigScreen: React.FC = () => {
             {validating ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>验证API Key</Text>
+              <Text style={styles.buttonText}>参数验证</Text>
             )}
           </TouchableOpacity>
 
@@ -653,7 +653,6 @@ const AIConfigScreen: React.FC = () => {
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Icon name="save" type="material" color="#fff" size={18} />
                 <Text style={styles.buttonText}>保存配置</Text>
               </>
             )}

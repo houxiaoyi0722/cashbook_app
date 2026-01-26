@@ -167,7 +167,7 @@ class MCPBridge {
     // 获取流水记录
     this.registerTool({
       name: 'get_flows',
-      description: '获取指定时间范围内的流水记录，支持按流水类型、行业分类、支付方式、归属人等进行筛选，并支持分页查询',
+      description: '获取指定条件的流水记录，支持分页查询',
       inputSchema: {
         type: 'object',
         properties: {
@@ -197,6 +197,26 @@ class MCPBridge {
           attribution: {
             type: 'string',
             description: '归属人，表示该流水属于哪个家庭成员或账户。如果不提供，则返回所有归属人的流水',
+          },
+          moneySort: {
+            type: 'string',
+            description: '金额排序，esc|desc',
+          },
+          name: {
+            type: 'string',
+            description: '流水名称,模糊查询',
+          },
+          description: {
+            type: 'string',
+            description: '流水描述,模糊查询',
+          },
+          maxMoney: {
+            type: 'number',
+            description: 'money<=maxMoney，不能小于0。',
+          },
+          minMoney: {
+            type: 'number',
+            description: 'money>=minMoney，不能小于0。',
           },
           pageNum: {
             type: 'number',
@@ -233,6 +253,11 @@ class MCPBridge {
           industryType: args.industryType,
           payType: args.payType,
           attribution: args.attribution,
+          moneySort: args.moneySort,
+          name: args.name,
+          description: args.description,
+          maxMoney: args.maxMoney,
+          minMoney: args.minMoney,
           pageNum: args.pageNum || 1,
           pageSize: args.pageSize || 20,
         };
@@ -671,7 +696,7 @@ class MCPBridge {
     // 更新流水记录
     this.registerTool({
       name: 'update_flow',
-      description: '更新现有的流水记录，可以修改流水的名称、金额、类型、行业分类、支付方式、归属人、描述等信息',
+      description: '更新现有的流水记录，可以修改流水的名称、金额、类型、行业分类、支付方式、归属人、描述等信息,所有字段必须赋值,优先取原数据值,原数据为空结合上下文编写',
       inputSchema: {
         type: 'object',
         properties: {
@@ -681,7 +706,7 @@ class MCPBridge {
           },
           name: {
             type: 'string',
-            description: '流水名称，例如：午餐消费、工资收入、房租支出等',
+            description: '流水名称，例如：午餐消费、工资收入、房租支出等,必需参数',
           },
           money: {
             type: 'number',
@@ -714,12 +739,36 @@ class MCPBridge {
             description: '流水发生的日期，格式必须为YYYY-MM-DD，例如：2024-12-09',
           },
         },
-        required: ['id'],
+        required: ['id','name','money','flowType','industryType','payType','attribution','description','date'],
       },
       execute: async (args, currentBook) => {
         // 验证必需参数
         if (!args.id) {
           throw new Error('流水ID不能为空');
+        }
+        if (!args.name) {
+          throw new Error('name不能为空');
+        }
+        if (!args.money) {
+          throw new Error('money不能为空');
+        }
+        if (!args.flowType) {
+          throw new Error('flowType不能为空');
+        }
+        if (!args.industryType) {
+          throw new Error('industryType不能为空');
+        }
+        if (!args.payType) {
+          throw new Error('payType不能为空');
+        }
+        if (!args.attribution) {
+          throw new Error('attribution不能为空');
+        }
+        if (!args.description) {
+          throw new Error('description不能为空');
+        }
+        if (!args.date) {
+          throw new Error('date不能为空');
         }
 
         const bookId = await this.getBookId(currentBook);
@@ -1568,7 +1617,7 @@ class MCPBridge {
         properties: {},
         required: [],
       },
-      execute: async (args, currentBook) => {
+      execute: async () => {
         try {
           const userInfo = await authManager.getCurrentUser();
 

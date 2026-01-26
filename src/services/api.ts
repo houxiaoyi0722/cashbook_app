@@ -205,6 +205,8 @@ class Api {
       attribution?: string;
       name?: string;
       description?: string;
+      maxMoney?: number;
+      minMoney?: number;
     }): Promise<ApiResponse<{
       total: number;
       pages: number;
@@ -239,6 +241,8 @@ class Api {
       attribution?: string;
       name?: string;
       description?: string;
+      maxMoney?: number;
+      minMoney?: number;
     }): Promise<ApiResponse<Flow[]>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}
       console.log(`📊 Fetching flows for book ${params.bookId}`, params);

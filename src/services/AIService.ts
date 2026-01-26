@@ -620,6 +620,7 @@ ${contextInfo}
     const messages = [
       { role: 'system', content: systemPrompt },
       ...this.getRecentHistory(),
+      { role: 'system', content: '调用工具务必添加<json></json>标签对' },
     ];
     console.log('发送ai的记录:',JSON.stringify(messages));
     // 获取端点和模型

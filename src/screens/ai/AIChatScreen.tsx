@@ -11,7 +11,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Keyboard,
+  Keyboard, ScrollView,
 } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -1535,14 +1535,16 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           </View>
 
           {/* AI提示建议 */}
-          <View style={styles.hintsContainer}>
-            <Text style={[styles.hintsText, {color: colors.secondaryText}]}>
-              {isGeneratingSuggestions ? 'AI正在生成建议...' : '试试说：'}
-            </Text>
+          <View style={styles.hintsContainerWrapper}>
             {isGeneratingSuggestions ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <>
+              <ScrollView
+                style={styles.hintsScrollView}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.hintsScrollContent}
+              >
                 {(suggestions.length > 0 ? suggestions : getFallbackSuggestions(inputText)).map((hint, index) => (
                   <TouchableOpacity
                     key={index}
@@ -1553,7 +1555,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                     <Text style={[styles.hintText, {color: colors.primary}]}>{hint}</Text>
                   </TouchableOpacity>
                 ))}
-              </>
+              </ScrollView>
             )}
           </View>
         </View>
@@ -1724,14 +1726,16 @@ const styles = StyleSheet.create({
   hintText: {
     fontSize: 14,
     textAlign: 'center',
+    includeFontPadding: false, // 移除字体内边距，使文本垂直居中更好
+    lineHeight: 18, // 减少行高，适应缩小后的按钮高度，确保文本完美垂直居中
   },
   scrollToBottomButton: {
     position: 'absolute',
     bottom: 170, // 调整到输入框上方，避免与发送按钮重叠
-    right: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    right: 12, // 从20减少到12，使按钮更贴右侧
+    width: 50, // 从60减少到50
+    height: 50, // 从60减少到50
+    borderRadius: 25, // 从30减少到25
     justifyContent: 'center',
     alignItems: 'center',
     // 移除阴影效果，参考账本列表页面的customFab样式
@@ -1746,7 +1750,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   scrollToBottomButtonIcon: {
-    fontSize: 24,
+    fontSize: 20, // 从24减少到20
     color: '#fff',
     fontWeight: 'bold',
   },
@@ -1970,7 +1974,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   inputContainer: {
-    padding: 12,
+    padding: 8,
     borderTopWidth: 1,
   },
   inputWrapper: {
@@ -1981,19 +1985,19 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 20,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     fontSize: 16,
     maxHeight: 100,
-    marginRight: 8,
+    marginRight: 6,
     borderWidth: 1,
   },
   sendButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 40,
+    minHeight: 38, // 从40减少到38，使发送按钮更紧凑
   },
   sendButtonDisabled: {
     opacity: 0.5,
@@ -2003,23 +2007,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  hintsContainer: {
+  hintsContainerWrapper: {
+    marginTop: 8,
+    minHeight: 44, // 增加最小高度以适应更高的按钮
+    maxHeight: 88, // 增加最大高度以适应两行更高的按钮
+  },
+  hintsScrollView: {
+    flexGrow: 0,
+    marginTop: 4,
+  },
+  hintsScrollContent: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 12,
+    alignItems: 'center',
+    paddingRight: 16, // 添加右侧内边距，让最后一个按钮有空间
+    paddingVertical: 2, // 添加垂直内边距，确保按钮有足够的空间
   },
   hintsText: {
     fontSize: 14,
     marginRight: 8,
-    alignSelf: 'center',
+    alignSelf: 'flex-start',
   },
   hintButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 5, // 减少垂直内边距，为文本提供更多空间
+    borderRadius: 20,
+    marginRight: 10, // 从12减少到10，使建议按钮之间的间距更紧凑
     borderWidth: 1,
+    height: 40, // 从44减少到40，缩小按钮高度
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0, // 防止按钮被压缩
   },
   markdownContainer: {
     marginTop: 4,
