@@ -382,3 +382,25 @@ Content-Type: application/json
 Authorization: {{auth_token}}
 
 {"bookId":"3-DD4nQeLb","criteria":{"name":true,"description":true,"industryType":true,"flowType":true,"payType":true}}
+
+### 批量更新流水接口
+# 返回值
+# {
+#   "c": 200,
+#   "m": "",
+#   "d": {
+#     "d": 3
+#   }
+# }
+POST {{baseurl}}/api/entry/flow/updates
+Content-Type: application/json
+Authorization: {{auth_token}}
+
+{
+  "bookId": "1-hU6fqNl6",
+  "ids": [139, 140, 141],
+  "flowType": "支出",
+  "industryType": "餐饮美食",
+  "payType": "支付宝",
+  "attribution": "houxiaoyi"
+}

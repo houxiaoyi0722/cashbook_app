@@ -266,6 +266,21 @@ class Api {
       return response.data;
     },
 
+    // 批量更新流水
+    batchUpdate: async (params: {
+      bookId: string;
+      ids: number[];
+      flowType?: string;
+      industryType?: string;
+      payType?: string;
+      attribution?: string;
+    }): Promise<ApiResponse<{d: number}>> => {
+      if (!this.instance) {throw new Error('API实例未初始化');}
+      console.log('🔄 Batch updating flows: ', params);
+      const response = await this.instance.post<ApiResponse<{d: number}>>('/api/entry/flow/updates', params);
+      return response.data;
+    },
+
     // 删除流水
     delete: async (id: number, bookId: string): Promise<ApiResponse<void>> => {
       if (!this.instance) {throw new Error('API实例未初始化');}

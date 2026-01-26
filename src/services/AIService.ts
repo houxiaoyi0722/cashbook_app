@@ -135,8 +135,8 @@ export class AIService {
 
     // 为每个工具创建详细的参数说明表格
     const toolsDetailedDescription = tools.map(tool => {
-      let toolInfo = `## ${tool.name}\n`;
-      toolInfo += `**描述**: ${tool.description}\n`;
+      let toolInfo = `${tool.name}\n`;
+      toolInfo += `描述: ${tool.description}\n`;
 
       // 添加参数说明
       if (tool.inputSchema && tool.inputSchema.properties) {
@@ -146,7 +146,7 @@ export class AIService {
 
         // 创建参数表格
         if (Object.entries(props).length !== 0) {
-          toolInfo += '**参数说明**:\n';
+          toolInfo += '参数说明:\n';
           toolInfo += '| 参数名 | 类型 | 必需 | 格式/枚举 | 示例值 | 描述 |\n';
           toolInfo += '|--------|------|------|-----------|--------|------|\n';
         }
@@ -205,7 +205,7 @@ export class AIService {
 
         // 添加必需参数说明
         if (required.length > 0) {
-          toolInfo += `\n**必需参数**: ${required.join(', ')}`;
+          toolInfo += `\n必需参数: ${required.join(', ')}`;
         }
       }
 
@@ -241,69 +241,47 @@ export class AIService {
 
     return `你是一个专业的记账助手,严格遵循用户指示,不做非必要输出,可以调用以下工具来帮助用户管理财务：
 
-## 可用工具详细说明
+可用工具详细说明
 ${toolsDetailedDescription}
 
-## 重要上下文信息
+重要上下文信息
 ${contextInfo}
 
-## 工具调用最佳实践
-1. **账本ID**: 所有工具调用都会自动使用当前账本ID，你不需要在参数中指定bookId
-2. **日期处理**: 
+工具调用最佳实践
+1. 账本ID: 所有工具调用都会自动使用当前账本ID，你不需要在参数中指定bookId
+2. 日期处理: 
    - 如果用户没有明确指定日期，请使用当前日期或根据上下文推断
    - 日期参数名使用date（YYYY-MM-DD格式）
    - 月份参数名使用month（YYYY-MM格式）
-   - 固定支出需要startDate和可能的endDate
-3. **金额处理**: 
-   - 金额单位是人民币（元）
-   - 金额不能小于0。
-4. **参数映射**: 当用户使用别名时，需要映射到正确的参数名：
-   - amount → money
-   - category → industryType
-   - type → flowType
-   - desc/description → description
-   - time/date → date
-   - note → description
-   - budget → budget（预算）
-   - payment → payType（支付方式）
-   - owner → attribution（归属人）
-5. **参数补全**: 当用户输入中缺少必要参数时，需要根据上下文进行推断
-6. **安全操作**: 
-   - 删除操作（delete_fixed_flow、delete_flow）需要confirm参数为true
-   - 批量操作（ignore_all_balance_items）需要确认
-   - 更新操作前建议先查看当前状态
-7. **数据刷新**: 
-   - 大量数据操作后，可调用refresh_budget_usage刷新预算使用情况
-   - 获取列表数据（get_pay_types、get_attributions）可用于填充下拉选项
+3. 金额处理: 
+   - 金额单位是人民币（元）,小于0
+4. 参数映射: 当用户使用别名时，需要映射到正确的参数名
+5. 参数补全: 当用户输入中缺少必要参数时，需要根据上下文进行推断
 
-### 针对工具集成推断：
-**组合使用模式**:
-1. **创建流水前获取选项**:
-   - 用户说"记一笔支出" → 先调用get_pay_types和get_attributions获取可用选项
-   - 再调用create_flow，使用获取的选项作为参数建议
-2. **管理固定支出**:
+针对工具集成推断：
+组合使用模式:
+1. 创建-更新流水前获取选项:
+   - 用户说"记一笔支出" → 先调用get_pay_types和get_attributions获取可用选项,再调用create_flow，使用获取的选项作为参数建议
+   - 用户说"更新记录" → 先调用get_flows 获取数据,可选通过get_pay_types和get_attributions获取可用选项,再调用update_flow或batch_update_flows
+2. 管理固定支出:
    - 用户说"修改我的固定支出" → 可能需要先查询现有固定支出（通过其他接口）
    - 再调用update_fixed_flow进行修改
-3. **预算管理流程**:
+3. 预算管理流程:
    - 用户设置预算后 → 可自动调用refresh_budget_usage确保数据准确
-   - 结合get_monthly_summary提供完整分析
+   - 结合get_monthly_summary提供完整分析,或者get_flows获取数据后进行分析,可自由判断
 
-## 常见错误避免
-1. **参数格式错误**:
-   - 日期必须为YYYY-MM-DD格式
-   - 月份必须为YYYY-MM格式
+常见错误避免
+1. 参数格式错误:
+   - 日期必须为YYYY-MM-DD格式,月份必须为YYYY-MM格式
    - 金额必须是数字类型
-   - cycleDay必须在1-31范围内（当cycleType为"每月"时）
-2. **枚举值错误**:
+2. 枚举值错误:
    - flowType只能是"收入"、"支出"、"不计收支"
-   - cycleType只能是"每月"、"每周"、"每年"
    - get_analytics的type只能是"attribution"、"payType"、"industryType"、"daily"
+3. 功能混淆:
+   - 用户说'添加流水时'调用flow相关工具,'添加固定支出时'调用fixed_flow相关工具,固定支出和流水记录为互相独立的功能互不影响请勿混淆
 
-4. **安全确认**:
-   - 操作修改数据前应提醒用户确认
-
-## 工具调用示例
-### 示例1：创建流水记录
+工具调用示例
+示例1：创建流水记录
 用户输入："记一笔午餐消费50元"
 <json>
 {
@@ -325,10 +303,11 @@ ${contextInfo}
 }
 </json>
 
-## **回复要求**
+回复要求
 1. 用简洁、友好的中文回复，
 2. 调用失败时，解释可能的原因并提供解决方案
-3. **当需要调用工具时，请返回严格符合上述示例格式的<json></json>标签及对象,不需要调用工具时请勿返回**`;
+3. 多次迭代中不要重复输出内容(不包括toolcall)
+4. 当需要调用工具时，请返回严格符合上述示例格式的<json></json>标签及对象,不需要调用工具时请勿返回`;
 }
 
   private getDefaultEndpoint(provider: string): string {

@@ -174,33 +174,34 @@ class MCPBridge {
           startDate: {
             type: 'string',
             format: 'date',
-            description: '开始日期，格式必须为YYYY-MM-DD，例如：2024-01-01。如果不提供，则默认为当前月份的第一天',
+            description: '开始日期，格式必须为YYYY-MM-DD默认为当前月份的第一天',
           },
           endDate: {
             type: 'string',
             format: 'date',
-            description: '结束日期，格式必须为YYYY-MM-DD，例如：2024-12-31。如果不提供，则默认为当前日期',
+            description: '结束日期，格式必须为YYYY-MM-DD则默认为当前日期',
           },
           flowType: {
             type: 'string',
             enum: ['收入', '支出', '不计收支'],
-            description: '流水类型：收入（流入资金）、支出（流出资金）、不计收支（转账等不影响总余额的操作）',
+            description: '流水类型',
           },
           industryType: {
             type: 'string',
-            description: '行业分类，例如：餐饮美食、交通出行、日用百货等。如果不提供，则返回所有行业分类的流水',
+            description: '行业分类',
           },
           payType: {
             type: 'string',
-            description: '支付方式，例如：微信支付、支付宝、现金、银行卡等。如果不提供，则返回所有支付方式的流水',
+            description: '支付方式',
           },
           attribution: {
             type: 'string',
-            description: '归属人，表示该流水属于哪个家庭成员或账户。如果不提供，则返回所有归属人的流水',
+            description: '归属人',
           },
           moneySort: {
             type: 'string',
-            description: '金额排序，esc|desc',
+            enum: ['esc', 'desc'],
+            description: '金额排序',
           },
           name: {
             type: 'string',
@@ -222,14 +223,14 @@ class MCPBridge {
             type: 'number',
             minimum: 1,
             default: 1,
-            description: '页码，从1开始。如果不提供，默认为第1页',
+            description: '页码，从1开始。默认为第1页',
           },
           pageSize: {
             type: 'number',
             minimum: 1,
             maximum: 100,
             default: 20,
-            description: '每页显示的记录数量，最小值为1，最大值为100。如果不提供，默认为20条',
+            description: '每页显示的记录数量，最小值为1，最大值为100。默认为20条',
           },
         },
       },
@@ -298,13 +299,13 @@ class MCPBridge {
     // 创建流水记录
     this.registerTool({
       name: 'create_flow',
-      description: '创建一条新的流水记录。需要提供流水名称、金额和流水类型等必需信息，其他信息可选。如果未提供日期，则使用当前日期',
+      description: '创建一条流水记录',
       inputSchema: {
         type: 'object',
         properties: {
           name: {
             type: 'string',
-            description: '流水名称，例如：午餐消费、工资收入、房租支出等。不能为空字符串',
+            description: '流水名称。不能为空字符串',
           },
           money: {
             type: 'number',
@@ -317,24 +318,24 @@ class MCPBridge {
           },
           industryType: {
             type: 'string',
-            description: '行业分类，例如：餐饮美食、交通出行、日用百货等。通过industryType_flow工具选择最合适的，默认为"其他"',
+            description: '行业分类 通过industryType_flow获取可选项，默认为"其他"',
           },
           payType: {
             type: 'string',
-            description: '支付方式，例如：微信支付、支付宝、现金、银行卡等。如果不提供，默认为"其他"',
+            description: '支付方式，通过get_pay_types获取可选项，默认为"其他"',
           },
           attribution: {
             type: 'string',
-            description: '归属人，表示该流水属于哪个家庭成员或账户。如果用户未说明通过get_belonger工具获取',
+            description: '归属人,用户未说明通过get_belonger工具获取',
           },
           description: {
             type: 'string',
-            description: '流水描述，可以记录更多详细信息，例如：在某某餐厅用餐、购买了什么商品等',
+            description: '流水描述，可以记录更多详细信息',
           },
           date: {
             type: 'string',
             format: 'date',
-            description: '流水发生的日期，格式必须为YYYY-MM-DD，例如：2024-12-09。如果不提供，则使用当前日期',
+            description: '流水发生的日期，格式必须为YYYY-MM-DD,默认当前日期',
           },
         },
         required: ['name', 'money', 'flowType'],
@@ -401,14 +402,14 @@ class MCPBridge {
     // 行业类型
     this.registerTool({
       name: 'industryType_flow',
-      description: '根据流水类型返回对应用户设定的支出类型。可根据上下文从其中判断选择合适的类型,如返回空列表可自主编写合适的类型',
+      description: '根据流水类型返回可选industryType。根据上下文选择合适的类型,如返回空列表可自主编写',
       inputSchema: {
         type: 'object',
         properties: {
           flowType: {
             type: 'string',
             enum: ['收入', '支出', '不计收支'],
-            description: '流水类型：收入（资金流入）、支出（资金流出）、不计收支（转账等不影响总余额的操作）',
+            description: '流水类型',
           },
         },
         required: ['flowType'],
@@ -448,7 +449,7 @@ class MCPBridge {
           month: {
             type: 'string',
             format: 'date-month',
-            description: '月份，格式必须为YYYY-MM，例如：2024-12。如果不提供，则默认为当前月份',
+            description: '月份，格式必须为YYYY-MM，默认为当前月份',
           },
         },
       },
@@ -477,14 +478,18 @@ class MCPBridge {
     // 更新月度预算
     this.registerTool({
       name: 'update_budget',
-      description: '更新指定月份的预算金额。可以设置新的预算总额，系统会自动计算剩余金额。',
+      description: '更新指定月份的预算金额。',
       inputSchema: {
         type: 'object',
         properties: {
+          id: {
+            type: 'number',
+            description: '预算ID',
+          },
           month: {
             type: 'string',
             format: 'date-month',
-            description: '月份，格式必须为YYYY-MM，例如：2024-12。如果不提供，则默认为当前月份',
+            description: '月份，格式必须为YYYY-MM。默认为当前月份',
           },
           budget: {
             type: 'number',
@@ -492,14 +497,18 @@ class MCPBridge {
             description: '新的预算金额，必须大于等于0。',
           },
         },
-        required: ['budget'],
+        required: ['id','month','budget'],
       },
       execute: async (args, currentBook) => {
         const bookId = await this.getBookId(currentBook);
         const month = args.month || new Date().toISOString().slice(0, 7);
         const budget = args.budget;
+        const id = args.id;
 
         // 验证参数
+        if (id === undefined || id === null) {
+          throw new Error('预算id不能为空');
+        }
         if (budget === undefined || budget === null) {
           throw new Error('预算金额不能为空');
         }
@@ -520,6 +529,7 @@ class MCPBridge {
             bookId,
             month,
             budget,
+            id,
           });
           if (response.c === 200) {
             return {
@@ -542,14 +552,14 @@ class MCPBridge {
     // 刷新预算使用金额
     this.registerTool({
       name: 'refresh_budget_usage',
-      description: '刷新指定月份预算的已使用金额。系统会根据该月份的流水记录重新计算已使用的预算金额。',
+      description: '刷新指定月份预算的已使用金额。',
       inputSchema: {
         type: 'object',
         properties: {
           month: {
             type: 'string',
             format: 'date-month',
-            description: '月份，格式必须为YYYY-MM，例如：2024-12。如果不提供，则默认为当前月份',
+            description: '月份，格式必须为YYYY-MM，则默认为当前月份',
           },
         },
       },
@@ -584,14 +594,14 @@ class MCPBridge {
     // 获取固定支出
     this.registerTool({
       name: 'get_fixed_flows',
-      description: '**注意: 固定支出不会生成流水记录**获取指定月份的固定支出列表，固定支出是指每月定期发生的支出，例如：房租、房贷、订阅服务费',
+      description: '获取指定月份的固定支出列表',
       inputSchema: {
         type: 'object',
         properties: {
           month: {
             type: 'string',
             format: 'date-month',
-            description: '月份，格式必须为YYYY-MM，例如：2024-12。如果不提供，则默认为当前月份',
+            description: '月份，格式必须为YYYY-MM,默认为当前月份',
           },
         },
       },
@@ -627,23 +637,23 @@ class MCPBridge {
         properties: {
           type: {
             type: 'string',
-            enum: ['attribution', 'payType', 'industryType', 'daily'],
-            description: '分析类型：attribution（按归属人分析）、payType（按支付方式分析）、industryType（按行业分类分析）、daily（每日统计）',
+            enum: ['attribution', 'payType', 'industryType', 'daily', 'month'],
+            description: '分析类型：attribution（按归属人分析）、payType（按支付方式分析）、industryType（按行业分类分析）、daily（日常流水分析）、month（月度流水分析）',
           },
           flowType: {
             type: 'string',
             enum: ['收入', '支出', '不计收支'],
-            description: '流水类型：收入（只分析收入流水）、支出（只分析支出流水）、不计收支（只分析不计收支流水）。如果不提供，则分析所有类型的流水',
+            description: '流水类型',
           },
           startDate: {
             type: 'string',
             format: 'date',
-            description: '开始日期，格式必须为YYYY-MM-DD，例如：2024-01-01。如果不提供，则默认为当前月份的第一天',
+            description: '开始日期，格式必须为YYYY-MM-DD,默认为当前月份的第一天',
           },
           endDate: {
             type: 'string',
             format: 'date',
-            description: '结束日期，格式必须为YYYY-MM-DD，例如：2024-12-31。如果不提供，则默认为当前日期',
+            description: '结束日期，格式必须为YYYY-MM-DD，则默认为当前日期',
           },
         },
         required: ['type'],
@@ -673,6 +683,9 @@ class MCPBridge {
             case 'daily':
               response = await api.analytics.daily(bookId);
               break;
+            case 'month':
+              response = await api.analytics.month(bookId);
+              break;
             default:
               throw new Error(`不支持的分析类型: ${args.type}`);
           }
@@ -696,21 +709,21 @@ class MCPBridge {
     // 更新流水记录
     this.registerTool({
       name: 'update_flow',
-      description: '更新现有的流水记录，可以修改流水的名称、金额、类型、行业分类、支付方式、归属人、描述等信息,所有字段必须赋值,优先取原数据值,原数据为空结合上下文编写',
+      description: '更新现有的流水记录,所有字段必须赋值,优先取原数据值,原数据为空结合上下文编写',
       inputSchema: {
         type: 'object',
         properties: {
           id: {
             type: 'number',
-            description: '要更新的流水记录ID，必需参数',
+            description: '流水ID',
           },
           name: {
             type: 'string',
-            description: '流水名称，例如：午餐消费、工资收入、房租支出等,必需参数',
+            description: '流水名称。不能为空字符串',
           },
           money: {
             type: 'number',
-            description: '金额，不能小于0',
+            description: '金额，不能小于0。',
           },
           flowType: {
             type: 'string',
@@ -719,15 +732,15 @@ class MCPBridge {
           },
           industryType: {
             type: 'string',
-            description: '行业分类，例如：餐饮美食、交通出行、日用百货等',
+            description: '行业分类 通过industryType_flow获取可选项，默认为"其他"',
           },
           payType: {
             type: 'string',
-            description: '支付方式，例如：微信支付、支付宝、现金、银行卡等',
+            description: '支付方式，通过get_pay_types获取可选项，默认为"其他"',
           },
           attribution: {
             type: 'string',
-            description: '归属人，表示该流水属于哪个家庭成员或账户',
+            description: '归属人,用户未说明通过get_belonger工具获取',
           },
           description: {
             type: 'string',
@@ -736,7 +749,7 @@ class MCPBridge {
           date: {
             type: 'string',
             format: 'date',
-            description: '流水发生的日期，格式必须为YYYY-MM-DD，例如：2024-12-09',
+            description: '流水发生的日期，格式必须为YYYY-MM-DD',
           },
         },
         required: ['id','name','money','flowType','industryType','payType','attribution','description','date'],
@@ -853,10 +866,114 @@ class MCPBridge {
       },
     });
 
+    // 批量更新流水记录
+    this.registerTool({
+      name: 'batch_update_flows',
+      description: '批量更新多条流水记录。可以同时修改多条流水的类型、行业分类、支付方式或归属人',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          ids: {
+            type: 'array',
+            description: '要更新的流水ID数组，必需参数',
+            items: {
+              type: 'number',
+            },
+            minItems: 1,
+          },
+          flowType: {
+            type: 'string',
+            enum: ['收入', '支出', '不计收支'],
+            description: '新的流水类型（收入、支出、不计收支）',
+          },
+          industryType: {
+            type: 'string',
+            description: '新的行业分类',
+          },
+          payType: {
+            type: 'string',
+            description: '新的支付方式',
+          },
+          attribution: {
+            type: 'string',
+            description: '新的归属人',
+          },
+        },
+        required: ['ids'],
+      },
+      execute: async (args, currentBook) => {
+        // 验证必需参数
+        if (!args.ids || !Array.isArray(args.ids) || args.ids.length === 0) {
+          throw new Error('流水ID数组不能为空，且必须包含至少一个ID');
+        }
+
+        // 验证每个ID都是有效的数字
+        for (let i = 0; i < args.ids.length; i++) {
+          if (typeof args.ids[i] !== 'number' || isNaN(args.ids[i]) || args.ids[i] <= 0) {
+            throw new Error(`流水ID数组中的第${i + 1}个元素必须是有效的正整数`);
+          }
+        }
+
+        // 检查至少有一个更新字段
+        const hasUpdateField = args.flowType !== undefined ||
+                              args.industryType !== undefined ||
+                              args.payType !== undefined ||
+                              args.attribution !== undefined;
+
+        if (!hasUpdateField) {
+          throw new Error('至少需要提供一个更新字段：flowType、industryType、payType或attribution');
+        }
+
+        // 验证flowType的枚举值
+        if (args.flowType !== undefined && !['收入', '支出', '不计收支'].includes(args.flowType)) {
+          throw new Error('流水类型必须是"收入"、"支出"或"不计收支"');
+        }
+
+        const bookId = await this.getBookId(currentBook);
+
+        // 构建请求参数
+        const params: any = {
+          bookId,
+          ids: args.ids,
+        };
+
+        // 只添加提供的更新字段
+        if (args.flowType !== undefined) {
+          params.flowType = args.flowType;
+        }
+        if (args.industryType !== undefined) {
+          params.industryType = args.industryType;
+        }
+        if (args.payType !== undefined) {
+          params.payType = args.payType;
+        }
+        if (args.attribution !== undefined) {
+          params.attribution = args.attribution;
+        }
+
+        try {
+          const response = await api.flow.batchUpdate(params);
+          if (response.c === 200) {
+            return {
+              success: true,
+              updatedCount: response.d?.d || 0,
+              message: `成功批量更新了 ${response.d?.d || 0} 条流水记录`,
+              data: response.d,
+            };
+          } else {
+            throw new Error(response.m || `批量更新流水失败: ${response.c}`);
+          }
+        } catch (error) {
+          console.error('批量更新流水API调用失败:', error);
+          throw new Error(`批量更新流水失败: ${error instanceof Error ? error.message : '未知错误'}`);
+        }
+      },
+    });
+
     // 获取重复流水
     this.registerTool({
       name: 'get_duplicate_flows',
-      description: '根据指定的条件查找重复的流水记录，支持按名称、描述、行业分类、流水类型、支付方式等条件进行去重分析',
+      description: '根据指定的条件查找重复的流水记录',
       inputSchema: {
         type: 'object',
         properties: {
@@ -872,22 +989,22 @@ class MCPBridge {
               description: {
                 type: 'boolean',
                 description: '是否按描述检查重复',
-                default: false,
+                default: true,
               },
               industryType: {
                 type: 'boolean',
                 description: '是否按行业分类检查重复',
-                default: false,
+                default: true,
               },
               flowType: {
                 type: 'boolean',
                 description: '是否按流水类型检查重复',
-                default: false,
+                default: true,
               },
               payType: {
                 type: 'boolean',
                 description: '是否按支付方式检查重复',
-                default: false,
+                default: true,
               },
             },
             default: {
@@ -1084,24 +1201,15 @@ class MCPBridge {
         properties: {
           ids: {
             type: 'array',
-            description: '要忽略的流水ID数组。如果不提供，系统将忽略当前账本中的所有平账候选项',
+            description: '要忽略的流水ID数组。不能为空',
             items: {
               type: 'number',
             },
             minItems: 0,
           },
-          confirm: {
-            type: 'boolean',
-            description: '确认操作标志，设置为true表示用户已确认要忽略所有平账候选项。这是一个重要操作，建议设置为true以避免误操作',
-            default: false,
-          },
         },
       },
       execute: async (args, currentBook) => {
-        // 检查确认标志
-        if (args.confirm !== true) {
-          throw new Error('忽略所有平账候选项需要确认。请将confirm参数设置为true以确认操作。这是一个重要操作，将清除所有平账候选记录。');
-        }
 
         const bookId = await this.getBookId(currentBook);
 
@@ -1152,11 +1260,6 @@ class MCPBridge {
             type: 'number',
             description: '要删除的流水记录ID，必需参数。',
           },
-          confirm: {
-            type: 'boolean',
-            description: '确认删除标志，设置为true表示用户已确认删除操作。强烈建议设置为true以避免误删除。',
-            default: false,
-          },
         },
         required: ['id'],
       },
@@ -1169,12 +1272,6 @@ class MCPBridge {
         if (typeof args.id !== 'number' || isNaN(args.id) || args.id <= 0) {
           throw new Error('流水ID必须是有效的正整数');
         }
-
-        // 检查确认标志
-        if (args.confirm !== true) {
-          throw new Error('删除操作需要确认。请将confirm参数设置为true以确认删除。这是一个高风险操作，删除后数据无法恢复。');
-        }
-
         const bookId = await this.getBookId(currentBook);
 
         try {
@@ -1205,31 +1302,31 @@ class MCPBridge {
     // 添加固定支出
     this.registerTool({
       name: 'add_fixed_flow',
-      description: '**注意: 固定支出不会生成流水记录** 添加一个新的固定支出记录。固定支出是指每月定期发生的支出，例如：房租、房贷、订阅服务费等。需要提供名称、金额、归属人、开始月份和结束月份等必需信息。',
+      description: '添加一个新的固定支出记录',
       inputSchema: {
         type: 'object',
         properties: {
           name: {
             type: 'string',
-            description: '固定支出名称，例如：房租、房贷、Netflix订阅费等。不能为空字符串',
+            description: '固定支出名称。不能为空字符串',
           },
           money: {
             type: 'number',
-            description: '每月固定支出金额，必须大于0',
+            description: '固定支出金额，必须大于0',
           },
           attribution: {
             type: 'string',
-            description: '归属人，表示该固定支出属于哪个家庭成员或账户。必需参数',
+            description: '归属人',
           },
           startMonth: {
             type: 'string',
             format: 'date-month',
-            description: '开始月份，格式必须为YYYY-MM，例如：2024-12。表示固定支出从哪个月开始生效',
+            description: '开始月份，格式必须为YYYY-MM,表示固定支出从哪个月开始生效',
           },
           endMonth: {
             type: 'string',
             format: 'date-month',
-            description: '结束月份，格式必须为YYYY-MM，例如：2025-12。表示固定支出到哪个月结束。如果不提供，默认为开始月份后的12个月',
+            description: '结束月份，格式必须为YYYY-MM，表示固定支出到哪个月结束。不提供默认为开始月份后的12个月',
           },
           description: {
             type: 'string',
@@ -1238,16 +1335,16 @@ class MCPBridge {
           flowType: {
             type: 'string',
             enum: ['收入', '支出', '不计收支'],
-            description: '流水类型：收入（资金流入）、支出（资金流出）、不计收支（转账等不影响总余额的操作）。如果不提供，默认为"支出"',
+            description: '流水类型,默认为"支出"',
             default: '支出',
           },
           industryType: {
             type: 'string',
-            description: '行业分类，例如：房租、贷款、订阅服务等。如果不提供，默认为"固定支出"',
+            description: '行业分类',
           },
           payType: {
             type: 'string',
-            description: '支付方式，例如：银行转账、自动扣款、现金等。如果不提供，默认为"银行转账"',
+            description: '支付方式',
           },
         },
         required: ['name', 'money', 'attribution', 'startMonth'],
@@ -1321,52 +1418,52 @@ class MCPBridge {
     // 更新固定支出
     this.registerTool({
       name: 'update_fixed_flow',
-      description: '**注意: 固定支出不会生成流水记录**更新现有的固定支出记录。可以修改固定支出的名称、金额、归属人、开始月份、结束月份、描述等信息。',
+      description: '更新现有的固定支出记录',
       inputSchema: {
         type: 'object',
         properties: {
           id: {
             type: 'number',
-            description: '要更新的固定支出记录ID，必需参数',
+            description: '固定支出ID，必需参数',
           },
           name: {
             type: 'string',
-            description: '固定支出名称，例如：房租、房贷、Netflix订阅费等',
+            description: '固定支出名称',
           },
           money: {
             type: 'number',
-            description: '每月固定支出金额，必须大于0',
+            description: '固定支出金额，必须大于0',
           },
           attribution: {
             type: 'string',
-            description: '归属人，表示该固定支出属于哪个家庭成员或账户',
+            description: '归属人',
           },
           startMonth: {
             type: 'string',
             format: 'date-month',
-            description: '开始月份，格式必须为YYYY-MM，例如：2024-12',
+            description: '开始月份，格式必须为YYYY-MM',
           },
           endMonth: {
             type: 'string',
             format: 'date-month',
-            description: '结束月份，格式必须为YYYY-MM，例如：2025-12',
+            description: '结束月份，格式必须为YYYY-MM',
           },
           description: {
             type: 'string',
-            description: '固定支出描述，可以记录更多详细信息',
+            description: '固定支出描述',
           },
           flowType: {
             type: 'string',
             enum: ['收入', '支出', '不计收支'],
-            description: '流水类型：收入（资金流入）、支出（资金流出）、不计收支（转账等不影响总余额的操作）',
+            description: '流水类型',
           },
           industryType: {
             type: 'string',
-            description: '行业分类，例如：房租、贷款、订阅服务等',
+            description: '行业分类',
           },
           payType: {
             type: 'string',
-            description: '支付方式，例如：银行转账、自动扣款、现金等',
+            description: '支付方式',
           },
         },
         required: ['id'],
@@ -1468,18 +1565,13 @@ class MCPBridge {
     // 删除固定支出
     this.registerTool({
       name: 'delete_fixed_flow',
-      description: '删除指定的固定支出记录。这是一个高风险操作，删除后数据无法恢复，请谨慎使用。建议设置confirm参数为true以避免误操作。',
+      description: '删除指定的固定支出记录。这是一个高风险操作，删除后数据无法恢复，请谨慎使用',
       inputSchema: {
         type: 'object',
         properties: {
           id: {
             type: 'number',
             description: '要删除的固定支出记录ID，必需参数',
-          },
-          confirm: {
-            type: 'boolean',
-            description: '确认删除标志，设置为true表示用户已确认删除操作。强烈建议设置为true以避免误删除',
-            default: false,
           },
         },
         required: ['id'],
@@ -1492,11 +1584,6 @@ class MCPBridge {
 
         if (typeof args.id !== 'number' || isNaN(args.id) || args.id <= 0) {
           throw new Error('固定支出ID必须是有效的正整数');
-        }
-
-        // 检查确认标志
-        if (args.confirm !== true) {
-          throw new Error('删除操作需要确认。请将confirm参数设置为true以确认删除。这是一个高风险操作，删除后数据无法恢复。');
         }
 
         const bookId = await this.getBookId(currentBook);
@@ -1525,7 +1612,7 @@ class MCPBridge {
     // 获取支付方式列表
     this.registerTool({
       name: 'get_pay_types',
-      description: '获取当前账本中可用的支付方式列表，例如：微信支付、支付宝、现金、银行卡等。返回一个包含所有支付方式的数组。',
+      description: '获取当前账本中可用的支付方式列表，例如：微信支付、支付宝、现金、银行卡等。',
       inputSchema: {
         type: 'object',
         properties: {
@@ -1568,7 +1655,7 @@ class MCPBridge {
     // 获取归属人列表
     this.registerTool({
       name: 'get_attributions',
-      description: '获取当前账本中可用的归属人列表。归属人表示流水属于哪个家庭成员或账户。返回一个包含所有归属人的数组。',
+      description: '获取当前账本中可用的归属人列表',
       inputSchema: {
         type: 'object',
         properties: {
@@ -1611,7 +1698,7 @@ class MCPBridge {
     // 获取归属人信息
     this.registerTool({
       name: 'get_belonger',
-      description: '获取当前登录用户的归属人信息，返回用户姓名和邮箱。如果用户未登录，返回空信息。',
+      description: '获取当前登录用户的归属人信息。如果用户未登录，返回空信息。',
       inputSchema: {
         type: 'object',
         properties: {},
