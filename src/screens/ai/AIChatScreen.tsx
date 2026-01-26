@@ -28,9 +28,6 @@ import {
   BaseMessage,
   createAIMessage,
   createTextMessage,
-  createThinkingMessage,
-  createToolCallMessage,
-  createToolResultMessage,
   Message,
   TextMessage,
   ThinkingMessage,
@@ -139,70 +136,6 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     }
   }, []);
 
-  // 转换旧格式的AIMessage到新格式
-  const convertOldAIMessageToNew = useCallback((oldMsg: any): AIMessage => {
-    const messageList: BaseMessage[] = [];
-
-    // 如果有content，创建TextMessage
-    if (oldMsg.content && typeof oldMsg.content === 'string') {
-      const textMessage: TextMessage = createTextMessage(
-        oldMsg.content,
-        false,
-        {
-          id: `${oldMsg.id}_text`,
-          timestamp: new Date(oldMsg.timestamp),
-          metadata: oldMsg.metadata,
-        }
-      );
-      messageList.push(textMessage);
-    }
-
-    // 如果有thinking，创建ThinkingMessage
-    if (oldMsg.thinking && typeof oldMsg.thinking === 'string') {
-      const thinkingMessage: ThinkingMessage = createThinkingMessage(
-        oldMsg.thinking,
-        {
-          id: `${oldMsg.id}_thinking`,
-          timestamp: new Date(oldMsg.timestamp),
-          metadata: oldMsg.metadata,
-        }
-      );
-      messageList.push(thinkingMessage);
-    }
-
-    // 如果有toolCalls，创建ToolCallMessage(s)
-    if (oldMsg.toolCalls && Array.isArray(oldMsg.toolCalls)) {
-      oldMsg.toolCalls.forEach((toolCall: any, index: number) => {
-        if (toolCall && toolCall.name && toolCall.arguments) {
-          const toolCallMessage: ToolCallMessage = createToolCallMessage(
-            toolCall.name,
-            toolCall.arguments,
-            {
-              id: `${oldMsg.id}_tool_call_${index}`,
-              timestamp: new Date(oldMsg.timestamp),
-              metadata: oldMsg.metadata,
-              loading: false,
-            }
-          );
-          messageList.push(toolCallMessage);
-        }
-      });
-    }
-
-    // 创建新的AIMessage
-    return createAIMessage(
-      messageList,
-      {
-        id: oldMsg.id,
-        timestamp: new Date(oldMsg.timestamp),
-        metadata: oldMsg.metadata,
-        collapsed: oldMsg.collapsed,
-        error: oldMsg.error,
-        loading: oldMsg.loading,
-      }
-    );
-  }, []);
-
   // 加载指定账本的聊天记录
   const loadChatForBook = useCallback(async (bookId: string): Promise<Message[]> => {
     if (!bookId) {
@@ -228,57 +161,9 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
         const messagesWithDates = parsedMessages.map(msg => {
           // 根据消息类型重建消息对象
           const timestamp = new Date(msg.timestamp);
-
-          // 检查是否是旧格式的AIMessage（有content、thinking、toolCalls字段但没有messageList）
-          const isOldAIMessage = msg.type === 'ai' &&
-            (msg.content !== undefined || msg.thinking !== undefined || msg.toolCalls !== undefined) &&
-            !msg.messageList;
-
-          if (isOldAIMessage) {
-            // 转换旧格式的AIMessage到新格式
-            console.log('检测到旧格式AIMessage，进行转换:', msg.id);
-            return convertOldAIMessageToNew(msg);
-          }
-
           // 使用类型断言来访问type属性
           const msgWithType = msg as any;
           switch (msgWithType.type) {
-            case 'thinking':
-              return createThinkingMessage(
-                msgWithType.thinkingContent,
-                {
-                  id: msg.id,
-                  timestamp,
-                  metadata: msg.metadata,
-                  collapsed: msg.collapsed,
-                }
-              );
-            case 'tool_call':
-              return createToolCallMessage(
-                msgWithType.toolName,
-                msgWithType.arguments,
-                {
-                  id: msg.id,
-                  timestamp,
-                  metadata: msg.metadata,
-                  collapsed: msg.collapsed,
-                  loading: msgWithType.loading,
-                }
-              );
-            case 'tool_result':
-              return createToolResultMessage(
-                msgWithType.toolName,
-                msgWithType.success,
-                {
-                  id: msg.id,
-                  timestamp,
-                  metadata: msg.metadata,
-                  collapsed: msg.collapsed,
-                  result: msgWithType.result,
-                  error: msgWithType.error,
-                  duration: msgWithType.duration,
-                }
-              );
             case 'ai':
               // 确保messageList存在，如果不存在则使用空数组
               const messageList = msgWithType.messageList || [];
@@ -307,6 +192,8 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
               );
           }
         });
+
+        aiService.initHistory(messagesWithDates);
         console.log(`已加载账本 ${bookId} 的聊天记录，消息数：${messagesWithDates.length}`);
         return messagesWithDates;
       }
@@ -325,7 +212,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
         }
       ),
     ];
-  }, [convertOldAIMessageToNew]);
+  }, []);
 
   // 防抖函数
   const debounce = useCallback((func: Function, delay: number) => {

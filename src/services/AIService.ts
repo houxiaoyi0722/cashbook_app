@@ -2,7 +2,7 @@ import { mcpBridge } from './MCPBridge';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EventSource from 'react-native-sse';
 import {
-  Message,
+  Message, TextMessage, ThinkingMessage, ToolCallMessage,
 } from '../types';
 import { AIRecursiveService } from './AIRecursiveService';
 import {StreamMessageParser} from './StreamMessageParser.ts';
@@ -844,6 +844,57 @@ ${contextInfo}
     }
   }
 
+  initHistory(messages: Message[]) {
+    this.conversationHistory = [];
+    messages.forEach(topMsg => {
+      if (topMsg.type === 'ai') {
+        let content = '';
+        topMsg.messageList.forEach(message => {
+          switch (message.type) {
+            case 'text':
+              const textMessage = message as TextMessage;
+              content += textMessage.content;
+              content += '\n';
+              break;
+            case 'thinking':
+              const thinkingMessage = message as ThinkingMessage;
+              content += thinkingMessage.thinkingContent;
+              content += '\n';
+              break;
+            case 'tool_call':
+              const toolCallMessage = message as ToolCallMessage;
+              content += JSON.stringify({
+                type: 'tool_call',
+                toolName: toolCallMessage.toolName,
+                arguments: toolCallMessage.arguments,
+                result: toolCallMessage.resultMessage ? toolCallMessage.resultMessage.success ?  toolCallMessage.resultMessage.result : toolCallMessage.resultMessage.errorMessage : undefined,
+              });
+              content += '\n';
+              break;
+          }
+        });
+        this.conversationHistory.push({
+          role: 'assistant',
+          content: content,
+          timestamp: topMsg.timestamp,
+        });
+      } else {
+        let textMessage = topMsg as TextMessage;
+
+        this.conversationHistory.push({
+          role: textMessage.isUser ? 'user' : 'system',
+          content: textMessage.content,
+          timestamp: textMessage.timestamp,
+        });
+      }
+    });
+
+    if (this.conversationHistory.length > 20) {
+      this.conversationHistory = this.conversationHistory.slice(-100);
+    }
+    console.log('从历史记录初始化历史消息：', this.conversationHistory.length);
+  }
+
   private getRecentHistory() {
     return this.conversationHistory
       .filter(msg => msg.role !== 'system')
@@ -860,14 +911,6 @@ ${contextInfo}
 
   getHistory() {
     return [...this.conversationHistory];
-  }
-
-  // 检查是否可以生成AI建议
-  canGenerateSuggestions(): boolean {
-    // 这里需要检查AI配置是否已设置
-    // 在实际实现中，应该检查配置是否存在且有效
-    // 目前返回true，让调用者决定是否使用
-    return true;
   }
 
   // 生成AI驱动的提示建议
