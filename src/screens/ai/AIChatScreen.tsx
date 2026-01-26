@@ -13,10 +13,7 @@ import {
   View,
   Keyboard,
 } from 'react-native';
-// 尝试导入Clipboard，如果不可用则使用备用方案
 import Clipboard from '@react-native-clipboard/clipboard';
-// 导入ToastAndroid用于Android提示
-import { ToastAndroid } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {MessageStreamCallback} from '../../services/AIService';
@@ -524,7 +521,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
         return;
       }
 
-      console.log(`账本切换：从 ${currentBookIdRef.current} 到 ${newBookId}`);
+      console.log(`账本切换：从 ${currentBookIdRef.current} 到 ${currentBook.bookName}`);
 
       // 保存当前账本的聊天记录（如果有的话）
       if (currentBookIdRef.current && messages.length > 0) {
@@ -555,25 +552,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     };
 
     handleBookChange();
-  }, [currentBook, saveChatForCurrentBook, loadChatForBook, messages]);
-
-  // 组件卸载时保存当前聊天记录
-  useEffect(() => {
-    return () => {
-      const saveBeforeUnmount = async () => {
-        if (currentBookIdRef.current && messages.length > 0) {
-          await saveChatForCurrentBook(currentBookIdRef.current, messages);
-          console.log(`组件卸载，已保存账本 ${currentBookIdRef.current} 的聊天记录`);
-        }
-      };
-      saveBeforeUnmount();
-
-      // 清理防抖定时器
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-  }, [messages, saveChatForCurrentBook]);
+  }, []);
 
   // 初始化当前账本ID和AIService中的账本信息
   useEffect(() => {
@@ -603,7 +582,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
         aiService.updateBookInfo(null, null);
       }
     }
-  }, [currentBook, loadChatForBook]);
+  }, []);
 
   // 初始加载和屏幕聚焦时检查配置
   useEffect(() => {
@@ -801,6 +780,9 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           } else {
             // 添加新消息
             newMessages.push(message);
+          }
+          if (currentBookIdRef.current && newMessages.length > 0) {
+            saveChatForCurrentBook(currentBookIdRef.current, newMessages);
           }
           return newMessages;
         });
