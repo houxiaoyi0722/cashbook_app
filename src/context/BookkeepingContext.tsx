@@ -59,9 +59,6 @@ export const BookkeepingProvider: React.FC<{ children: React.ReactNode }> = ({ c
         console.error('加载当前账本失败', error);
       }
     };
-
-    loadCurrentBook();
-
     eventBus.addListener('refreshCurrentBook', loadCurrentBook);
     return () => {
       eventBus.removeAllListeners('refreshCurrentBook');

@@ -232,7 +232,7 @@ const CalendarScreen: React.FC = () => {
     }
 
     return () => { isMounted = false; };
-  }, [currentBook, isOfflineMode]);
+  }, []);
 
   // 检查离线模式状态
   useEffect(() => {
