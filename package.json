@@ -28,6 +28,7 @@
     "react-native": "0.78.0",
     "react-native-calendars": "^1.1310.0",
     "react-native-device-info": "^14.0.4",
+    "react-native-dropdown-picker": "^5.4.6",
     "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "^2.24.0",
     "react-native-image-picker": "^8.2.0",

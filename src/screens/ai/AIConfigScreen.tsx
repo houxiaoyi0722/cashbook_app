@@ -8,8 +8,10 @@ import {
   Alert,
   ActivityIndicator,
   StyleSheet,
-} from 'react-native';import { SafeAreaView } from 'react-native-safe-area-context';
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon } from '@rneui/themed';
+import DropDownPicker from 'react-native-dropdown-picker';
 import { aiConfigService, AIConfig } from '../../services/AIConfigService';
 import { useTheme, getColors } from '../../context/ThemeContext';
 
@@ -33,19 +35,24 @@ const AIConfigScreen: React.FC = () => {
   const [loadingModels, setLoadingModels] = useState(false);
   const [validationState, setValidationState] = useState<'none' | 'validating' | 'success' | 'error'>('none');
 
+  // 下拉选择器状态
+  const [open, setOpen] = useState(false);
+  const [dropdownItems, setDropdownItems] = useState<Array<{label: string, value: string}>>([]);
+
   useEffect(() => {
     loadConfig();
   }, []);
 
-  // 当服务商或API Key变化时，重新加载模型
+  // 当models变化时，更新下拉选择器的items
   useEffect(() => {
-    if (config.provider && config.apiKey) {
-      loadModels();
-    } else {
-      // 如果没有API Key或服务商，清空模型列表
-      setModels([]);
-    }
-  }, [config.provider, config.apiKey]);
+    const items = models.map(model => ({
+      label: model.name || model.id,
+      value: model.id,
+    }));
+    // 合并用户自定义项
+    const allItems = [...items];
+    setDropdownItems(allItems);
+  }, [models]);
 
   const loadConfig = async () => {
     try {
@@ -292,7 +299,11 @@ const AIConfigScreen: React.FC = () => {
     setLoadingModels(false);
   };
 
-  const handleModelSelect = (modelId: string) => {
+  const handleModelSelect = (modelId: string | number | boolean | null | undefined) => {
+    // 只处理字符串类型
+    if (typeof modelId !== 'string') {
+      return;
+    }
     setConfig((prev: Partial<AIConfig>) => ({ ...prev, model: modelId }));
   };
 
@@ -426,49 +437,81 @@ const AIConfigScreen: React.FC = () => {
             </View>
           ) : (
             <>
-              {/* 模型选择网格（当有模型时显示） */}
-              {models.length > 0 && (
-                <View style={styles.modelsGrid}>
-                  {models.map((model) => (
-                    <TouchableOpacity
-                      key={model.id}
-                      style={[
-                        styles.modelCard,
-                        { backgroundColor: colors.card },
-                        config.model === model.id && [
-                          styles.modelCardActive,
-                          { backgroundColor: colors.primary + '20', borderColor: colors.primary }
-                        ]
-                      ]}
-                      onPress={() => handleModelSelect(model.id)}
-                    >
-                      <View style={styles.modelCardHeader}>
-                        <Icon
-                          name={config.model === model.id ? "check-circle" : "circle"}
-                          type="material"
-                          color={config.model === model.id ? colors.primary : colors.secondaryText}
-                          size={20}
-                        />
-                        <Text style={[
-                          styles.modelName,
-                          { color: colors.text },
-                          config.model === model.id && { color: colors.primary, fontWeight: '600' }
-                        ]} numberOfLines={1}>
-                          {model.name}
-                        </Text>
-                      </View>
-                      <Text style={[styles.modelId, {color: colors.secondaryText}]} numberOfLines={1}>
-                        {model.id}
-                      </Text>
-                      {model.description && (
-                        <Text style={[styles.modelDesc, {color: colors.secondaryText}]} numberOfLines={2}>
-                          {model.description}
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+              {/* 模型选择下拉框 */}
+              <View style={styles.dropdownContainer}>
+                <DropDownPicker
+                  open={open}
+                  setOpen={setOpen}
+                  value={config.model}
+                  setValue={(callback) => {
+                    const newValue = typeof callback === 'function' ? callback(config.model) : callback;
+                    if (newValue !== undefined) {
+                      handleModelSelect(newValue);
+                    }
+                  }}
+                  items={dropdownItems}
+                  setItems={setDropdownItems}
+                  searchable={true}
+                  searchPlaceholder="搜索模型..."
+                  placeholder="选择模型"
+                  listMode="MODAL"
+                  scrollViewProps={{
+                    nestedScrollEnabled: true,
+                  }}
+                  style={[
+                    styles.dropdown,
+                    {
+                      backgroundColor: colors.input,
+                      borderColor: colors.border,
+                    }
+                  ]}
+                  dropDownContainerStyle={[
+                    styles.dropdownList,
+                    {
+                      backgroundColor: colors.input,
+                      borderColor: colors.border,
+                    }
+                  ]}
+                  textStyle={{
+                    color: colors.text,
+                    fontSize: 16,
+                  }}
+                  searchTextInputStyle={{
+                    color: colors.text,
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                  }}
+                  placeholderStyle={{
+                    color: colors.hint,
+                  }}
+                  selectedItemLabelStyle={{
+                    fontWeight: '600',
+                    color: colors.primary,
+                  }}
+                  selectedItemContainerStyle={{
+                    backgroundColor: colors.primary + '20',
+                  }}
+                  searchPlaceholderTextColor={colors.hint}
+                  searchIconStyle={{
+                    tintColor: colors.text,
+                  }}
+                  onChangeValue={(value) => {
+                    if (value) {
+                      handleModelSelect(value);
+                    }
+                  }}
+                  onSelectItem={(item) => {
+                    if (item.value) {
+                      handleModelSelect(item.value);
+                    }
+                  }}
+                  disabled={loadingModels}
+                  loading={loadingModels}
+                  listItemLabelStyle={{
+                    color: colors.text,
+                  }}
+                />
+              </View>
 
               {/* 模型名称输入字段（始终显示） */}
               <View style={styles.manualInputContainer}>
@@ -747,6 +790,24 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 30,
+  },
+  dropdownContainer: {
+    marginBottom: 12,
+    zIndex: 1000, // 确保下拉框在其他元素之上
+    minHeight: 50,
+  },
+  dropdown: {
+    borderWidth: 1,
+    borderRadius: 8,
+    minHeight: 50,
+  },
+  dropdownList: {
+    borderWidth: 1,
+    borderRadius: 8,
+    maxHeight: 300,
+    overflow: 'scroll',
+    zIndex: 1000,
+    elevation: 1000,
   },
   header: {
     flexDirection: 'row',
