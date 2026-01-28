@@ -28,6 +28,8 @@ const AIConfigScreen: React.FC = () => {
     temperature: 0,
     baseURL: 'https://api.openai.com/v1',
   });
+  // 确保 model 总是有值
+  const modelValue = config.model || 'gpt-3.5-turbo';
   // 存储每个供应商的配置
   const [models, setModels] = useState<Array<{id: string, name: string, description?: string}>>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -80,7 +82,7 @@ const AIConfigScreen: React.FC = () => {
 
       // 如果当前选择的模型不在新获取的列表中，且列表不为空，则选择第一个模型
       if (availableModels.length > 0) {
-        const currentModelExists = availableModels.some(model => model.id === config.model);
+        const currentModelExists = availableModels.some(model => model.id === modelValue);
         if (!currentModelExists) {
           setConfig((prev: any) => ({ ...prev, model: availableModels[0].id }));
         }
@@ -185,11 +187,14 @@ const AIConfigScreen: React.FC = () => {
                 break;
             }
 
+            // 确保 model 有值
+            const modelToUse = defaultModel || 'gpt-3.5-turbo';
+
             // 更新当前配置状态
             setConfig({
               provider: currentProvider,
               apiKey: '',
-              model: defaultModel,
+              model: modelToUse,
               baseURL: defaultBaseURL,
               maxTokens: 5000,
               temperature: 0,
@@ -224,7 +229,12 @@ const AIConfigScreen: React.FC = () => {
 
     if (savedProviderConfig) {
       // 如果有，则恢复该供应商的配置（包括API Key）
-      setConfig(savedProviderConfig);
+      // 确保 model 有值
+      const restoredConfig = {
+        ...savedProviderConfig,
+        model: savedProviderConfig.model || getDefaultModelForProvider(provider),
+      };
+      setConfig(restoredConfig);
     } else {
       // 如果没有，则使用默认配置
       // 为每个提供商设置默认的 baseURL
@@ -252,10 +262,7 @@ const AIConfigScreen: React.FC = () => {
         // 总是更新为新的默认 baseURL
         baseURL: defaultBaseURL,
         // 为不同服务商设置默认模型
-        model: provider === 'deepseek' ? 'deepseek-chat' :
-          provider === 'openai' ? 'gpt-3.5-turbo' :
-            provider === 'anthropic' ? 'claude-3-haiku-20240307' :
-              provider === 'google' ? 'gemini-pro' : '',
+        model: getDefaultModelForProvider(provider),
         // 只有在没有保存配置时才清空API Key
         apiKey: '',
         maxTokens: 5000,
@@ -269,12 +276,36 @@ const AIConfigScreen: React.FC = () => {
     setLoadingModels(false);
   };
 
+  // 辅助函数：获取默认模型
+  const getDefaultModelForProvider = (provider: AIConfig['provider']): string => {
+    switch (provider) {
+      case 'deepseek':
+        return 'deepseek-chat';
+      case 'openai':
+        return 'gpt-3.5-turbo';
+      case 'anthropic':
+        return 'claude-3-haiku-20240307';
+      case 'google':
+        return 'gemini-pro';
+      case 'custom':
+        return '';
+      default:
+        return 'gpt-3.5-turbo';
+    }
+  };
+
   const handleModelSelect = (modelId: string | number | boolean | null | undefined) => {
     // 只处理字符串类型
-    if (typeof modelId !== 'string') {
-      return;
+    if (typeof modelId === 'string') {
+      setConfig((prev: Partial<AIConfig>) => ({ ...prev, model: modelId }));
+    } else if (typeof modelId === 'number') {
+      setConfig((prev: Partial<AIConfig>) => ({ ...prev, model: modelId.toString() }));
+    } else if (typeof modelId === 'boolean') {
+      setConfig((prev: Partial<AIConfig>) => ({ ...prev, model: modelId.toString() }));
+    } else {
+      // 对于 null 或 undefined，使用默认值
+      setConfig((prev: Partial<AIConfig>) => ({ ...prev, model: 'gpt-3.5-turbo' }));
     }
-    setConfig((prev: Partial<AIConfig>) => ({ ...prev, model: modelId }));
   };
 
   return (
@@ -412,9 +443,9 @@ const AIConfigScreen: React.FC = () => {
                 <DropDownPicker
                   open={open}
                   setOpen={setOpen}
-                  value={config.model}
+                  value={modelValue}
                   setValue={(callback) => {
-                    const newValue = typeof callback === 'function' ? callback(config.model) : callback;
+                    const newValue = typeof callback === 'function' ? callback(modelValue) : callback;
                     if (newValue !== undefined) {
                       handleModelSelect(newValue);
                     }
@@ -462,9 +493,6 @@ const AIConfigScreen: React.FC = () => {
                     backgroundColor: colors.primary + '20',
                   }}
                   searchPlaceholderTextColor={colors.hint}
-                  searchIconStyle={{
-                    tintColor: colors.text,
-                  }}
                   onChangeValue={(value) => {
                     if (value) {
                       handleModelSelect(value);
@@ -498,7 +526,7 @@ const AIConfigScreen: React.FC = () => {
                       borderColor: colors.border,
                     },
                   ]}
-                  value={config.model}
+                  value={modelValue}
                   onChangeText={(text) => setConfig((prev: any) => ({ ...prev, model: text }))}
                   placeholder={models.length > 0 ? '输入模型ID' : '无法获取模型列表，请手动输入模型名称'}
                   placeholderTextColor={colors.hint}
