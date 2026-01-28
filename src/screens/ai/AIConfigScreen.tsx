@@ -26,10 +26,9 @@ const AIConfigScreen: React.FC = () => {
     model: 'gpt-3.5-turbo',
     maxTokens: 5000,
     temperature: 0,
-    baseURL: 'https://api.openai.com/v1'
+    baseURL: 'https://api.openai.com/v1',
   });
   // 存储每个供应商的配置
-  const [providerConfigs, setProviderConfigs] = useState<Record<string, Partial<AIConfig>>>({});
   const [models, setModels] = useState<Array<{id: string, name: string, description?: string}>>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -59,11 +58,6 @@ const AIConfigScreen: React.FC = () => {
       const savedConfig = await aiConfigService.getConfig();
       if (savedConfig) {
         setConfig(savedConfig);
-        // 初始化providerConfigs，将当前配置保存到对应供应商
-        setProviderConfigs(prev => ({
-          ...prev,
-          [savedConfig.provider]: savedConfig
-        }));
       }
     } catch (error) {
       console.error('加载配置失败:', error);
@@ -109,11 +103,6 @@ const AIConfigScreen: React.FC = () => {
     try {
       const success = await aiConfigService.saveConfig(config);
       if (success) {
-        // 保存配置时也更新providerConfigs
-        setProviderConfigs(prev => ({
-          ...prev,
-          [config.provider || 'openai']: config
-        }));
         Alert.alert('成功', 'AI配置已保存');
       } else {
         Alert.alert('失败', '保存配置失败，请重试');
@@ -141,7 +130,7 @@ const AIConfigScreen: React.FC = () => {
         model: config.model || 'gpt-3.5-turbo',
         baseURL: config.baseURL,
         maxTokens: config.maxTokens,
-        temperature: config.temperature
+        temperature: config.temperature,
       };
       const isValid = await aiConfigService.validateConfig(validationConfig);
       if (isValid) {
@@ -203,21 +192,8 @@ const AIConfigScreen: React.FC = () => {
               model: defaultModel,
               baseURL: defaultBaseURL,
               maxTokens: 5000,
-              temperature: 0
+              temperature: 0,
             });
-
-            // 更新 providerConfigs，将当前供应商的配置重置为默认值（API Key 为空）
-            setProviderConfigs(prev => ({
-              ...prev,
-              [currentProvider]: {
-                provider: currentProvider,
-                apiKey: '',
-                model: defaultModel,
-                baseURL: defaultBaseURL,
-                maxTokens: 5000,
-                temperature: 0
-              }
-            }));
 
             // 同时清除 AsyncStorage 中的配置
             await aiConfigService.clearConfig();
@@ -227,71 +203,65 @@ const AIConfigScreen: React.FC = () => {
             setModels([]);
 
             Alert.alert('已清除', '当前供应商配置已清除');
-          }
-        }
+          },
+        },
       ]
     );
   };
 
   const handleProviderSelect = (provider: AIConfig['provider']) => {
     // 使用函数式更新来确保获取最新的 providerConfigs
-    setProviderConfigs(prev => {
-      // 1. 保存当前供应商的配置到providerConfigs
-      const updatedProviderConfigs = {
-        ...prev,
-        [config.provider || 'openai']: {
-          ...config,
-          provider: config.provider || 'openai'
-        }
-      };
+    // 1. 保存当前供应商的配置到providerConfigs
+    const updatedProviderConfigs = {
+      [config.provider || 'openai']: {
+        ...config,
+        provider: config.provider || 'openai',
+      },
+    };
 
-      // 2. 检查要切换到的供应商是否有已保存的配置
-      const savedProviderConfig = updatedProviderConfigs[provider];
+    // 2. 检查要切换到的供应商是否有已保存的配置
+    const savedProviderConfig = updatedProviderConfigs[provider];
 
-      if (savedProviderConfig) {
-        // 如果有，则恢复该供应商的配置（包括API Key）
-        setConfig(savedProviderConfig);
-      } else {
-        // 如果没有，则使用默认配置
-        // 为每个提供商设置默认的 baseURL
-        let defaultBaseURL = '';
-        switch (provider) {
-          case 'openai':
-            defaultBaseURL = 'https://api.openai.com/v1';
-            break;
-          case 'anthropic':
-            defaultBaseURL = 'https://api.anthropic.com/v1';
-            break;
-          case 'google':
-            defaultBaseURL = 'https://generativelanguage.googleapis.com/v1';
-            break;
-          case 'deepseek':
-            defaultBaseURL = 'https://api.deepseek.com';
-            break;
-          case 'custom':
-            defaultBaseURL = '';
-            break;
-        }
-
-        setConfig({
-          provider,
-          // 总是更新为新的默认 baseURL
-          baseURL: defaultBaseURL,
-          // 为不同服务商设置默认模型
-          model: provider === 'deepseek' ? 'deepseek-chat' :
-                 provider === 'openai' ? 'gpt-3.5-turbo' :
-                 provider === 'anthropic' ? 'claude-3-haiku-20240307' :
-                 provider === 'google' ? 'gemini-pro' : '',
-          // 只有在没有保存配置时才清空API Key
-          apiKey: '',
-          maxTokens: 5000,
-          temperature: 0
-        });
+    if (savedProviderConfig) {
+      // 如果有，则恢复该供应商的配置（包括API Key）
+      setConfig(savedProviderConfig);
+    } else {
+      // 如果没有，则使用默认配置
+      // 为每个提供商设置默认的 baseURL
+      let defaultBaseURL = '';
+      switch (provider) {
+        case 'openai':
+          defaultBaseURL = 'https://api.openai.com/v1';
+          break;
+        case 'anthropic':
+          defaultBaseURL = 'https://api.anthropic.com/v1';
+          break;
+        case 'google':
+          defaultBaseURL = 'https://generativelanguage.googleapis.com/v1';
+          break;
+        case 'deepseek':
+          defaultBaseURL = 'https://api.deepseek.com';
+          break;
+        case 'custom':
+          defaultBaseURL = '';
+          break;
       }
 
-      return updatedProviderConfigs;
-    });
-
+      setConfig({
+        provider,
+        // 总是更新为新的默认 baseURL
+        baseURL: defaultBaseURL,
+        // 为不同服务商设置默认模型
+        model: provider === 'deepseek' ? 'deepseek-chat' :
+          provider === 'openai' ? 'gpt-3.5-turbo' :
+            provider === 'anthropic' ? 'claude-3-haiku-20240307' :
+              provider === 'google' ? 'gemini-pro' : '',
+        // 只有在没有保存配置时才清空API Key
+        apiKey: '',
+        maxTokens: 5000,
+        temperature: 0,
+      });
+    }
     // 切换服务商时重置验证状态
     setValidationState('none');
     setModels([]);
@@ -320,7 +290,7 @@ const AIConfigScreen: React.FC = () => {
               { id: 'anthropic' as const, name: 'Anthropic' },
               { id: 'google' as const, name: 'Google' },
               { id: 'deepseek' as const, name: 'DeepSeek' },
-              { id: 'custom' as const, name: '自定义' }
+              { id: 'custom' as const, name: '自定义(OpenAI兼容)' },
             ].map((provider) => (
               <TouchableOpacity
                 key={provider.id}
@@ -329,15 +299,15 @@ const AIConfigScreen: React.FC = () => {
                   { backgroundColor: colors.card },
                   config.provider === provider.id && [
                     styles.providerButtonActive,
-                    { backgroundColor: colors.primary }
-                  ]
+                    { backgroundColor: colors.primary },
+                  ],
                 ]}
                 onPress={() => handleProviderSelect(provider.id)}
               >
                 <Text style={[
                   styles.providerText,
                   { color: colors.text },
-                  config.provider === provider.id && styles.providerTextActive
+                  config.provider === provider.id && styles.providerTextActive,
                 ]}>
                   {provider.name}
                 </Text>
@@ -361,7 +331,7 @@ const AIConfigScreen: React.FC = () => {
                 },
                 validating && { borderColor: colors.warning },
                 validationState === 'success' && { borderColor: colors.success },
-                validationState === 'error' && { borderColor: colors.error }
+                validationState === 'error' && { borderColor: colors.error },
               ]}
               value={config.apiKey}
               onChangeText={(text) => {
@@ -463,14 +433,14 @@ const AIConfigScreen: React.FC = () => {
                     {
                       backgroundColor: colors.input,
                       borderColor: colors.border,
-                    }
+                    },
                   ]}
                   dropDownContainerStyle={[
                     styles.dropdownList,
                     {
                       backgroundColor: colors.input,
                       borderColor: colors.border,
-                    }
+                    },
                   ]}
                   textStyle={{
                     color: colors.text,
@@ -525,12 +495,12 @@ const AIConfigScreen: React.FC = () => {
                     {
                       backgroundColor: colors.input,
                       color: colors.text,
-                      borderColor: colors.border
-                    }
+                      borderColor: colors.border,
+                    },
                   ]}
                   value={config.model}
                   onChangeText={(text) => setConfig((prev: any) => ({ ...prev, model: text }))}
-                  placeholder={models.length > 0 ? "输入模型ID" : "无法获取模型列表，请手动输入模型名称"}
+                  placeholder={models.length > 0 ? '输入模型ID' : '无法获取模型列表，请手动输入模型名称'}
                   placeholderTextColor={colors.hint}
                 />
               </View>
@@ -559,8 +529,8 @@ const AIConfigScreen: React.FC = () => {
               {
                 backgroundColor: colors.input,
                 color: colors.text,
-                borderColor: colors.border
-              }
+                borderColor: colors.border,
+              },
             ]}
             value={config.baseURL}
             onChangeText={(text) => setConfig((prev: any) => ({ ...prev, baseURL: text }))}
@@ -576,12 +546,12 @@ const AIConfigScreen: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.advancedToggle,
-            { backgroundColor: colors.card }
+            { backgroundColor: colors.card },
           ]}
           onPress={() => setShowAdvanced(!showAdvanced)}
         >
           <Icon
-            name={showAdvanced ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+            name={showAdvanced ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
             type="material"
             color={colors.primary}
             size={24}
@@ -602,8 +572,8 @@ const AIConfigScreen: React.FC = () => {
                   {
                     backgroundColor: colors.input,
                     color: colors.text,
-                    borderColor: colors.border
-                  }
+                    borderColor: colors.border,
+                  },
                 ]}
                 value={config.maxTokens?.toString()}
                 onChangeText={(text) => {
@@ -631,8 +601,8 @@ const AIConfigScreen: React.FC = () => {
                   {
                     backgroundColor: colors.input,
                     color: colors.text,
-                    borderColor: colors.border
-                  }
+                    borderColor: colors.border,
+                  },
                 ]}
                 value={config.temperature?.toString()}
                 onChangeText={(text) => {
@@ -660,7 +630,7 @@ const AIConfigScreen: React.FC = () => {
             style={[
               styles.button,
               styles.validateButton,
-              { backgroundColor: colors.warning }
+              { backgroundColor: colors.warning },
             ]}
             onPress={handleValidate}
             disabled={validating}
@@ -676,7 +646,7 @@ const AIConfigScreen: React.FC = () => {
             style={[
               styles.button,
               styles.clearButton,
-              { backgroundColor: colors.error }
+              { backgroundColor: colors.error },
             ]}
             onPress={handleClear}
           >
@@ -687,7 +657,7 @@ const AIConfigScreen: React.FC = () => {
             style={[
               styles.button,
               styles.saveButton,
-              { backgroundColor: colors.success }
+              { backgroundColor: colors.success },
             ]}
             onPress={handleSave}
             disabled={loading}
