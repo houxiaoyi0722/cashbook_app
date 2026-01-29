@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon } from '@rneui/themed';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { aiConfigService, AIConfig } from '../../services/AIConfigService';
 import { useTheme, getColors } from '../../context/ThemeContext';
@@ -34,11 +34,7 @@ const AIConfigScreen: React.FC = () => {
   const [editingConfigId, setEditingConfigId] = useState<string | null>(null);
   const [editingConfigName, setEditingConfigName] = useState<string>('');
 
-  useEffect(() => {
-    loadConfig();
-  }, []);
-
-  const loadConfig = async () => {
+  const loadConfig = useCallback(async () => {
     try {
       // 获取所有配置
       const allConfigs = await aiConfigService.getAllConfigs();
@@ -52,7 +48,19 @@ const AIConfigScreen: React.FC = () => {
     } catch (error) {
       console.error('加载配置失败:', error);
     }
-  };
+  }, []);
+
+  // 初始加载
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
+
+  // 当页面获得焦点时重新加载数据
+  useFocusEffect(
+    useCallback(() => {
+      loadConfig();
+    }, [loadConfig])
+  );
 
   const formatTime = (timestamp?: number) => {
     if (!timestamp) {return '未知时间';}
@@ -165,187 +173,187 @@ const AIConfigScreen: React.FC = () => {
             ) : (
               <View style={styles.configsList}>
                 {configs.map((config) => (
-                  <View
-                    key={config.id}
-                    style={[
-                      styles.configItem,
-                      {
-                        backgroundColor: colors.card,
-                        borderColor: colors.border,
-                        shadowColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                        shadowOffset: {width: 0, height: 2},
-                        shadowOpacity: 0.1,
-                        shadowRadius: 4,
-                        elevation: 3,
-                      },
-                      editingConfigId === config.id && styles.configItemActive,
-                      activeConfigId === config.id && styles.configItemActiveBorder,
-                    ]}
+                  <TouchableOpacity
+                    onPress={() => handleEditConfig(config.id)}
+                    style={styles.configNameTouchable}
                   >
-                    <View style={styles.configItemHeader}>
-                      <View style={styles.configItemInfo}>
-                        <View style={styles.configTitleRow}>
-                          {editingName && editingConfigId === config.id ? (
-                            <View style={styles.nameEditContainer}>
-                              <TextInput
-                                style={[styles.configNameInput, {color: colors.text, borderColor: colors.primary}]}
-                                value={editingConfigName}
-                                onChangeText={setEditingConfigName}
-                                autoFocus
-                              />
-                              <TouchableOpacity
-                                style={[styles.nameEditButton, {backgroundColor: colors.success}]}
-                                onPress={() => handleRenameConfig(config.id, editingConfigName)}
-                              >
-                                <Icon name="check" type="material" color="#fff" size={16}/>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={[styles.nameEditButton, {backgroundColor: colors.error}]}
-                                onPress={() => {
-                                  setEditingName(false);
-                                  setEditingConfigId(null);
-                                }}
-                              >
-                                <Icon name="close" type="material" color="#fff" size={16}/>
-                              </TouchableOpacity>
-                            </View>
-                          ) : (
-                            <TouchableOpacity
-                              onPress={() => handleEditConfig(config.id)}
-                              style={styles.configNameTouchable}
-                            >
+                    <View
+                      key={config.id}
+                      style={[
+                        styles.configItem,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: colors.border,
+                          shadowColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                          shadowOffset: {width: 0, height: 2},
+                          shadowOpacity: 0.1,
+                          shadowRadius: 4,
+                          elevation: 3,
+                        },
+                        editingConfigId === config.id && styles.configItemActive,
+                        activeConfigId === config.id && styles.configItemActiveBorder,
+                      ]}
+                    >
+                      <View style={styles.configItemHeader}>
+                        <View style={styles.configItemInfo}>
+                          <View style={styles.configTitleRow}>
+                            {editingName && editingConfigId === config.id ? (
+                              <View style={styles.nameEditContainer}>
+                                <TextInput
+                                  style={[styles.configNameInput, {color: colors.text, borderColor: colors.primary}]}
+                                  value={editingConfigName}
+                                  onChangeText={setEditingConfigName}
+                                  autoFocus
+                                />
+                                <TouchableOpacity
+                                  style={[styles.nameEditButton, {backgroundColor: colors.success}]}
+                                  onPress={() => handleRenameConfig(config.id, editingConfigName)}
+                                >
+                                  <Icon name="check" type="material" color="#fff" size={16}/>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={[styles.nameEditButton, {backgroundColor: colors.error}]}
+                                  onPress={() => {
+                                    setEditingName(false);
+                                    setEditingConfigId(null);
+                                  }}
+                                >
+                                  <Icon name="close" type="material" color="#fff" size={16}/>
+                                </TouchableOpacity>
+                              </View>
+                            ) : (
                               <Text style={[styles.configName, {color: colors.text}]}>
                                 {config.name}
                               </Text>
-                            </TouchableOpacity>
-                          )}
-                          {activeConfigId === config.id && (
-                            <View style={[styles.activeBadge, {backgroundColor: colors.success}]}>
-                              <Text style={styles.activeBadgeText}>活动</Text>
-                            </View>
-                          )}
-                        </View>
-                        <Text style={[styles.configProvider, {color: colors.secondaryText}]}>
-                          {config.provider} • {config.model}
-                        </Text>
+                            )}
+                            {activeConfigId === config.id && (
+                              <View style={[styles.activeBadge, {backgroundColor: colors.success}]}>
+                                <Text style={styles.activeBadgeText}>活动</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={[styles.configProvider, {color: colors.secondaryText}]}>
+                            {config.provider} • {config.model}
+                          </Text>
 
-                        {/* 时间信息 */}
-                        <View style={styles.timeInfoContainer}>
-                          <View style={styles.timeInfoItem}>
-                            <Icon name="access-time" type="material" color={colors.hint} size={10}/>
-                            <Text style={[styles.timeInfoText, {color: colors.hint}]}>
-                              创建: {formatTime(config.createdAt)}
-                            </Text>
+                          {/* 时间信息 */}
+                          <View style={styles.timeInfoContainer}>
+                            <View style={styles.timeInfoItem}>
+                              <Icon name="access-time" type="material" color={colors.hint} size={10}/>
+                              <Text style={[styles.timeInfoText, {color: colors.hint}]}>
+                                创建: {formatTime(config.createdAt)}
+                              </Text>
+                            </View>
+                            <View style={styles.timeInfoItem}>
+                              <Icon name="update" type="material" color={colors.hint} size={10}/>
+                              <Text style={[styles.timeInfoText, {color: colors.hint}]}>
+                                更新: {formatTime(config.updatedAt)}
+                              </Text>
+                            </View>
                           </View>
-                          <View style={styles.timeInfoItem}>
-                            <Icon name="update" type="material" color={colors.hint} size={10}/>
-                            <Text style={[styles.timeInfoText, {color: colors.hint}]}>
-                              更新: {formatTime(config.updatedAt)}
-                            </Text>
-                          </View>
+                        </View>
+
+                        {/* 操作按钮区域 */}
+                        <View style={styles.configItemActions}>
+                          <TouchableOpacity
+                            onPress={() => setShowActionMenu(showActionMenu === config.id ? null : config.id)}
+                            style={styles.moreActionButton}
+                          >
+                            <Icon name="more-vert" type="material" color={colors.secondaryText} size={20}/>
+                          </TouchableOpacity>
                         </View>
                       </View>
 
-                      {/* 操作按钮区域 */}
-                      <View style={styles.configItemActions}>
+                      {/* API Key状态 */}
+                      <View style={styles.configStatusRow}>
+                        {config.apiKey ? (
+                          <View style={[styles.statusBadge, {backgroundColor: colors.success + '20'}]}>
+                            <Icon name="key" type="material" color={colors.success} size={12}/>
+                            <Text style={[styles.statusBadgeText, {color: colors.success}]}>
+                              API Key已配置
+                            </Text>
+                          </View>
+                        ) : (
+                          <View style={[styles.statusBadge, {backgroundColor: colors.warning + '20'}]}>
+                            <Icon name="warning" type="material" color={colors.warning} size={12}/>
+                            <Text style={[styles.statusBadgeText, {color: colors.warning}]}>
+                              未配置API Key
+                            </Text>
+                          </View>
+                        )}
+
+                        {/* 切换配置按钮 */}
                         <TouchableOpacity
-                          onPress={() => setShowActionMenu(showActionMenu === config.id ? null : config.id)}
-                          style={styles.moreActionButton}
+                          onPress={() => handleSwitchConfig(config.id)}
+                          style={[
+                            styles.switchConfigButton,
+                            {
+                              backgroundColor: activeConfigId === config.id ? colors.success + '20' : colors.primary + '20',
+                              borderColor: activeConfigId === config.id ? colors.success : colors.primary,
+                            },
+                          ]}
+                          disabled={switchingConfig === config.id || activeConfigId === config.id}
                         >
-                          <Icon name="more-vert" type="material" color={colors.secondaryText} size={20}/>
+                          {switchingConfig === config.id ? (
+                            <ActivityIndicator size="small" color={colors.primary}/>
+                          ) : (
+                            <>
+                              <Icon
+                                name={activeConfigId === config.id ? 'check-circle' : 'swap-horiz'}
+                                type="material"
+                                color={activeConfigId === config.id ? colors.success : colors.primary}
+                                size={14}
+                              />
+                              <Text style={[
+                                styles.switchConfigText,
+                                {color: activeConfigId === config.id ? colors.success : colors.primary},
+                              ]}>
+                                {activeConfigId === config.id ? '当前使用' : '切换使用'}
+                              </Text>
+                            </>
+                          )}
                         </TouchableOpacity>
                       </View>
-                    </View>
 
-                    {/* API Key状态 */}
-                    <View style={styles.configStatusRow}>
-                      {config.apiKey ? (
-                        <View style={[styles.statusBadge, {backgroundColor: colors.success + '20'}]}>
-                          <Icon name="key" type="material" color={colors.success} size={12}/>
-                          <Text style={[styles.statusBadgeText, {color: colors.success}]}>
-                            API Key已配置
-                          </Text>
-                        </View>
-                      ) : (
-                        <View style={[styles.statusBadge, {backgroundColor: colors.warning + '20'}]}>
-                          <Icon name="warning" type="material" color={colors.warning} size={12}/>
-                          <Text style={[styles.statusBadgeText, {color: colors.warning}]}>
-                            未配置API Key
-                          </Text>
+                      {/* 快速操作菜单 */}
+                      {showActionMenu === config.id && (
+                        <View style={[styles.actionMenu, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                          <TouchableOpacity
+                            style={styles.actionMenuItem}
+                            onPress={() => {
+                              setEditingConfigName(config.name);
+                              setEditingConfigId(config.id);
+                              setEditingName(true);
+                              setShowActionMenu(null);
+                            }}
+                          >
+                            <Icon name="edit" type="material" color={colors.primary} size={16}/>
+                            <Text style={[styles.actionMenuText, {color: colors.text}]}>重命名</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.actionMenuItem}
+                            onPress={async () => {
+                              setShowActionMenu(null);
+                              await handleCopyConfig(config);
+                            }}
+                          >
+                            <Icon name="content-copy" type="material" color={colors.success} size={16}/>
+                            <Text style={[styles.actionMenuText, {color: colors.text}]}>复制</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.actionMenuItem}
+                            onPress={async () => {
+                              setShowActionMenu(null);
+                              handleDeleteConfig(config.id, config.name);
+                            }}
+                          >
+                            <Icon name="delete" type="material" color={colors.error} size={16}/>
+                            <Text style={[styles.actionMenuText, {color: colors.text}]}>删除</Text>
+                          </TouchableOpacity>
                         </View>
                       )}
-
-                      {/* 切换配置按钮 */}
-                      <TouchableOpacity
-                        onPress={() => handleSwitchConfig(config.id)}
-                        style={[
-                          styles.switchConfigButton,
-                          {
-                            backgroundColor: activeConfigId === config.id ? colors.success + '20' : colors.primary + '20',
-                            borderColor: activeConfigId === config.id ? colors.success : colors.primary,
-                          },
-                        ]}
-                        disabled={switchingConfig === config.id || activeConfigId === config.id}
-                      >
-                        {switchingConfig === config.id ? (
-                          <ActivityIndicator size="small" color={colors.primary}/>
-                        ) : (
-                          <>
-                            <Icon
-                              name={activeConfigId === config.id ? 'check-circle' : 'swap-horiz'}
-                              type="material"
-                              color={activeConfigId === config.id ? colors.success : colors.primary}
-                              size={14}
-                            />
-                            <Text style={[
-                              styles.switchConfigText,
-                              {color: activeConfigId === config.id ? colors.success : colors.primary},
-                            ]}>
-                              {activeConfigId === config.id ? '当前使用' : '切换使用'}
-                            </Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
                     </View>
-
-                    {/* 快速操作菜单 */}
-                    {showActionMenu === config.id && (
-                      <View style={[styles.actionMenu, {backgroundColor: colors.card, borderColor: colors.border}]}>
-                        <TouchableOpacity
-                          style={styles.actionMenuItem}
-                          onPress={() => {
-                            setEditingConfigName(config.name);
-                            setEditingConfigId(config.id);
-                            setEditingName(true);
-                            setShowActionMenu(null);
-                          }}
-                        >
-                          <Icon name="edit" type="material" color={colors.primary} size={16}/>
-                          <Text style={[styles.actionMenuText, {color: colors.text}]}>重命名</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.actionMenuItem}
-                          onPress={async () => {
-                            setShowActionMenu(null);
-                            await handleCopyConfig(config);
-                          }}
-                        >
-                          <Icon name="content-copy" type="material" color={colors.success} size={16}/>
-                          <Text style={[styles.actionMenuText, {color: colors.text}]}>复制</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.actionMenuItem}
-                          onPress={async () => {
-                            setShowActionMenu(null);
-                            handleDeleteConfig(config.id, config.name);
-                          }}
-                        >
-                          <Icon name="delete" type="material" color={colors.error} size={16}/>
-                          <Text style={[styles.actionMenuText, {color: colors.text}]}>删除</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             )}
@@ -519,9 +527,9 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   actionMenu: {
-    position: 'absolute',
-    top: 60,
-    right: 16,
+    marginTop: 12,
+    marginLeft: 'auto',
+    marginRight: 0,
     width: 120,
     borderRadius: 8,
     borderWidth: 1,
