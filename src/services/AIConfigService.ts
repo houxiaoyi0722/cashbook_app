@@ -28,7 +28,7 @@ const DEFAULT_CONFIG: {
 } = {
   provider: 'openai',
   model: 'gpt-3.5-turbo',
-  maxTokens: 1000,
+  maxTokens: 3000,
   temperature: 0.7,
   baseURL: 'https://api.openai.com/v1',
 };
@@ -57,52 +57,6 @@ class AIConfigService {
     }
   }
 
-  private async migrateFromV1(): Promise<void> {
-    if (this.migrationChecked) {return;}
-
-    try {
-      const oldConfigStr = await AsyncStorage.getItem(STORAGE_KEY);
-      if (!oldConfigStr) {
-        this.migrationChecked = true;
-        return;
-      }
-
-      // 尝试解析旧版本配置
-      const oldConfig = JSON.parse(oldConfigStr);
-      // 检查是否是旧版本（没有 version 字段）
-      if (oldConfig.version === undefined) {
-        // 创建新的配置对象
-        const newConfig: AIConfig = {
-          id: this.generateId(),
-          name: '默认配置',
-          provider: oldConfig.provider || DEFAULT_CONFIG.provider,
-          apiKey: oldConfig.apiKey || '',
-          model: oldConfig.model || DEFAULT_CONFIG.model,
-          baseURL: oldConfig.baseURL || this.getDefaultBaseURL(oldConfig.provider || DEFAULT_CONFIG.provider),
-          maxTokens: oldConfig.maxTokens || DEFAULT_CONFIG.maxTokens,
-          temperature: oldConfig.temperature || DEFAULT_CONFIG.temperature,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-
-        // 创建新的存储结构
-        const storage: AIConfigStorage = {
-          version: STORAGE_VERSION,
-          configs: [newConfig],
-          activeConfigId: newConfig.id,
-        };
-
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(storage));
-        this.storage = storage;
-        console.log('已从旧版本迁移配置到新版本');
-      }
-    } catch (error) {
-      console.error('迁移配置失败:', error);
-    } finally {
-      this.migrationChecked = true;
-    }
-  }
-
   private generateId(): string {
     return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
   }
@@ -112,9 +66,6 @@ class AIConfigService {
     if (this.storage) {
       return this.storage;
     }
-
-    // 执行迁移
-    await this.migrateFromV1();
 
     try {
       const storageStr = await AsyncStorage.getItem(STORAGE_KEY);

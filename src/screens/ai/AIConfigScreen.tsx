@@ -76,6 +76,16 @@ const AIConfigScreen: React.FC = () => {
     }
   };
 
+  const handleCopyConfig = async (config: AIConfig) => {
+    try {
+      await aiConfigService.addConfig(config);
+      // 重新加载配置以更新UI
+      await loadConfig();
+    } catch (error) {
+      Alert.alert('错误', '复制配置失败');
+    }
+  };
+
   const handleRenameConfig = async (configId: string, newName: string) => {
     if (!newName.trim()) {
       Alert.alert('错误', '配置名称不能为空');
@@ -317,23 +327,11 @@ const AIConfigScreen: React.FC = () => {
                           style={styles.actionMenuItem}
                           onPress={async () => {
                             setShowActionMenu(null);
-                            Alert.alert(
-                              '设为活动配置',
-                              `确定要将"${config.name}"设为活动配置吗？`,
-                              [
-                                {text: '取消', style: 'cancel'},
-                                {
-                                  text: '确定',
-                                  onPress: async () => {
-                                    await handleSwitchConfig(config.id);
-                                  },
-                                },
-                              ]
-                            );
+                            await handleCopyConfig(config);
                           }}
                         >
-                          <Icon name="check-circle" type="material" color={colors.success} size={16}/>
-                          <Text style={[styles.actionMenuText, {color: colors.text}]}>设为活动</Text>
+                          <Icon name="content-copy" type="material" color={colors.success} size={16}/>
+                          <Text style={[styles.actionMenuText, {color: colors.text}]}>复制</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={styles.actionMenuItem}
