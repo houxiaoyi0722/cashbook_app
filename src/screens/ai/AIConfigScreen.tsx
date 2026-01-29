@@ -19,7 +19,8 @@ import { aiConfigService, AIConfig } from '../../services/AIConfigService';
 import { useTheme, getColors } from '../../context/ThemeContext';
 import { MainStackParamList } from '../../navigation/types';
 import { KeyboardAvoidingView } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import DropDownPicker from 'react-native-dropdown-picker';
+import { mcpBridge } from '../../services/MCPBridge';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -42,17 +43,16 @@ const AIConfigScreen: React.FC = () => {
   const [availableTools, setAvailableTools] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
-  // 预定义的工具列表
-  const ALL_TOOLS = [
-    'search_flows',
-    'create_flow',
-    'update_flow',
-    'delete_flow',
-    'get_statistics',
-    'analyze_spending',
-    'predict_expenses',
-    'categorize_flow',
-  ];
+  // 工具管理相关状态
+  const [showToolsSection, setShowToolsSection] = useState(false);
+  const [tools, setTools] = useState<Array<{name: string, description: string}>>([]);
+  const [showToolDescription, setShowToolDescription] = useState<string | null>(null);
+
+  // DropDownPicker 相关状态
+  const [chatModelOpen, setChatModelOpen] = useState(false);
+  const [suggestionModelOpen, setSuggestionModelOpen] = useState(false);
+  const [chatModelItems, setChatModelItems] = useState<Array<{label: string, value: string}>>([]);
+  const [suggestionModelItems, setSuggestionModelItems] = useState<Array<{label: string, value: string}>>([]);
 
   const loadConfig = useCallback(async () => {
     try {
@@ -65,18 +65,32 @@ const AIConfigScreen: React.FC = () => {
       setAiSuggestionEnabled(globalSettings.aiSuggestionEnabled);
       setChatModelConfigId(globalSettings.chatModelConfigId);
       setSuggestionModelConfigId(globalSettings.suggestionModelConfigId);
-      setAvailableTools(globalSettings.availableTools);
+
+      // 获取工具列表
+      const bridgeTools = mcpBridge.getTools();
+      const toolList = bridgeTools.map(tool => ({
+        name: tool.name,
+        description: tool.description || '暂无描述',
+      }));
+      setTools(toolList);
+      setAvailableTools(globalSettings.availableTools ? globalSettings.availableTools : bridgeTools.map(tool => tool.name));
+
+      // 准备下拉菜单项
+      const configItems = allConfigs.map(config => ({
+        label: config.name,
+        value: config.id,
+      }));
+      setChatModelItems(configItems);
+      setSuggestionModelItems([
+        { label: '使用主模型', value: '' },
+        ...configItems,
+      ]);
     } catch (error) {
       console.error('加载配置失败:', error);
     }
   }, []);
 
-  // 初始加载
-  useEffect(() => {
-    loadConfig();
-  }, [loadConfig]);
-
-  // 当页面获得焦点时重新加载数据
+  // 当页面获得焦点时加载数据
   useFocusEffect(
     useCallback(() => {
       loadConfig();
@@ -111,26 +125,27 @@ const AIConfigScreen: React.FC = () => {
     setAiSuggestionEnabled(value);
   };
 
-  const handleChatModelChange = (configId: string) => {
-    setChatModelConfigId(configId);
-  };
-
-  const handleSuggestionModelChange = (configId: string) => {
-    setSuggestionModelConfigId(configId);
-  };
 
   const handleToolToggle = (toolName: string) => {
     setAvailableTools(prev => {
+      // 在这种情况下，切换工具意味着从"全部可用"状态切换到"仅选择某些工具"状态
       if (prev.includes(toolName)) {
-        return prev.filter(t => t !== toolName);
+        // 如果工具已经在列表中，移除它
+        const newTools = prev.filter(t => t !== toolName);
+        // 如果移除后列表为空，返回空数组
+        console.log(newTools.length === 0 ? [] : newTools);
+        return newTools.length === 0 ? [] : newTools;
       } else {
+        console.log([...prev, toolName]);
+        // 如果工具不在列表中，添加它
         return [...prev, toolName];
       }
     });
   };
 
   const handleSelectAllTools = () => {
-    setAvailableTools(ALL_TOOLS);
+    const allToolNames = tools.map(tool => tool.name);
+    setAvailableTools(allToolNames);
   };
 
   const handleClearAllTools = () => {
@@ -225,89 +240,142 @@ const AIConfigScreen: React.FC = () => {
               />
             </View>
 
-            {/* 聊天模型选择 */}
-            <View style={[styles.row, { marginBottom: 16 }]}>
-              <Text style={[styles.rowLabel, { color: colors.text }]}>聊天模型配置</Text>
-              <View style={[styles.pickerContainer, { borderColor: colors.border }]}>
-                <Picker
-                  selectedValue={chatModelConfigId || ''}
-                  onValueChange={handleChatModelChange}
-                  style={[styles.picker, { color: colors.text }]}
-                  dropdownIconColor={colors.text}
-                >
-                  {configs.map(config => (
-                    <Picker.Item
-                      key={config.id}
-                      label={config.name}
-                      value={config.id}
-                    />
-                  ))}
-                </Picker>
+            {/* 聊天模型选择 - 使用 DropDownPicker */}
+            <View style={[styles.row, { marginBottom: 16, zIndex: 2000 }]}>
+              <Text style={[styles.rowLabel, { color: colors.text }]}>主模型配置</Text>
+              <View style={styles.dropdownContainer}>
+                <DropDownPicker
+                  open={chatModelOpen}
+                  value={chatModelConfigId}
+                  items={chatModelItems}
+                  setOpen={setChatModelOpen}
+                  setValue={setChatModelConfigId}
+                  setItems={setChatModelItems}
+                  searchable={true}
+                  listMode="MODAL"
+                  searchPlaceholder="输入关键词搜索..."
+                  placeholder="选择主模型配置"
+                  style={[styles.dropdown, {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                  }]}
+                  textStyle={{ color: colors.text }}
+                  dropDownContainerStyle={{
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                  }}
+                  listItemLabelStyle={{ color: colors.text }}
+                  zIndex={2000}
+                  zIndexInverse={1000}
+                />
               </View>
             </View>
 
-            {/* 建议模型选择 */}
-            <View style={[styles.row, { marginBottom: 16 }]}>
-              <Text style={[styles.rowLabel, { color: colors.text }]}>建议模型配置</Text>
-              <View style={[styles.pickerContainer, { borderColor: colors.border }]}>
-                <Picker
-                  selectedValue={suggestionModelConfigId || ''}
-                  onValueChange={handleSuggestionModelChange}
-                  style={[styles.picker, { color: colors.text }]}
-                  dropdownIconColor={colors.text}
-                >
-                  <Picker.Item label="使用聊天模型" value="" />
-                  {configs.map(config => (
-                    <Picker.Item
-                      key={config.id}
-                      label={config.name}
-                      value={config.id}
-                    />
-                  ))}
-                </Picker>
-              </View>
-            </View>
-
-            {/* 可用工具管理 */}
-            <View style={{ marginTop: 8 }}>
-              <Text style={[styles.rowLabel, { color: colors.text, marginBottom: 8 }]}>可用工具管理</Text>
-              <Text style={[styles.toolHint, { color: colors.secondaryText }]}>
-                如果列表为空，则所有工具都可用
-              </Text>
-
-              <View style={styles.toolButtonRow}>
-                <TouchableOpacity
-                  style={[styles.toolButton, { backgroundColor: colors.primary + '20' }]}
-                  onPress={handleSelectAllTools}
-                >
-                  <Text style={[styles.toolButtonText, { color: colors.primary }]}>全选</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.toolButton, { backgroundColor: colors.error + '20' }]}
-                  onPress={handleClearAllTools}
-                >
-                  <Text style={[styles.toolButtonText, { color: colors.error }]}>清空</Text>
-                </TouchableOpacity>
-              </View>
-
-              {ALL_TOOLS.map((tool, index) => (
-                <TouchableOpacity
-                  key={tool}
-                  style={[
-                    styles.toolItem,
-                    index === ALL_TOOLS.length - 1 ? { borderBottomWidth: 0 } : null
-                  ]}
-                  onPress={() => handleToolToggle(tool)}
-                >
-                  <Switch
-                    value={availableTools.length === 0 || availableTools.includes(tool)}
-                    onValueChange={() => handleToolToggle(tool)}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor={(availableTools.length === 0 || availableTools.includes(tool)) ? colors.primary : colors.secondaryText}
+            {/* 建议模型选择 - 使用 DropDownPicker */}
+            {
+              aiSuggestionEnabled ? (<View style={[styles.row, {marginBottom: 16, zIndex: 1900}]}>
+                <Text style={[styles.rowLabel, {color: colors.text}]}>建议模型配置</Text>
+                <View style={styles.dropdownContainer}>
+                  <DropDownPicker
+                    open={suggestionModelOpen}
+                    value={suggestionModelConfigId}
+                    items={suggestionModelItems}
+                    setOpen={setSuggestionModelOpen}
+                    setValue={setSuggestionModelConfigId}
+                    setItems={setSuggestionModelItems}
+                    placeholder="选择建议模型配置"
+                    searchable={true}
+                    listMode="MODAL"
+                    searchPlaceholder="输入关键词搜索..."
+                    style={[styles.dropdown, {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    }]}
+                    textStyle={{color: colors.text}}
+                    dropDownContainerStyle={{
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    }}
+                    listItemLabelStyle={{color: colors.text}}
+                    zIndex={1900}
+                    zIndexInverse={2000}
                   />
-                  <Text style={[styles.toolLabel, { color: colors.text }]}>{tool}</Text>
-                </TouchableOpacity>
-              ))}
+                </View>
+              </View>) : (<View/>)
+            }
+            {/* 可用工具管理 - 可折叠部分 */}
+            <View style={{ marginTop: 8 }}>
+              <TouchableOpacity
+                style={styles.toolsHeader}
+                onPress={() => setShowToolsSection(!showToolsSection)}
+              >
+                <Text style={[styles.rowLabel, { color: colors.text }]}>可用工具管理</Text>
+                <Icon
+                  name={showToolsSection ? 'expand-less' : 'expand-more'}
+                  type="material"
+                  color={colors.primary}
+                  size={24}
+                />
+              </TouchableOpacity>
+
+              {showToolsSection && (
+                <>
+                  <View style={styles.toolButtonRow}>
+                    <TouchableOpacity
+                      style={[styles.toolButton, { backgroundColor: colors.primary + '20' }]}
+                      onPress={handleSelectAllTools}
+                    >
+                      <Text style={[styles.toolButtonText, { color: colors.primary }]}>全选</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.toolButton, { backgroundColor: colors.error + '20' }]}
+                      onPress={handleClearAllTools}
+                    >
+                      <Text style={[styles.toolButtonText, { color: colors.error }]}>清空</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {tools.map((tool, index) => (
+                    <View key={tool.name}>
+                      <TouchableOpacity
+                        style={[
+                          styles.toolItem,
+                          index === tools.length - 1 ? { borderBottomWidth: 0 } : null
+                        ]}
+                        onPress={() => handleToolToggle(tool.name)}
+                      >
+                        <Switch
+                          value={availableTools.includes(tool.name)}
+                          onValueChange={() => handleToolToggle(tool.name)}
+                          trackColor={{ false: colors.border, true: colors.primary }}
+                          thumbColor={(availableTools.includes(tool.name)) ? colors.primary : colors.secondaryText}
+                        />
+                        <View style={styles.toolInfo}>
+                          <Text style={[styles.toolLabel, { color: colors.text }]}>{tool.name}</Text>
+                          <TouchableOpacity
+                            onPress={() => setShowToolDescription(showToolDescription === tool.name ? null : tool.name)}
+                            style={styles.infoButton}
+                          >
+                            <Icon
+                              name="info-outline"
+                              type="material"
+                              color={colors.primary}
+                              size={16}
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      </TouchableOpacity>
+                      {showToolDescription === tool.name && (
+                        <View style={[styles.toolDescription, { backgroundColor: colors.card + '80' }]}>
+                          <Text style={[styles.toolDescriptionText, { color: colors.secondaryText }]}>
+                            {tool.description}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </>
+              )}
             </View>
 
             {/* 保存按钮 */}
@@ -319,7 +387,7 @@ const AIConfigScreen: React.FC = () => {
               {saving ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.saveButtonText}>保存全局设置</Text>
+                <Text style={styles.saveButtonText}>保存</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -694,17 +762,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
   },
-  pickerContainer: {
+  dropdownContainer: {
     flex: 1,
+    marginLeft: 12,
+  },
+  dropdown: {
     borderWidth: 1,
     borderRadius: 8,
-    marginLeft: 12,
-    height: 40,
-    justifyContent: 'center',
-  },
-  picker: {
-    height: 40,
-    width: '100%',
   },
   toolHint: {
     fontSize: 12,
@@ -726,16 +790,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  toolsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   toolItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
   },
+  toolInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginLeft: 12,
+  },
   toolLabel: {
     fontSize: 14,
-    marginLeft: 12,
     flex: 1,
+  },
+  infoButton: {
+    padding: 4,
+  },
+  toolDescription: {
+    padding: 8,
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  toolDescriptionText: {
+    fontSize: 12,
   },
   saveButton: {
     paddingVertical: 12,

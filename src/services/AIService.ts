@@ -146,9 +146,8 @@ export class AIService {
     const availableTools = await aiConfigModule.aiConfigService.getAvailableTools();
     const allTools = mcpBridge.getTools();
 
-    // 如果availableTools为空，则包括所有工具，否则只包括可用的工具
     const tools = availableTools.length === 0
-      ? allTools
+      ? []
       : allTools.filter(tool => availableTools.includes(tool.name));
 
     return this.buildSystemPromptWithTools(context, tools);
@@ -234,7 +233,6 @@ export class AIService {
       toolInfo += '\n---\n';
       return toolInfo;
     }).join('\n');
-    console.log(toolsDetailedDescription);
     // 构建上下文信息字符串
     let contextInfo = `当前时间: ${context.localTime}\n`;
 

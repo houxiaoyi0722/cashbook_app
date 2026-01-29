@@ -239,7 +239,6 @@ class AIConfigService {
         ...storage,
         ...settings,
       };
-
       await this.saveStorage(updatedStorage);
       return true;
     } catch (error) {
