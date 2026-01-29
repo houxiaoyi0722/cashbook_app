@@ -283,7 +283,6 @@ class AIConfigService {
   // 向后兼容：保存配置（更新活动配置或创建新配置）
   async saveConfig(config: Partial<AIConfig>): Promise<boolean> {
     try {
-      const storage = await this.getStorage();
       const activeConfig = await this.getActiveConfig();
 
       if (activeConfig) {

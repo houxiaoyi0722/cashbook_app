@@ -20,9 +20,9 @@ import BookFormScreen from '../screens/main/BookFormScreen';
 import FlowFormScreen from '../screens/main/FlowFormScreen';
 import LogsScreen from '../screens/main/LogsScreen';
 import SyncManagementScreen from '../screens/SyncManagementScreen';
-// AI屏幕
-import AIConfigScreen from '../screens/ai/AIConfigScreen';
 import AIChatScreen from '../screens/ai/AIChatScreen';
+import AIConfigScreen from '../screens/ai/AIConfigScreen';
+import AIConfigEditScreen from '../screens/ai/AIConfigEditScreen';
 
 // 自定义图标组件
 import AINavigationIcon from '../components/icons/AINavigationIcon';
@@ -94,7 +94,7 @@ const MainTabs = () => {
   return (
     <>
       <StatusBar
-        barStyle={isDarkMode ? "light-content" : "dark-content"}
+        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={colors.statusBar}
         translucent={false}
       />
@@ -297,6 +297,13 @@ const AppNavigator = () => {
 					component={AIConfigScreen}
 					options={{title: 'AI助手配置'}}
 				/>
+        <Stack.Screen
+          name="AIConfigEdit"
+          component={AIConfigEditScreen}
+          options={({route}) => ({
+            title: route.params?.configId ? '编辑配置' : '新建配置',
+          })}
+        />
 			</Stack.Navigator>
 		</NavigationContainer>
 	);

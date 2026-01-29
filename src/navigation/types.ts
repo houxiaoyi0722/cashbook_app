@@ -22,6 +22,9 @@ export type MainStackParamList = {
   Logs: undefined;
   SyncManagement: undefined;
   AIConfig: undefined;
+  AIConfigEdit: {
+    configId?: string;
+  };
 };
 
 export type MainTabParamList = {
