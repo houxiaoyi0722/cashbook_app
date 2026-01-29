@@ -16,10 +16,14 @@ export interface AIConfig {
 interface AIConfigStorage {
   version: number;
   configs: AIConfig[];
-  activeConfigId: string | null;
+  // 全局设置
+  aiSuggestionEnabled: boolean;
+  chatModelConfigId: string | null;
+  suggestionModelConfigId: string | null;
+  availableTools: string[];
 }
 
-const DEFAULT_CONFIG: {
+const DEFAULT_AI_CONFIG: {
   provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'custom';
   model: string;
   maxTokens: number;
@@ -33,12 +37,26 @@ const DEFAULT_CONFIG: {
   baseURL: 'https://api.openai.com/v1',
 };
 
+const DEFAULT_GLOBAL_CONFIG: {
+  // 全局设置的默认值
+  aiSuggestionEnabled: boolean;
+  chatModelConfigId: string | null;
+  suggestionModelConfigId: string | null;
+  availableTools: string[];
+} = {
+  // 默认启用AI建议功能
+  aiSuggestionEnabled: true,
+  chatModelConfigId: null,
+  suggestionModelConfigId: null,
+  // 默认空数组表示所有工具都可用
+  availableTools: [],
+};
+
 const STORAGE_KEY = 'ai_config';
-const STORAGE_VERSION = 2;
+const STORAGE_VERSION = 3;
 
 class AIConfigService {
   private storage: AIConfigStorage | null = null;
-  private migrationChecked = false;
 
   private getDefaultBaseURL(provider: string): string {
     switch (provider) {
@@ -70,64 +88,47 @@ class AIConfigService {
     try {
       const storageStr = await AsyncStorage.getItem(STORAGE_KEY);
       if (storageStr) {
-        const parsedStorage = JSON.parse(storageStr);
         // 验证版本
-        if (parsedStorage.version === STORAGE_VERSION) {
-          this.storage = parsedStorage;
-          // 使用非空断言，因为刚刚赋值
-          return this.storage!;
-        }
+        this.storage = JSON.parse(storageStr);
+        // 使用非空断言，因为刚刚赋值
+        return this.storage!;
       }
 
-      // 如果没有存储数据或版本不匹配，创建默认存储
-      const defaultConfig: AIConfig = {
-        id: this.generateId(),
-        name: '默认配置',
-        provider: DEFAULT_CONFIG.provider,
-        apiKey: '',
-        model: DEFAULT_CONFIG.model,
-        baseURL: DEFAULT_CONFIG.baseURL,
-        maxTokens: DEFAULT_CONFIG.maxTokens,
-        temperature: DEFAULT_CONFIG.temperature,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      const defaultStorage: AIConfigStorage = {
-        version: STORAGE_VERSION,
-        configs: [defaultConfig],
-        activeConfigId: defaultConfig.id,
-      };
-
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultStorage));
-      this.storage = defaultStorage;
-      // 使用非空断言，因为刚刚赋值
-      return this.storage!;
+      // 如果没有存储数据，创建默认存储
+      return await this.createDefaultStorage();
     } catch (error) {
       console.error('获取存储失败:', error);
       // 返回一个默认的存储结构，确保不会返回 null
-      const defaultConfig: AIConfig = {
-        id: this.generateId(),
-        name: '默认配置',
-        provider: DEFAULT_CONFIG.provider,
-        apiKey: '',
-        model: DEFAULT_CONFIG.model,
-        baseURL: DEFAULT_CONFIG.baseURL,
-        maxTokens: DEFAULT_CONFIG.maxTokens,
-        temperature: DEFAULT_CONFIG.temperature,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      const defaultStorage: AIConfigStorage = {
-        version: STORAGE_VERSION,
-        configs: [defaultConfig],
-        activeConfigId: defaultConfig.id,
-      };
-      // 更新缓存
-      this.storage = defaultStorage;
-      return defaultStorage;
+      return await this.createDefaultStorage();
     }
+  }
+
+  private async createDefaultStorage(): Promise<AIConfigStorage> {
+    const defaultConfig: AIConfig = {
+      id: this.generateId(),
+      name: '默认配置',
+      provider: DEFAULT_AI_CONFIG.provider,
+      apiKey: '',
+      model: DEFAULT_AI_CONFIG.model,
+      baseURL: DEFAULT_AI_CONFIG.baseURL,
+      maxTokens: DEFAULT_AI_CONFIG.maxTokens,
+      temperature: DEFAULT_AI_CONFIG.temperature,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    const defaultStorage: AIConfigStorage = {
+      version: STORAGE_VERSION,
+      configs: [defaultConfig],
+      aiSuggestionEnabled: DEFAULT_GLOBAL_CONFIG.aiSuggestionEnabled,
+      chatModelConfigId: DEFAULT_GLOBAL_CONFIG.chatModelConfigId,
+      suggestionModelConfigId: DEFAULT_GLOBAL_CONFIG.suggestionModelConfigId,
+      availableTools: DEFAULT_GLOBAL_CONFIG.availableTools,
+    };
+
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultStorage));
+    this.storage = defaultStorage;
+    return defaultStorage;
   }
 
   private async saveStorage(storage: AIConfigStorage): Promise<void> {
@@ -140,20 +141,8 @@ class AIConfigService {
   }
 
   async isConfigured(): Promise<boolean> {
-    const config = await this.getActiveConfig();
+    const config = await this.getChatModelConfig();
     return !!(config?.apiKey && config.apiKey.trim().length > 0);
-  }
-
-  // 向后兼容：获取活动配置
-  async getConfig(): Promise<AIConfig | null> {
-    return this.getActiveConfig();
-  }
-
-  async getActiveConfig(): Promise<AIConfig | null> {
-    const storage = await this.getStorage();
-    if (!storage.activeConfigId) {return null;}
-
-    return storage.configs.find(config => config.id === storage.activeConfigId) || null;
   }
 
   async getAllConfigs(): Promise<AIConfig[]> {
@@ -204,11 +193,11 @@ class AIConfigService {
     storage.configs = storage.configs.filter(config => config.id !== id);
 
     // 如果删除的是活动配置，需要设置新的活动配置
-    if (storage.activeConfigId === id) {
+    if (storage.chatModelConfigId === id) {
       if (storage.configs.length > 0) {
-        storage.activeConfigId = storage.configs[0].id;
+        storage.chatModelConfigId = storage.configs[0].id;
       } else {
-        storage.activeConfigId = null;
+        storage.chatModelConfigId = null;
       }
     }
 
@@ -220,59 +209,120 @@ class AIConfigService {
     return false;
   }
 
-  async setActiveConfig(id: string): Promise<boolean> {
+  // 获取全局设置
+  async getGlobalSettings(): Promise<{
+    aiSuggestionEnabled: boolean;
+    chatModelConfigId: string | null;
+    suggestionModelConfigId: string | null;
+    availableTools: string[];
+  }> {
     const storage = await this.getStorage();
-    const configExists = storage.configs.some(config => config.id === id);
-
-    if (!configExists) {return false;}
-
-    storage.activeConfigId = id;
-    await this.saveStorage(storage);
-    return true;
+    return {
+      aiSuggestionEnabled: storage.aiSuggestionEnabled,
+      chatModelConfigId: storage.chatModelConfigId,
+      suggestionModelConfigId: storage.suggestionModelConfigId,
+      availableTools: storage.availableTools,
+    };
   }
 
-  // 向后兼容：保存配置（更新活动配置或创建新配置）
-  async saveConfig(config: Partial<AIConfig>): Promise<boolean> {
+  // 更新全局设置
+  async updateGlobalSettings(settings: Partial<{
+    aiSuggestionEnabled: boolean;
+    chatModelConfigId: string | null;
+    suggestionModelConfigId: string | null;
+    availableTools: string[];
+  }>): Promise<boolean> {
     try {
-      const activeConfig = await this.getActiveConfig();
+      const storage = await this.getStorage();
 
-      if (activeConfig) {
-        // 更新活动配置
-        return await this.updateConfig(activeConfig.id, config);
-      } else {
-        // 创建新配置
-        const newConfig: Omit<AIConfig, 'id' | 'createdAt' | 'updatedAt'> = {
-          name: '配置',
-          provider: config.provider || DEFAULT_CONFIG.provider,
-          apiKey: config.apiKey || '',
-          model: config.model || DEFAULT_CONFIG.model,
-          baseURL: config.baseURL || this.getDefaultBaseURL(config.provider || DEFAULT_CONFIG.provider),
-          maxTokens: config.maxTokens || DEFAULT_CONFIG.maxTokens,
-          temperature: config.temperature || DEFAULT_CONFIG.temperature,
-        };
+      const updatedStorage: AIConfigStorage = {
+        ...storage,
+        ...settings,
+      };
 
-        const addedConfig = await this.addConfig(newConfig);
-        await this.setActiveConfig(addedConfig.id);
-        return true;
-      }
+      await this.saveStorage(updatedStorage);
+      return true;
     } catch (error) {
-      console.error('保存AI配置失败:', error);
+      console.error('更新全局设置失败:', error);
       return false;
     }
+  }
+
+  // 获取聊天模型配置
+  async getChatModelConfig(): Promise<AIConfig | null> {
+    const storage = await this.getStorage();
+    if (storage.chatModelConfigId) {
+      return storage.configs.find(config => config.id === storage.chatModelConfigId) || null;
+    }
+    return null;
+  }
+
+  // 获取建议模型配置
+  async getSuggestionModelConfig(): Promise<AIConfig | null> {
+    const storage = await this.getStorage();
+    if (storage.suggestionModelConfigId) {
+      return storage.configs.find(config => config.id === storage.suggestionModelConfigId) || null;
+    }
+    // 如果未指定，返回活动配置
+    return null;
+  }
+
+  // 检查AI建议是否启用
+  async isAiSuggestionEnabled(): Promise<boolean> {
+    const storage = await this.getStorage();
+    return storage.aiSuggestionEnabled;
+  }
+
+  // 获取可用工具列表
+  async getAvailableTools(): Promise<string[]> {
+    const storage = await this.getStorage();
+    return storage.availableTools;
   }
 
   async clearConfig(): Promise<void> {
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
       this.storage = null;
-      this.migrationChecked = false;
     } catch (error) {
       console.error('清除AI配置失败:', error);
     }
   }
 
+  // 检查工具是否可用
+  async isToolAvailable(toolName: string): Promise<boolean> {
+    const availableTools = await this.getAvailableTools();
+    // 如果列表为空，表示所有工具都可用
+    if (availableTools.length === 0) {
+      return true;
+    }
+    return availableTools.includes(toolName);
+  }
+
+  // 添加工具到可用列表
+  async addAvailableTool(toolName: string): Promise<boolean> {
+    const storage = await this.getStorage();
+    if (!storage.availableTools.includes(toolName)) {
+      storage.availableTools.push(toolName);
+      await this.saveStorage(storage);
+      return true;
+    }
+    return false;
+  }
+
+  // 从可用列表中移除工具
+  async removeAvailableTool(toolName: string): Promise<boolean> {
+    const storage = await this.getStorage();
+    const index = storage.availableTools.indexOf(toolName);
+    if (index !== -1) {
+      storage.availableTools.splice(index, 1);
+      await this.saveStorage(storage);
+      return true;
+    }
+    return false;
+  }
+
   async validateConfig(config?: AIConfig): Promise<boolean> {
-    const configToValidate = config || await this.getActiveConfig();
+    const configToValidate = config;
     if (!configToValidate?.apiKey) {return false;}
 
     try {
@@ -397,19 +447,16 @@ class AIConfigService {
 
     if (configParam) {
       // 从传入的参数构建一个完整的配置
-      const savedConfig = await this.getActiveConfig();
       configToUse = {
         id: 'temp-id',
         name: '临时配置',
-        provider: configParam.provider || savedConfig?.provider || DEFAULT_CONFIG.provider,
-        apiKey: configParam.apiKey || savedConfig?.apiKey || '',
-        model: configParam.model || savedConfig?.model || DEFAULT_CONFIG.model,
-        baseURL: configParam.baseURL || savedConfig?.baseURL || DEFAULT_CONFIG.baseURL,
-        maxTokens: configParam.maxTokens || savedConfig?.maxTokens || DEFAULT_CONFIG.maxTokens,
-        temperature: configParam.temperature || savedConfig?.temperature || DEFAULT_CONFIG.temperature,
+        provider: configParam.provider || DEFAULT_AI_CONFIG.provider,
+        apiKey: configParam.apiKey || '',
+        model: configParam.model || DEFAULT_AI_CONFIG.model,
+        baseURL: configParam.baseURL,
+        maxTokens: configParam.maxTokens,
+        temperature: configParam.temperature,
       };
-    } else {
-      configToUse = await this.getActiveConfig();
     }
 
     if (!configToUse?.apiKey) {return [];}

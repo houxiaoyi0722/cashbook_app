@@ -292,7 +292,8 @@ export class AIRecursiveService {
       return { messages: [], text: '操作已取消' };
     }
 
-    const config = await aiConfigService.getConfig();
+    // 获取聊天模型配置
+    const config = await aiConfigService.getChatModelConfig();
     if (!config?.apiKey) {
       throw new Error('AI配置未完成，请先配置API Key');
     }
@@ -351,7 +352,7 @@ export class AIRecursiveService {
 
     // 获取系统提示
     const appContext = await this.aiService.getContext();
-    const systemPrompt = this.aiService.buildSystemPrompt(appContext);
+    const systemPrompt = await this.aiService.buildSystemPrompt(appContext);
     // 用于存储当前迭代的工具调用
     let detectedToolCalls: Array<{name: string, arguments: any}> = [];
     let currentIterationStreamedContent = '';

@@ -36,7 +36,6 @@ import {
 } from '../../types';
 
 // 配置状态缓存
-const CONFIG_CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
 const DEFAULT_MESSAGE = '你好！我是你的记账助手，可以帮你：\n• 记录收支流水\n• 查询账单记录\n• 分析消费习惯\n• 平账于账本去重\n• 重新分类流水数据\n• 提供省钱建议\n• 其他app功能\n\n试试对我说："记一笔午餐支出50元" 或 "查看本月消费统计"';
 
 interface AIChatScreenProps {
@@ -74,6 +73,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   // AI提示建议相关状态
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
+  const [aiSuggestionEnabled, setAiSuggestionEnabled] = useState(false);
   const [lastInputForSuggestions, setLastInputForSuggestions] = useState('');
   const flatListRef = useRef<FlatList>(null);
   const shouldIgnoreResponseRef = useRef(false);
@@ -110,17 +110,6 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       isScrollingToBottomRef.current = false;
     }, 500);
   };
-
-  // 使用 useRef 缓存配置状态和检查时间
-  const configCacheRef = useRef<{
-    isConfigured: boolean | null;
-    lastChecked: number | null;
-    isChecking: boolean;
-  }>({
-    isConfigured: null,
-    lastChecked: null,
-    isChecking: false,
-  });
 
   // 保存当前账本的聊天记录
   const saveChatForCurrentBook = useCallback(async (bookId: string, chatMessages: Message[]) => {
@@ -300,42 +289,12 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   }, []);
 
   // 检查AI配置 - 带缓存和重试逻辑
-  const checkAIConfig = useCallback(async (forceRefresh = false, retryCount = 0): Promise<void> => {
-    const cache = configCacheRef.current;
-
-    // 如果正在检查中且不是强制刷新，直接返回缓存结果
-    if (cache.isChecking && !forceRefresh) {
-      console.log('配置检查正在进行中，跳过重复检查');
-      return;
-    }
-
-    // 检查缓存是否有效
-    const now = Date.now();
-    if (!forceRefresh &&
-        cache.isConfigured !== null &&
-        cache.lastChecked &&
-        (now - cache.lastChecked) < CONFIG_CACHE_DURATION) {
-      console.log('使用缓存的配置状态');
-      setIsConfigured(cache.isConfigured);
-      setCheckingConfig(false);
-      setConfigError(null);
-      return;
-    }
-
-    // 设置检查状态
-    cache.isChecking = true;
-    setCheckingConfig(true);
-    setConfigError(null);
-
+  const checkAIConfig = useCallback(async (retryCount = 0): Promise<void> => {
     try {
-      console.log(`开始检查AI配置${forceRefresh ? '（强制刷新）' : ''}，重试次数：${retryCount}`);
+      console.log(`开始检查AI配置，重试次数：${retryCount}`);
       const configured = await aiConfigService.isConfigured();
-
-      // 更新缓存
-      cache.isConfigured = configured;
-      cache.lastChecked = Date.now();
-      cache.isChecking = false;
-
+      const suggestionsEnabled = await aiConfigService.isAiSuggestionEnabled();
+      setAiSuggestionEnabled(suggestionsEnabled);
       setIsConfigured(configured);
       setCheckingConfig(false);
 
@@ -354,13 +313,12 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
     } catch (error) {
       console.error('检查配置失败:', error);
-      cache.isChecking = false;
 
       // 重试逻辑（最多重试2次）
       if (retryCount < 2) {
         console.log(`配置检查失败，第${retryCount + 1}次重试...`);
         setTimeout(() => {
-          checkAIConfig(forceRefresh, retryCount + 1);
+          checkAIConfig(retryCount + 1);
         }, 1000 * (retryCount + 1)); // 递增延迟
         return;
       }
@@ -368,21 +326,14 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       // 重试失败后显示错误
       setCheckingConfig(false);
       setConfigError('配置检查失败，请检查网络连接');
-
-      // 如果有缓存，使用缓存值
-      if (cache.isConfigured !== null) {
-        setIsConfigured(cache.isConfigured);
-        console.log('使用缓存的配置状态（检查失败时）');
-      } else {
-        setIsConfigured(false);
-      }
+      setIsConfigured(false);
     }
   }, []);
 
   // 防抖的配置检查
   const debouncedCheckConfig = useCallback(
-    debounce((forceRefresh: boolean) => {
-      checkAIConfig(forceRefresh);
+    debounce(() => {
+      checkAIConfig();
     }, 300),
     [checkAIConfig, debounce]
   );
@@ -391,7 +342,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   const handleRefreshConfig = useCallback(() => {
     console.log('手动刷新配置检查');
     setRefreshing(true);
-    checkAIConfig(true).finally(() => {
+    checkAIConfig().finally(() => {
       setRefreshing(false);
     });
   }, [checkAIConfig]);
@@ -477,12 +428,17 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   }, [debouncedCheckConfig]);
 
   // 监听输入变化，生成AI提示建议
-  useEffect(() => {
-    if (inputText.trim() && isConfigured) {
-      debouncedGenerateSuggestions(inputText);
-    } else {
-      // 如果输入为空或AI未配置，清空建议
+  useEffect( () => {
+    if (!aiSuggestionEnabled) {
+      console.log('AI建议功能已禁用');
       setSuggestions([]);
+    } else {
+      if (inputText.trim() && isConfigured) {
+        debouncedGenerateSuggestions(inputText);
+      } else {
+        // 如果输入为空或AI未配置，清空建议
+        setSuggestions([]);
+      }
     }
   }, [inputText, isConfigured, debouncedGenerateSuggestions]);
 
@@ -532,15 +488,9 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
     const handleFocus = () => {
       if (!isMounted) {return;}
-
-      const cache = configCacheRef.current;
-      const now = Date.now();
-
       // 如果缓存超过1分钟，在后台刷新
-      if (cache.lastChecked && (now - cache.lastChecked) > 60 * 1000) {
-        console.log('屏幕聚焦，后台刷新配置检查');
-        checkAIConfig(true);
-      }
+      console.log('屏幕聚焦，后台刷新配置检查');
+      checkAIConfig();
     };
 
     // 如果 navigation 存在，添加焦点监听
@@ -1527,29 +1477,30 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           </View>
 
           {/* AI提示建议 */}
-          <View style={styles.hintsContainerWrapper}>
-            {isGeneratingSuggestions ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <ScrollView
-                style={styles.hintsScrollView}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.hintsScrollContent}
-              >
-                {(suggestions.length > 0 ? suggestions : getFallbackSuggestions(inputText)).map((hint, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[styles.hintButton, {backgroundColor: colors.card, borderColor: colors.border}]}
-                    onPress={() => setInputText(hint)}
-                    disabled={isProcessing}
-                  >
-                    <Text style={[styles.hintText, {color: colors.primary}]}>{hint}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
-          </View>
+          {aiSuggestionEnabled ? (
+            <View style={styles.hintsContainerWrapper}>
+              {isGeneratingSuggestions ? (
+                <ActivityIndicator size="small" color={colors.primary}/>
+              ) : (
+                <ScrollView
+                  style={styles.hintsScrollView}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.hintsScrollContent}
+                >
+                  {(suggestions.length > 0 ? suggestions : getFallbackSuggestions(inputText)).map((hint, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[styles.hintButton, {backgroundColor: colors.card, borderColor: colors.border}]}
+                      onPress={() => setInputText(hint)}
+                      disabled={isProcessing}
+                    >
+                      <Text style={[styles.hintText, {color: colors.primary}]}>{hint}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </View>) : (<View />)}
         </View>
       </KeyboardAvoidingView>
 

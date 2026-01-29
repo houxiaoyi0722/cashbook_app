@@ -131,9 +131,30 @@ export class AIService {
     }
   }
 
-  buildSystemPrompt(context: any): string {
-    const tools = mcpBridge.getTools();
+  async buildSystemPrompt(context: any): Promise<string> {
+    // 动态导入AIConfigService以避免循环依赖
+    let aiConfigModule;
+    try {
+      aiConfigModule = await import('./AIConfigService');
+    } catch (importError) {
+      console.error('导入AIConfigService失败:', importError);
+      // 如果无法导入，使用所有工具
+      return this.buildSystemPromptWithTools(context, mcpBridge.getTools());
+    }
 
+    // 获取可用工具
+    const availableTools = await aiConfigModule.aiConfigService.getAvailableTools();
+    const allTools = mcpBridge.getTools();
+
+    // 如果availableTools为空，则包括所有工具，否则只包括可用的工具
+    const tools = availableTools.length === 0
+      ? allTools
+      : allTools.filter(tool => availableTools.includes(tool.name));
+
+    return this.buildSystemPromptWithTools(context, tools);
+  }
+
+  private buildSystemPromptWithTools(context: any, tools: any[]): string {
     // 为每个工具创建详细的参数说明表格
     const toolsDetailedDescription = tools.map(tool => {
       let toolInfo = `${tool.name}\n`;
@@ -313,7 +334,7 @@ ${contextInfo}
 3. 多次迭代中不要重复输出内容(不包括toolcall)
 4. 调用工具时返回<json></json>标签对包裹参数
 5. 严格遵循上述要求`;
-}
+  }
 
   private getDefaultEndpoint(provider: string): string {
     const endpoints: Record<string, string> = {
@@ -908,6 +929,13 @@ ${contextInfo}
         return this.getFallbackSuggestions(userInput, count);
       }
 
+      // 检查AI建议是否启用
+      const suggestionsEnabled = await aiConfigModule.aiConfigService.isAiSuggestionEnabled();
+      if (!suggestionsEnabled) {
+        console.log('AI建议功能已禁用');
+        return [];
+      }
+
       // 检查AI配置
       const isConfigured = await aiConfigModule.aiConfigService.isConfigured();
 
@@ -921,8 +949,10 @@ ${contextInfo}
         setTimeout(() => reject(new Error('生成建议超时')), 10000); // 10秒超时
       });
 
-      // 获取配置
-      const config = await aiConfigModule.aiConfigService.getConfig();
+      // 获取建议模型配置
+      const suggestionConfig = await aiConfigModule.aiConfigService.getSuggestionModelConfig();
+      // 如果建议模型配置未设置，使用活动配置
+      const config = suggestionConfig || await aiConfigModule.aiConfigService.getChatModelConfig();
       if (!config) {
         return this.getFallbackSuggestions(userInput, count);
       }

@@ -7,7 +7,9 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  StyleSheet, Platform,
+  StyleSheet,
+  Platform,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon } from '@rneui/themed';
@@ -17,6 +19,7 @@ import { aiConfigService, AIConfig } from '../../services/AIConfigService';
 import { useTheme, getColors } from '../../context/ThemeContext';
 import { MainStackParamList } from '../../navigation/types';
 import { KeyboardAvoidingView } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -27,12 +30,29 @@ const AIConfigScreen: React.FC = () => {
 
   const [_loading, _setLoading] = useState(false);
   const [configs, setConfigs] = useState<AIConfig[]>([]);
-  const [activeConfigId, setActiveConfigId] = useState<string | null>(null);
-  const [switchingConfig, setSwitchingConfig] = useState<string | null>(null);
   const [showActionMenu, setShowActionMenu] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [editingConfigId, setEditingConfigId] = useState<string | null>(null);
   const [editingConfigName, setEditingConfigName] = useState<string>('');
+
+  // 新增状态：全局设置
+  const [aiSuggestionEnabled, setAiSuggestionEnabled] = useState(true);
+  const [chatModelConfigId, setChatModelConfigId] = useState<string | null>(null);
+  const [suggestionModelConfigId, setSuggestionModelConfigId] = useState<string | null>(null);
+  const [availableTools, setAvailableTools] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  // 预定义的工具列表
+  const ALL_TOOLS = [
+    'search_flows',
+    'create_flow',
+    'update_flow',
+    'delete_flow',
+    'get_statistics',
+    'analyze_spending',
+    'predict_expenses',
+    'categorize_flow',
+  ];
 
   const loadConfig = useCallback(async () => {
     try {
@@ -40,11 +60,12 @@ const AIConfigScreen: React.FC = () => {
       const allConfigs = await aiConfigService.getAllConfigs();
       setConfigs(allConfigs);
 
-      // 获取活动配置
-      const activeConfig = await aiConfigService.getActiveConfig();
-      if (activeConfig) {
-        setActiveConfigId(activeConfig.id);
-      }
+      // 加载全局设置
+      const globalSettings = await aiConfigService.getGlobalSettings();
+      setAiSuggestionEnabled(globalSettings.aiSuggestionEnabled);
+      setChatModelConfigId(globalSettings.chatModelConfigId);
+      setSuggestionModelConfigId(globalSettings.suggestionModelConfigId);
+      setAvailableTools(globalSettings.availableTools);
     } catch (error) {
       console.error('加载配置失败:', error);
     }
@@ -62,26 +83,64 @@ const AIConfigScreen: React.FC = () => {
     }, [loadConfig])
   );
 
+  // 处理全局设置
+  const handleSaveGlobalSettings = async () => {
+    try {
+      setSaving(true);
+      const success = await aiConfigService.updateGlobalSettings({
+        aiSuggestionEnabled,
+        chatModelConfigId,
+        suggestionModelConfigId,
+        availableTools,
+      });
+
+      if (success) {
+        Alert.alert('成功', '全局设置已保存');
+      } else {
+        Alert.alert('错误', '保存全局设置失败');
+      }
+    } catch (error) {
+      console.error('保存全局设置失败:', error);
+      Alert.alert('错误', '保存全局设置时发生错误');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleAiSuggestion = (value: boolean) => {
+    setAiSuggestionEnabled(value);
+  };
+
+  const handleChatModelChange = (configId: string) => {
+    setChatModelConfigId(configId);
+  };
+
+  const handleSuggestionModelChange = (configId: string) => {
+    setSuggestionModelConfigId(configId);
+  };
+
+  const handleToolToggle = (toolName: string) => {
+    setAvailableTools(prev => {
+      if (prev.includes(toolName)) {
+        return prev.filter(t => t !== toolName);
+      } else {
+        return [...prev, toolName];
+      }
+    });
+  };
+
+  const handleSelectAllTools = () => {
+    setAvailableTools(ALL_TOOLS);
+  };
+
+  const handleClearAllTools = () => {
+    setAvailableTools([]);
+  };
+
   const formatTime = (timestamp?: number) => {
     if (!timestamp) {return '未知时间';}
     const date = new Date(timestamp);
     return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-  };
-
-  const handleSwitchConfig = async (configId: string) => {
-    if (switchingConfig === configId) {return;}
-
-    setSwitchingConfig(configId);
-    try {
-      await aiConfigService.setActiveConfig(configId);
-      setActiveConfigId(configId);
-      // 重新加载配置以更新UI
-      await loadConfig();
-    } catch (error) {
-      Alert.alert('错误', '切换配置失败');
-    } finally {
-      setSwitchingConfig(null);
-    }
   };
 
   const handleCopyConfig = async (config: AIConfig) => {
@@ -96,14 +155,12 @@ const AIConfigScreen: React.FC = () => {
 
   const handleRenameConfig = async (configId: string, newName: string) => {
     if (!newName.trim()) {
-      Alert.alert('错误', '配置名称不能为空');
       return;
     }
 
     try {
       const success = await aiConfigService.updateConfig(configId, { name: newName });
       if (success) {
-        Alert.alert('成功', '配置名称已更新');
         await loadConfig();
         setEditingName(false);
         setEditingConfigId(null);
@@ -151,6 +208,122 @@ const AIConfigScreen: React.FC = () => {
         style={styles.keyboardAvoidingView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* 全局 AI 设置部分 */}
+          <View style={[styles.section, { marginBottom: 24 }]}>
+            <View style={styles.configHeader}>
+              <Text style={[styles.label, {color: colors.text}]}>AI助手 设置</Text>
+            </View>
+
+            {/* AI 建议开关 */}
+            <View style={[styles.row, { marginBottom: 16 }]}>
+              <Text style={[styles.rowLabel, { color: colors.text }]}>启用 AI 建议</Text>
+              <Switch
+                value={aiSuggestionEnabled}
+                onValueChange={handleToggleAiSuggestion}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={aiSuggestionEnabled ? colors.primary : colors.secondaryText}
+              />
+            </View>
+
+            {/* 聊天模型选择 */}
+            <View style={[styles.row, { marginBottom: 16 }]}>
+              <Text style={[styles.rowLabel, { color: colors.text }]}>聊天模型配置</Text>
+              <View style={[styles.pickerContainer, { borderColor: colors.border }]}>
+                <Picker
+                  selectedValue={chatModelConfigId || ''}
+                  onValueChange={handleChatModelChange}
+                  style={[styles.picker, { color: colors.text }]}
+                  dropdownIconColor={colors.text}
+                >
+                  {configs.map(config => (
+                    <Picker.Item
+                      key={config.id}
+                      label={config.name}
+                      value={config.id}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            {/* 建议模型选择 */}
+            <View style={[styles.row, { marginBottom: 16 }]}>
+              <Text style={[styles.rowLabel, { color: colors.text }]}>建议模型配置</Text>
+              <View style={[styles.pickerContainer, { borderColor: colors.border }]}>
+                <Picker
+                  selectedValue={suggestionModelConfigId || ''}
+                  onValueChange={handleSuggestionModelChange}
+                  style={[styles.picker, { color: colors.text }]}
+                  dropdownIconColor={colors.text}
+                >
+                  <Picker.Item label="使用聊天模型" value="" />
+                  {configs.map(config => (
+                    <Picker.Item
+                      key={config.id}
+                      label={config.name}
+                      value={config.id}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            {/* 可用工具管理 */}
+            <View style={{ marginTop: 8 }}>
+              <Text style={[styles.rowLabel, { color: colors.text, marginBottom: 8 }]}>可用工具管理</Text>
+              <Text style={[styles.toolHint, { color: colors.secondaryText }]}>
+                如果列表为空，则所有工具都可用
+              </Text>
+
+              <View style={styles.toolButtonRow}>
+                <TouchableOpacity
+                  style={[styles.toolButton, { backgroundColor: colors.primary + '20' }]}
+                  onPress={handleSelectAllTools}
+                >
+                  <Text style={[styles.toolButtonText, { color: colors.primary }]}>全选</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toolButton, { backgroundColor: colors.error + '20' }]}
+                  onPress={handleClearAllTools}
+                >
+                  <Text style={[styles.toolButtonText, { color: colors.error }]}>清空</Text>
+                </TouchableOpacity>
+              </View>
+
+              {ALL_TOOLS.map((tool, index) => (
+                <TouchableOpacity
+                  key={tool}
+                  style={[
+                    styles.toolItem,
+                    index === ALL_TOOLS.length - 1 ? { borderBottomWidth: 0 } : null
+                  ]}
+                  onPress={() => handleToolToggle(tool)}
+                >
+                  <Switch
+                    value={availableTools.length === 0 || availableTools.includes(tool)}
+                    onValueChange={() => handleToolToggle(tool)}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor={(availableTools.length === 0 || availableTools.includes(tool)) ? colors.primary : colors.secondaryText}
+                  />
+                  <Text style={[styles.toolLabel, { color: colors.text }]}>{tool}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* 保存按钮 */}
+            <TouchableOpacity
+              style={[styles.saveButton, { backgroundColor: colors.primary }]}
+              onPress={handleSaveGlobalSettings}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.saveButtonText}>保存全局设置</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
           {/* 配置管理部分 */}
           <View style={styles.section}>
             <View style={styles.configHeader}>
@@ -191,7 +364,7 @@ const AIConfigScreen: React.FC = () => {
                           elevation: 3,
                         },
                         editingConfigId === config.id && styles.configItemActive,
-                        activeConfigId === config.id && styles.configItemActiveBorder,
+                        (chatModelConfigId === config.id || suggestionModelConfigId === config.id) && styles.configItemActiveBorder,
                       ]}
                     >
                       <View style={styles.configItemHeader}>
@@ -226,7 +399,7 @@ const AIConfigScreen: React.FC = () => {
                                 {config.name}
                               </Text>
                             )}
-                            {activeConfigId === config.id && (
+                            {(chatModelConfigId === config.id || suggestionModelConfigId === config.id) && (
                               <View style={[styles.activeBadge, {backgroundColor: colors.success}]}>
                                 <Text style={styles.activeBadgeText}>活动</Text>
                               </View>
@@ -281,38 +454,6 @@ const AIConfigScreen: React.FC = () => {
                             </Text>
                           </View>
                         )}
-
-                        {/* 切换配置按钮 */}
-                        <TouchableOpacity
-                          onPress={() => handleSwitchConfig(config.id)}
-                          style={[
-                            styles.switchConfigButton,
-                            {
-                              backgroundColor: activeConfigId === config.id ? colors.success + '20' : colors.primary + '20',
-                              borderColor: activeConfigId === config.id ? colors.success : colors.primary,
-                            },
-                          ]}
-                          disabled={switchingConfig === config.id || activeConfigId === config.id}
-                        >
-                          {switchingConfig === config.id ? (
-                            <ActivityIndicator size="small" color={colors.primary}/>
-                          ) : (
-                            <>
-                              <Icon
-                                name={activeConfigId === config.id ? 'check-circle' : 'swap-horiz'}
-                                type="material"
-                                color={activeConfigId === config.id ? colors.success : colors.primary}
-                                size={14}
-                              />
-                              <Text style={[
-                                styles.switchConfigText,
-                                {color: activeConfigId === config.id ? colors.success : colors.primary},
-                              ]}>
-                                {activeConfigId === config.id ? '当前使用' : '切换使用'}
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
                       </View>
 
                       {/* 快速操作菜单 */}
@@ -386,6 +527,9 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 20,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
   },
   configHeader: {
     flexDirection: 'row',
@@ -522,19 +666,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 4,
   },
-  switchConfigButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    borderWidth: 1,
-  },
-  switchConfigText: {
-    fontSize: 10,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
   actionMenu: {
     marginTop: 12,
     borderRadius: 8,
@@ -551,6 +682,71 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginLeft: 8,
     lineHeight: 24,
+  },
+  // 新增样式
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  rowLabel: {
+    fontSize: 14,
+    flex: 1,
+  },
+  pickerContainer: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    marginLeft: 12,
+    height: 40,
+    justifyContent: 'center',
+  },
+  picker: {
+    height: 40,
+    width: '100%',
+  },
+  toolHint: {
+    fontSize: 12,
+    marginBottom: 12,
+  },
+  toolButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  toolButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    flex: 0.48,
+    alignItems: 'center',
+  },
+  toolButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  toolItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  toolLabel: {
+    fontSize: 14,
+    marginLeft: 12,
+    flex: 1,
+  },
+  saveButton: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
