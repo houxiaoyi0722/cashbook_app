@@ -319,7 +319,11 @@ const AIConfigScreen: React.FC = () => {
                       {showActionMenu === config.id && (
                         <View style={[styles.actionMenu, {backgroundColor: colors.card, borderColor: colors.border}]}>
                           <TouchableOpacity
-                            style={styles.actionMenuItem}
+                            style={[
+                              styles.actionMenuItem,
+                              {borderBottomWidth: 1, borderBottomColor: colors.border}
+                            ]}
+                            activeOpacity={0.7}
                             onPress={() => {
                               setEditingConfigName(config.name);
                               setEditingConfigId(config.id);
@@ -327,27 +331,32 @@ const AIConfigScreen: React.FC = () => {
                               setShowActionMenu(null);
                             }}
                           >
-                            <Icon name="edit" type="material" color={colors.primary} size={16}/>
+                            <Icon name="edit" type="material" color={colors.primary} size={14}/>
                             <Text style={[styles.actionMenuText, {color: colors.text}]}>重命名</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            style={styles.actionMenuItem}
+                            style={[
+                              styles.actionMenuItem,
+                              {borderBottomWidth: 1, borderBottomColor: colors.border}
+                            ]}
+                            activeOpacity={0.7}
                             onPress={async () => {
                               setShowActionMenu(null);
                               await handleCopyConfig(config);
                             }}
                           >
-                            <Icon name="content-copy" type="material" color={colors.success} size={16}/>
+                            <Icon name="content-copy" type="material" color={colors.success} size={14}/>
                             <Text style={[styles.actionMenuText, {color: colors.text}]}>复制</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.actionMenuItem}
+                            activeOpacity={0.7}
                             onPress={async () => {
                               setShowActionMenu(null);
                               handleDeleteConfig(config.id, config.name);
                             }}
                           >
-                            <Icon name="delete" type="material" color={colors.error} size={16}/>
+                            <Icon name="delete" type="material" color={colors.error} size={14}/>
                             <Text style={[styles.actionMenuText, {color: colors.text}]}>删除</Text>
                           </TouchableOpacity>
                         </View>
@@ -528,28 +537,20 @@ const styles = StyleSheet.create({
   },
   actionMenu: {
     marginTop: 12,
-    marginLeft: 'auto',
-    marginRight: 0,
-    width: 120,
     borderRadius: 8,
     borderWidth: 1,
-    padding: 4,
-    zIndex: 1000,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    overflow: 'hidden',
   },
   actionMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   actionMenuText: {
-    fontSize: 12,
+    fontSize: 11,
     marginLeft: 8,
+    lineHeight: 24,
   },
 });
 
