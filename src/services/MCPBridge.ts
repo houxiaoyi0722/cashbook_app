@@ -1,6 +1,7 @@
 import { api } from './api';
 import { authManager } from './auth';
 import { Flow } from '../types';
+import { aiConfigService } from './AIConfigService';
 
 type Tool = {
   name: string;
@@ -30,6 +31,12 @@ class MCPBridge {
     const tool = this.tools.get(toolName);
     if (!tool) {
       throw new Error(`未找到工具: ${toolName}。可用工具: ${Array.from(this.tools.keys()).join(', ')}`);
+    }
+
+    // 检查工具是否可用
+    const isAvailable = await aiConfigService.isToolAvailable(toolName);
+    if (!isAvailable) {
+      throw new Error(`工具已被禁用: ${toolName}`);
     }
 
     try {

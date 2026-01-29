@@ -292,7 +292,7 @@ class AIConfigService {
     const availableTools = await this.getAvailableTools();
     // 如果列表为空，表示所有工具都可用
     if (availableTools.length === 0) {
-      return true;
+      return false;
     }
     return availableTools.includes(toolName);
   }

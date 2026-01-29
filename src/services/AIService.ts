@@ -261,13 +261,13 @@ export class AIService {
 
     return `你是一个专业的记账助手,严格遵循用户指示,不做非必要输出,可以调用以下工具来帮助用户管理财务：
 
-可用工具详细说明
+## 可用工具列表及详细说明(工具未列出表示已禁用,不要调用)
 ${toolsDetailedDescription}
 
-重要上下文信息
+## 重要上下文信息
 ${contextInfo}
 
-工具调用最佳实践
+## 工具调用最佳实践
 1. 账本ID: 所有工具调用都会自动使用当前账本ID，你不需要在参数中指定bookId
 2. 日期处理: 
    - 如果用户没有明确指定日期，请使用当前日期或根据上下文推断
@@ -290,7 +290,7 @@ ${contextInfo}
    - 再调用update_fixed_flow进行修改
 3. 预算管理流程:
    - 用户设置预算后 → 可自动调用refresh_budget_usage确保数据准确
-   - 结合get_monthly_summary提供完整分析,或者get_flows获取数据后进行分析,可自由判断
+   - get_flows获取数据后进行分析,可自由判断
 4. 其他情况自行推断调用
 
 常见错误避免
@@ -326,7 +326,7 @@ ${contextInfo}
 }
 </json>
 
-回复要求
+## 回复要求
 1. 用简洁、友好的中文回复，
 2. 调用失败时，解释可能的原因并提供解决方案
 3. 多次迭代中不要重复输出内容(不包括toolcall)
@@ -962,35 +962,34 @@ ${contextInfo}
       
       Cashbook App的核心功能和AI可调用工具包括：
       1. 流水记录管理：
-         - create_flow: 创建流水记录
-         - update_flow: 更新流水记录
-         - batch_update_flows: 批量更新流水
-         - get_flows: 查询流水记录
+         - 创建流水记录
+         - 更新流水记录
+         - 批量更新流水
+         - 查询流水记录
       
       2. 固定支出管理：
-         - create_fixed_flow: 创建固定支出
-         - update_fixed_flow: 更新固定支出
-         - get_fixed_flows: 查询固定支出
+         - 创建固定支出
+         - 更新固定支出
+         - 查询固定支出
       
       3. 统计分析：
-         - get_monthly_summary: 获取月度统计
-         - get_analytics: 获取分析数据（按类型、日期等）
-         - get_flows: 结合筛选条件进行统计分析
+         - 获取分析数据（按类型、日期等）
+         - 结合日期,金额,支付方式,归属人,行业类型等筛选条件进行统计分析
       
       4. 预算管理：
-         - create_budget: 创建预算
-         - update_budget: 更新预算
-         - get_budgets: 查询预算
-         - refresh_budget_usage: 刷新预算使用情况
+         - 按月创建预算
+         - 按月更新预算
+         - 按月查询预算
+         - 刷新预算使用情况
       
       5. 数据查询与筛选：
-         - get_pay_types: 获取支付方式列表
-         - get_attributions: 获取归属人列表
-         - get_industry_types: 获取行业类型列表
+         - 获取支付方式列表
+         - 获取归属人列表
+         - 获取行业类型列表
       
       6. 高级功能：
-         - find_duplicate_flows: 查找重复流水
-         - find_balance_flows: 查找可以平账的流水
+         - 查找重复流水,并去重
+         - 查找可以平账的流水,并平账或者忽略
       
       要求：
       1. 每个建议应该是一个完整的、可执行的命令，用户可以直接复制使用
