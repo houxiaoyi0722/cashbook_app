@@ -395,7 +395,7 @@ const AIConfigScreen: React.FC = () => {
           {/* 配置管理部分 */}
           <View style={styles.section}>
             <View style={styles.configHeader}>
-              <Text style={[styles.label, {color: colors.text}]}>配置管理</Text>
+              <Text style={[styles.label, {color: colors.text}]}>模型配置</Text>
               <TouchableOpacity
                 style={[styles.newConfigButton, {backgroundColor: colors.primary}]}
                 onPress={handleNewConfig}
