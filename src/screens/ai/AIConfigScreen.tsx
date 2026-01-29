@@ -309,7 +309,7 @@ const AIConfigScreen: React.FC = () => {
                 style={styles.toolsHeader}
                 onPress={() => setShowToolsSection(!showToolsSection)}
               >
-                <Text style={[styles.rowLabel, { color: colors.text }]}>可用工具管理</Text>
+                <Text style={[styles.rowLabel, { color: colors.text }]}>工具管理</Text>
                 <Icon
                   name={showToolsSection ? 'expand-less' : 'expand-more'}
                   type="material"
