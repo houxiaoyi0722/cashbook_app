@@ -430,7 +430,6 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   // 监听输入变化，生成AI提示建议
   useEffect( () => {
     if (!aiSuggestionEnabled) {
-      console.log('AI建议功能已禁用');
       setSuggestions([]);
     } else {
       if (inputText.trim() && isConfigured) {

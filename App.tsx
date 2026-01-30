@@ -12,12 +12,14 @@ import { ThemeProvider as RNEThemeProvider } from '@rneui/themed';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { logger } from './src/services/LogService';
 import { setupErrorHandlers } from './src/utils/errorHandler';
+import { initUserInputAnalysis } from './src/services/initUserInputAnalysis';
 import AppNavigator from './src/navigation';
 import { AuthProvider } from './src/context/AuthContext';
 import { BookProvider } from './src/context/BookContext';
 import { BookkeepingProvider } from './src/context/BookkeepingContext';
 import { ThemeProvider, useTheme, getColors } from './src/context/ThemeContext';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import AIAssistantConfigService from './src/services/AIAssistantConfigService';
 
 // 应用内容组件，用于访问主题
 const AppContent = () => {
@@ -45,6 +47,18 @@ const AppContent = () => {
           }
         } catch (logError) {
           console.error('日志服务初始化失败:', logError);
+        }
+
+        const enabled = await AIAssistantConfigService.isEnabled();
+        // 初始化用户输入分析系统
+        if (enabled) {
+          try {
+            await initUserInputAnalysis();
+            console.log('用户输入分析系统初始化成功');
+          } catch (analysisError) {
+            console.error('用户输入分析系统初始化失败:', analysisError);
+            // 不阻止应用启动，用户输入分析是可选的增强功能
+          }
         }
 
         // 设置全局错误处理
@@ -100,15 +114,7 @@ const AppContent = () => {
             backgroundColor={colors.statusBar}
             translucent={false}
           />
-          <RNEThemeProvider>
-            <AuthProvider>
-              <BookProvider>
-                <BookkeepingProvider>
-                  <AppNavigator />
-                </BookkeepingProvider>
-              </BookProvider>
-            </AuthProvider>
-          </RNEThemeProvider>
+          <AppNavigator />
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>
@@ -118,7 +124,15 @@ const AppContent = () => {
 const App = () => {
   return (
     <ThemeProvider>
-      <AppContent/>
+      <RNEThemeProvider>
+        <AuthProvider>
+          <BookProvider>
+            <BookkeepingProvider>
+              <AppContent />
+            </BookkeepingProvider>
+          </BookProvider>
+        </AuthProvider>
+      </RNEThemeProvider>
     </ThemeProvider>
   );
 };

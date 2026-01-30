@@ -8,6 +8,8 @@ import { AIRecursiveService } from './AIRecursiveService';
 import {StreamMessageParser} from './StreamMessageParser.ts';
 import 'react-native-url-polyfill/auto';
 // AIConfigService will be imported dynamically in generatePromptSuggestions to avoid circular dependencies
+// 导入用户输入分析管理器
+import { userInputAnalysisManager } from './UserInputAnalysisManager';
 
 export interface AIResponse {
   messages?: Message[]; // 新增：结构化的消息数组
@@ -47,6 +49,17 @@ export class AIService {
   }
 
   async sendMessage(userMessage: string, streamCallback?: MessageStreamCallback): Promise<AIResponse> {
+    // 记录用户输入到历史记录
+    try {
+      // 使用UserInputAnalysisManager记录用户输入
+      // 将 null 转换为 undefined 以匹配类型签名
+      const bookIdForRecord = this.currentBookId || undefined;
+      await userInputAnalysisManager.recordUserInput(userMessage, bookIdForRecord, 'user_input');
+    } catch (error) {
+      console.warn('记录用户输入历史失败:', error);
+      // 不阻止主要流程继续执行
+    }
+
     // 重置取消标志，因为用户开始了新的对话
     this.cancelling = false;
     this.streamParser = new StreamMessageParser();
@@ -406,16 +419,6 @@ ${contextInfo}
       requestBody.temperature = 0.3; // 更低的随机性以获得更一致的输出
     }
 
-    // 对于特定供应商，可能需要调整参数
-    if (config.provider === 'anthropic') {
-      // Anthropic的OpenAI兼容端点可能需要特定参数
-      // 保持与OpenAI格式一致
-    } else if (config.provider === 'google') {
-      // Google的OpenAI兼容端点可能需要特定参数
-      // 保持与OpenAI格式一致
-    }
-    // 其他供应商（openai, deepseek, custom）都使用相同的格式
-
     return requestBody;
   }
 
@@ -624,7 +627,6 @@ ${contextInfo}
       { role: 'system', content: systemPrompt },
       ...this.getRecentHistory(),
     ];
-    console.log('发送ai的记录:',JSON.stringify(messages));
     // 获取端点和模型
     const defaultEndpoint = this.getDefaultEndpoint(config.provider);
     const defaultModel = this.getDefaultModel(config.provider);
@@ -707,9 +709,9 @@ ${contextInfo}
             if (event.type === 'message') {
               const data = event.data;
 
-              console.log('📝 收到SSE数据', {
-                data,
-              });
+              // console.log('📝 收到SSE数据', {
+              //   data,
+              // });
               // 跳过结束标记
               if (data === '[DONE]') {
                 console.log('🏁 收到SSE结束标记');
@@ -915,6 +917,36 @@ ${contextInfo}
     return [...this.conversationHistory];
   }
 
+  // 获取高频输入分析结果，用于AI建议生成
+  async getFrequentInputsForSuggestions(limit: number = 10): Promise<Array<{input: string, frequency: number}>> {
+    try {
+      // 使用UserInputAnalysisManager获取高频输入数据
+      // 将 null 转换为 undefined
+      const bookIdForQuery = this.currentBookId || undefined;
+      const frequentInputs = await userInputAnalysisManager.getFrequentInputsData(bookIdForQuery, limit);
+
+      // 将结果转换为所需的格式
+      return frequentInputs.map(item => ({
+        input: item.text || '',
+        frequency: item.count || 1
+      })).filter(item => item.input && item.input.trim().length > 0);
+    } catch (error) {
+      console.warn('获取高频输入分析失败:', error);
+      return [];
+    }
+  }
+
+  // 获取高频输入的文本列表，用于AI建议生成
+  async getFrequentInputTexts(limit: number = 5): Promise<string[]> {
+    try {
+      const frequentInputs = await this.getFrequentInputsForSuggestions(limit);
+      return frequentInputs.map(item => item.input).filter(text => text && text.trim().length > 0);
+    } catch (error) {
+      console.warn('获取高频输入文本列表失败:', error);
+      return [];
+    }
+  }
+
   // 生成AI驱动的提示建议
   async generatePromptSuggestions(userInput: string, count: number = 3): Promise<string[]> {
     try {
@@ -940,6 +972,17 @@ ${contextInfo}
       if (!isConfigured) {
         console.log('AI未配置，无法生成建议');
         return this.getFallbackSuggestions(userInput, count);
+      }
+
+      // 获取高频输入作为上下文
+      let frequentInputsContext = '';
+      try {
+        const frequentInputs = await this.getFrequentInputsForSuggestions(5);
+        if (frequentInputs.length > 0) {
+          frequentInputsContext = `\n\n用户历史高频输入（按频率排序）：\n${frequentInputs.map(item => `- "${item.input}" (${item.frequency}次)`).join('\n')}`;
+        }
+      } catch (error) {
+        console.warn('获取高频输入上下文失败，继续生成建议:', error);
       }
 
       // 设置超时
@@ -1000,6 +1043,7 @@ ${contextInfo}
       6. 用中文回复，建议清晰明了
       7. 返回纯文本，每行一个建议，不要编号
       8. 优先生成与用户输入最相关的建议，同时考虑功能的多样性
+      9. 可以参考用户的历史高频输入来生成更个性化的建议
       
       示例：
       用户输入："记一笔"
@@ -1015,13 +1059,14 @@ ${contextInfo}
       统计今年餐饮类别的总支出
       
       用户输入：${userInput}
+      ${frequentInputsContext}
       
       请生成${count}个具体、可操作的提示建议：`;
 
       // 构建消息
       const messages = [
         { role: 'system' as const, content: systemPrompt },
-        { role: 'user' as const, content: `根据我的输入"${userInput}"，生成${count}个相关的记账提示建议。` },
+        { role: 'user' as const, content: `根据我的输入"${userInput}"${frequentInputsContext ? '和我的历史输入模式' : ''}，生成${count}个相关的记账提示建议。` },
       ];
 
       // 构建请求头

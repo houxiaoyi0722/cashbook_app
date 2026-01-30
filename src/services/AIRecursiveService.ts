@@ -371,7 +371,7 @@ export class AIRecursiveService {
         if (content || isComplete) {
           // 使用解析器处理数据块
           const result = streamParser!.processChunk(content || '', isComplete);
-          console.log('解析到内容',result);
+          // console.log('解析到内容',result);
           currentIterationStreamedContent = streamParser!.accumulatedContent;
 
           // 检查是否有工具调用
