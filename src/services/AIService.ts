@@ -1015,7 +1015,7 @@ ${contextInfo}
       try {
         const frequentInputs = await this.getFrequentInputsForSuggestions();
         if (frequentInputs.length > 0) {
-          frequentInputsContext = `\n\n用户历史高频输入（按频率排序高倒低排序）：\n${frequentInputs.map(item => `- "${item}"`).join('\n')}`;
+          frequentInputsContext = `\n用户历史高频输入（按频率排序高倒低排序）：\n${frequentInputs.map(item => `- "${item}"`).join('\n')}`;
         }
       } catch (error) {
         console.warn('获取高频输入上下文失败，继续生成建议:', error);
@@ -1026,6 +1026,7 @@ ${contextInfo}
       // 如果建议模型配置未设置，使用活动配置
       const config = suggestionConfig || await aiConfigModule.aiConfigService.getChatModelConfig();
       if (!config) {
+        console.log('建议模型配置未设置，使用活动配置');
         return this.getFallbackSuggestions(userInput, count);
       }
 
@@ -1090,7 +1091,7 @@ ${contextInfo}
       统计今年餐饮类别的总支出
       
       用户输入：${userInput}
-      历史输入: ${frequentInputsContext}
+      ${frequentInputsContext}
       
       请生成${count}个具体、可操作的提示建议：`;
 
