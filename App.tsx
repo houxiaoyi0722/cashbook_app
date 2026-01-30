@@ -12,7 +12,8 @@ import { ThemeProvider as RNEThemeProvider } from '@rneui/themed';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { logger } from './src/services/LogService';
 import { setupErrorHandlers } from './src/utils/errorHandler';
-import { initUserInputAnalysis } from './src/services/initUserInputAnalysis';
+import { userInputAnalysisManager } from './src/services/UserInputAnalysisManager';
+
 import AppNavigator from './src/navigation';
 import { AuthProvider } from './src/context/AuthContext';
 import { BookProvider } from './src/context/BookContext';
@@ -53,7 +54,8 @@ const AppContent = () => {
         // 初始化用户输入分析系统
         if (enabled) {
           try {
-            await initUserInputAnalysis();
+            // 初始化用户输入分析管理器
+            await userInputAnalysisManager.initialize();
             console.log('用户输入分析系统初始化成功');
           } catch (analysisError) {
             console.error('用户输入分析系统初始化失败:', analysisError);

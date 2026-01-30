@@ -1,15 +1,13 @@
-import { mcpBridge } from './MCPBridge';
+import {mcpBridge} from './MCPBridge';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EventSource from 'react-native-sse';
-import {
-  Message, TextMessage, ThinkingMessage, ToolCallMessage,
-} from '../types';
-import { AIRecursiveService } from './AIRecursiveService';
+import {Message, TextMessage, ThinkingMessage, ToolCallMessage,} from '../types';
+import {AIRecursiveService} from './AIRecursiveService';
 import {StreamMessageParser} from './StreamMessageParser.ts';
 import 'react-native-url-polyfill/auto';
 // AIConfigService will be imported dynamically in generatePromptSuggestions to avoid circular dependencies
 // 导入用户输入分析管理器
-import { userInputAnalysisManager } from './UserInputAnalysisManager';
+import {userInputAnalysisManager} from './UserInputAnalysisManager';
 
 export interface AIResponse {
   messages?: Message[]; // 新增：结构化的消息数组
@@ -372,54 +370,32 @@ ${contextInfo}
     return models[provider] || models.openai;
   }
 
-  private buildHeaders(config: any): Record<string, string> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-
-    // 统一使用Bearer token认证方式
-    // 注意：对于某些供应商，可能需要特殊处理，但这里统一为OpenAI兼容格式
-    if (config.provider === 'anthropic') {
-      // Anthropic的OpenAI兼容端点可能需要不同的认证方式
-      // 这里假设使用x-api-key，但实际可能需要调整
-      headers['x-api-key'] = config.apiKey;
-      // 添加Anthropic版本头
-      headers['anthropic-version'] = '2023-06-01';
-    } else if (config.provider === 'google') {
-      // Google的OpenAI兼容端点可能需要特殊处理
-      // 这里暂时使用Bearer token，实际可能需要调整
-      headers.Authorization = `Bearer ${config.apiKey}`;
-    } else {
-      // OpenAI兼容格式（包括DeepSeek、OpenAI、custom等）
-      // custom provider 也使用 Bearer token
-      headers.Authorization = `Bearer ${config.apiKey}`;
-    }
-
-    return headers;
-  }
-
-  private buildRequestBody(config: any, messages: any[], stream: boolean = true): any {
+  private buildRequestBody(config: any, messages: any[], stream: boolean = true, maxTokensLimit?: number, temperatureLimit?: number): any {
     // 统一使用OpenAI兼容格式
     // 注意：对于Anthropic和Google，需要确保端点支持OpenAI格式
-    const requestBody: any = {
+    let tokens = 1000;
+    if (maxTokensLimit && config.maxTokens && config.maxTokens > maxTokensLimit) {
+      tokens = maxTokensLimit;
+    } else if (config.maxTokens){
+      tokens = config.maxTokens;
+    }
+    let temperature = 0.7;
+    if (temperatureLimit && config.temperature && config.temperature > temperatureLimit) {
+      temperature = temperatureLimit;
+    } else if (config.temperature){
+      temperature = config.temperature;
+    }
+
+    return {
       model: config.model,
       messages: messages.map(msg => ({
         role: msg.role,
         content: msg.content,
       })),
-      max_tokens: config.maxTokens || 1000,
-      temperature: config.temperature || 0.7,
+      max_tokens: tokens,
+      temperature: temperature,
       stream: stream, // 使用传入的stream参数，但默认值为true
     };
-
-    // 优化建议生成API调用，考虑使用更小的模型或缓存结果以提高性能
-    // 对于生成建议的场景，可以使用更低的temperature和更少的max_tokens
-    if (!stream && messages.some(msg => msg.content.includes('提示建议生成器'))) {
-      requestBody.max_tokens = 200; // 建议生成不需要太多tokens
-      requestBody.temperature = 0.3; // 更低的随机性以获得更一致的输出
-    }
-
-    return requestBody;
   }
 
   private adjustEndpoint(baseURL: string, provider: string): string {
@@ -913,37 +889,97 @@ ${contextInfo}
     this.conversationHistory = [];
   }
 
-  getHistory() {
-    return [...this.conversationHistory];
-  }
-
   // 获取高频输入分析结果，用于AI建议生成
-  async getFrequentInputsForSuggestions(limit: number = 10): Promise<Array<{input: string, frequency: number}>> {
+  async getFrequentInputsForSuggestions(): Promise<Array<string>> {
     try {
       // 使用UserInputAnalysisManager获取高频输入数据
-      // 将 null 转换为 undefined
-      const bookIdForQuery = this.currentBookId || undefined;
-      const frequentInputs = await userInputAnalysisManager.getFrequentInputsData(bookIdForQuery, limit);
-
+      const frequentInputs = await userInputAnalysisManager.getAISuggestions(10);
+      if (!frequentInputs) {
+        return [];
+      }
       // 将结果转换为所需的格式
-      return frequentInputs.map(item => ({
-        input: item.text || '',
-        frequency: item.count || 1
-      })).filter(item => item.input && item.input.trim().length > 0);
+      return frequentInputs.filter(item => item.suggestion && item.suggestion.trim().length > 0).map(item => item.suggestion);
     } catch (error) {
       console.warn('获取高频输入分析失败:', error);
       return [];
     }
   }
 
-  // 获取高频输入的文本列表，用于AI建议生成
-  async getFrequentInputTexts(limit: number = 5): Promise<string[]> {
+  /**
+   * 调用AI API进行文本生成
+   * @param prompt 提示文本
+   * @param config AI配置对象
+   * @param userMessages
+   * @param timeout 超时时间（毫秒），默认30秒
+   * @returns Promise<string> AI生成的文本响应
+   */
+  public async callAIForTextGeneration(
+    prompt: string,
+    config: any,
+    userMessages: string[],
+    timeout: number = 30000
+  ): Promise<string> {
     try {
-      const frequentInputs = await this.getFrequentInputsForSuggestions(limit);
-      return frequentInputs.map(item => item.input).filter(text => text && text.trim().length > 0);
+      // 构建消息
+      const messages = [
+        { role: 'system' as const, content: prompt },
+        ...userMessages.map((item: string) => {return { role: 'user' as const, content: item };},),
+      ];
+
+      // 构建请求头
+      const headers = this.buildHeaders(config);
+
+      // 构建请求体
+      const requestBody = this.buildRequestBody(config, messages, false, 200, 0.3);
+
+      // 获取端点
+      let apiEndpoint;
+      if (config.baseURL) {
+        apiEndpoint = this.adjustEndpoint(config.baseURL, config.provider);
+      } else {
+        apiEndpoint = this.getDefaultEndpoint(config.provider);
+      }
+
+      // 设置超时
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(`AI API调用超时 (${timeout}ms)`)), timeout);
+      });
+
+      // 发送请求
+      const fetchPromise = fetch(apiEndpoint, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(requestBody),
+      });
+
+      const response = await Promise.race([fetchPromise, timeoutPromise]);
+
+      if (!response.ok) {
+        throw new Error(`AI API请求失败: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // 解析响应
+      let generatedText = '';
+      if (data.choices?.[0]?.message?.content) {
+        generatedText = data.choices[0].message.content;
+      } else if (data.content) {
+        generatedText = data.content;
+      } else if (data.result?.choices?.[0]?.message?.content) {
+        generatedText = data.result.choices[0].message.content;
+      } else if (data.message?.content) {
+        generatedText = data.message.content;
+      } else if (data.text) {
+        generatedText = data.text;
+      } else {
+        throw new Error('无法解析AI API响应，响应格式未知');
+      }
+
+      return generatedText;
     } catch (error) {
-      console.warn('获取高频输入文本列表失败:', error);
-      return [];
+      console.error('调用AI进行文本生成失败:', error);
+      throw error; // 重新抛出错误，让调用者处理
     }
   }
 
@@ -977,18 +1013,13 @@ ${contextInfo}
       // 获取高频输入作为上下文
       let frequentInputsContext = '';
       try {
-        const frequentInputs = await this.getFrequentInputsForSuggestions(5);
+        const frequentInputs = await this.getFrequentInputsForSuggestions();
         if (frequentInputs.length > 0) {
-          frequentInputsContext = `\n\n用户历史高频输入（按频率排序）：\n${frequentInputs.map(item => `- "${item.input}" (${item.frequency}次)`).join('\n')}`;
+          frequentInputsContext = `\n\n用户历史高频输入（按频率排序高倒低排序）：\n${frequentInputs.map(item => `- "${item}"`).join('\n')}`;
         }
       } catch (error) {
         console.warn('获取高频输入上下文失败，继续生成建议:', error);
       }
-
-      // 设置超时
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('生成建议超时')), 10000); // 10秒超时
-      });
 
       // 获取建议模型配置
       const suggestionConfig = await aiConfigModule.aiConfigService.getSuggestionModelConfig();
@@ -1001,9 +1032,9 @@ ${contextInfo}
       // 构建系统提示
       const systemPrompt = `你是一个记账APP Cashbook AI助手的提示建议生成器。
       
-      你的任务是根据用户的部分输入，结合Cashbook App的实际功能和AI可调用的工具，生成${count}个相关的、具体可执行的完整提示建议。
+      你的任务是根据用户的部分输入，结合Cashbook App的实际功能与用户历史输入，推测并生成${count}个用户下一步可能执行的、相关的、具体的完整提示建议。
       
-      Cashbook App的核心功能和AI可调用工具包括：
+      Cashbook App的核心功能包括：
       1. 流水记录管理：
          - 创建流水记录
          - 更新流水记录
@@ -1059,61 +1090,18 @@ ${contextInfo}
       统计今年餐饮类别的总支出
       
       用户输入：${userInput}
-      ${frequentInputsContext}
+      历史输入: ${frequentInputsContext}
       
       请生成${count}个具体、可操作的提示建议：`;
 
-      // 构建消息
-      const messages = [
-        { role: 'system' as const, content: systemPrompt },
-        { role: 'user' as const, content: `根据我的输入"${userInput}"${frequentInputsContext ? '和我的历史输入模式' : ''}，生成${count}个相关的记账提示建议。` },
-      ];
-
-      // 构建请求头
-      const headers = this.buildHeadersForSuggestions(config);
-
-      // 构建请求体
-      const requestBody = this.buildRequestBodyForSuggestions(config, messages);
-
-      // 获取端点
-      let apiEndpoint;
-      if (config.baseURL) {
-        apiEndpoint = this.adjustEndpointForSuggestions(config.baseURL, config.provider);
-      } else {
-        apiEndpoint = this.getDefaultEndpointForSuggestions(config.provider);
-      }
-
-      // 发送请求
-      const fetchPromise = fetch(apiEndpoint, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(requestBody),
-      });
-
-      const response = await Promise.race([fetchPromise, timeoutPromise]);
-
-      if (!response.ok) {
-        throw new Error(`API请求失败: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      // 解析响应
-      let suggestionsText = '';
-      if (data.choices?.[0]?.message?.content) {
-        suggestionsText = data.choices[0].message.content;
-      } else if (data.content) {
-        suggestionsText = data.content;
-      } else if (data.result?.choices?.[0]?.message?.content) {
-        suggestionsText = data.result.choices[0].message.content;
-      } else if (data.message?.content) {
-        suggestionsText = data.message.content;
-      } else {
-        throw new Error('无法解析API响应');
-      }
+      // 构建完整的提示消息
+      const userMessage = `根据我的输入${frequentInputsContext ? '和我的历史输入模式' : ''}，生成相关的记账提示建议。`;
+      console.log('构建完整的提示消息',systemPrompt,userMessage)
+      // 使用新的callAIForTextGeneration方法调用AI
+      const aiResponseText = await this.callAIForTextGeneration(systemPrompt, config, [userMessage], 10000);
 
       // 处理建议文本
-      const suggestions = this.parseSuggestions(suggestionsText, count);
+      const suggestions = this.parseSuggestions(aiResponseText, count);
       return suggestions.length > 0 ? suggestions : this.getFallbackSuggestions(userInput, count);
 
     } catch (error) {
@@ -1123,7 +1111,7 @@ ${contextInfo}
   }
 
   // 为建议生成构建请求头
-  private buildHeadersForSuggestions(config: any): Record<string, string> {
+  private buildHeaders(config: any): Record<string, string> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -1141,88 +1129,6 @@ ${contextInfo}
     }
 
     return headers;
-  }
-
-  // 为建议生成构建请求体
-  private buildRequestBodyForSuggestions(config: any, messages: any[]): any {
-    const requestBody: any = {
-      model: config.model || this.getDefaultModelForSuggestions(config.provider),
-      messages: messages.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-      })),
-      max_tokens: 200, // 建议生成不需要太多tokens
-      temperature: 1,
-      stream: false,
-    };
-
-    // 对于特定供应商，可能需要调整参数
-    if (config.provider === 'anthropic') {
-      // Anthropic可能需要特定参数
-      requestBody.max_tokens = 200;
-    } else if (config.provider === 'google') {
-      // Google可能需要特定参数
-      requestBody.max_tokens = 200;
-    }
-
-    return requestBody;
-  }
-
-  // 获取建议生成的默认端点
-  private getDefaultEndpointForSuggestions(provider: string): string {
-    const endpoints: Record<string, string> = {
-      openai: 'https://api.openai.com/v1/chat/completions',
-      anthropic: 'https://api.anthropic.com/v1/messages',
-      deepseek: 'https://api.deepseek.com/v1/chat/completions',
-      google: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
-      custom: 'https://api.openai.com/v1/chat/completions', // 为custom提供默认值
-    };
-    return endpoints[provider] || endpoints.openai;
-  }
-
-  // 获取建议生成的默认模型
-  private getDefaultModelForSuggestions(provider: string): string {
-    const models: Record<string, string> = {
-      openai: 'gpt-3.5-turbo',
-      anthropic: 'claude-3-haiku-20240307',
-      deepseek: 'deepseek-chat',
-      google: 'gemini-pro',
-      custom: 'gpt-3.5-turbo',
-    };
-    return models[provider] || models.openai;
-  }
-
-  // 为建议生成调整端点
-  private adjustEndpointForSuggestions(baseURL: string, provider: string): string {
-    if (!baseURL || baseURL.trim() === '') {
-      return this.getDefaultEndpointForSuggestions(provider);
-    }
-
-    // 清理URL：去除末尾的斜杠
-    let cleanedURL = baseURL.trim();
-    if (cleanedURL.endsWith('/')) {
-      cleanedURL = cleanedURL.slice(0, -1);
-    }
-
-    // 检查是否需要添加路径
-    if (cleanedURL.includes('/chat/completions') || cleanedURL.includes('/messages')) {
-      return cleanedURL;
-    }
-
-    // 对于不同的提供商，添加不同的路径
-    if (provider === 'anthropic') {
-      // Anthropic使用/messages端点
-      if (cleanedURL.endsWith('/v1')) {
-        return `${cleanedURL}/messages`;
-      }
-      return `${cleanedURL}/v1/messages`;
-    } else {
-      // 其他提供商使用/chat/completions端点
-      if (cleanedURL.endsWith('/v1')) {
-        return `${cleanedURL}/chat/completions`;
-      }
-      return `${cleanedURL}/v1/chat/completions`;
-    }
   }
 
   // 解析建议文本
@@ -1293,7 +1199,7 @@ ${contextInfo}
       '先查看本月消费统计，然后设置下月预算',
       '查找大额支出（金额大于1000元）的记录',
       '对比本月与上月的消费差异',
-      '预测本月剩余时间的消费趋势'
+      '预测本月剩余时间的消费趋势',
     ];
 
     // 改进关键词匹配逻辑
@@ -1308,47 +1214,47 @@ ${contextInfo}
     const keywordCategories = [
       {
         keywords: ['记', '记录', '添加', '新建', '创建', '支出', '收入', '消费', '花钱'],
-        filter: (suggestion: string) => suggestion.includes('记一笔')
+        filter: (suggestion: string) => suggestion.includes('记一笔'),
       },
       {
         keywords: ['查看', '查询', '搜索', '找', '显示', '列表'],
-        filter: (suggestion: string) => suggestion.includes('查看') || suggestion.includes('所有')
+        filter: (suggestion: string) => suggestion.includes('查看') || suggestion.includes('所有'),
       },
       {
         keywords: ['统计', '分析', '趋势', '占比', '比例', '图表'],
         filter: (suggestion: string) => suggestion.includes('分析') || suggestion.includes('统计') ||
-                                        suggestion.includes('占比') || suggestion.includes('趋势')
+                                        suggestion.includes('占比') || suggestion.includes('趋势'),
       },
       {
         keywords: ['预算', '额度', '限额', '计划'],
-        filter: (suggestion: string) => suggestion.includes('预算')
+        filter: (suggestion: string) => suggestion.includes('预算'),
       },
       {
         keywords: ['固定', '定期', '每月', '周期'],
-        filter: (suggestion: string) => suggestion.includes('固定支出')
+        filter: (suggestion: string) => suggestion.includes('固定支出'),
       },
       {
         keywords: ['重复', '相同', '类似'],
-        filter: (suggestion: string) => suggestion.includes('重复')
+        filter: (suggestion: string) => suggestion.includes('重复'),
       },
       {
         keywords: ['平账', '抵消', '对冲'],
-        filter: (suggestion: string) => suggestion.includes('平账')
+        filter: (suggestion: string) => suggestion.includes('平账'),
       },
       {
         keywords: ['餐饮', '吃饭', '午餐', '晚餐', '美食'],
         filter: (suggestion: string) => suggestion.includes('餐饮') || suggestion.includes('午餐') ||
-                                        suggestion.includes('晚餐') || suggestion.includes('美食')
+                                        suggestion.includes('晚餐') || suggestion.includes('美食'),
       },
       {
         keywords: ['交通', '出行', '地铁', '公交', '打车'],
         filter: (suggestion: string) => suggestion.includes('交通') || suggestion.includes('出行') ||
-                                        suggestion.includes('地铁') || suggestion.includes('公交')
+                                        suggestion.includes('地铁') || suggestion.includes('公交'),
       },
       {
         keywords: ['工资', '收入', '薪水', '报酬'],
-        filter: (suggestion: string) => suggestion.includes('工资') || suggestion.includes('收入')
-      }
+        filter: (suggestion: string) => suggestion.includes('工资') || suggestion.includes('收入'),
+      },
     ];
 
     // 计算每个建议的匹配分数
@@ -1388,7 +1294,7 @@ ${contextInfo}
     const seenCategories = new Set<string>();
 
     for (const item of scoredSuggestions) {
-      if (topSuggestions.length >= count) break;
+      if (topSuggestions.length >= count) {break;}
 
       // 确定建议的主要类别
       let category = '其他';
@@ -1409,7 +1315,7 @@ ${contextInfo}
     // 如果还不够，添加分数最高的其他建议
     if (topSuggestions.length < count) {
       for (const item of scoredSuggestions) {
-        if (topSuggestions.length >= count) break;
+        if (topSuggestions.length >= count) {break;}
         if (!topSuggestions.includes(item.suggestion)) {
           topSuggestions.push(item.suggestion);
         }
