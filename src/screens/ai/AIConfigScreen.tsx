@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -318,7 +318,7 @@ const AIConfigScreen: React.FC = () => {
                     zIndexInverse={2000}
                   />
                   <TouchableOpacity
-                    style={[styles.toolButton, { backgroundColor: colors.error + '20' }]}
+                    style={[styles.toolButton, { backgroundColor: colors.error + '20' ,marginTop: 10}]}
                     onPress={handleClearSuggestHistory}
                   >
                     <Text style={[styles.toolButtonText, { color: colors.error }]}>清空历史建议缓存</Text>

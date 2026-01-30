@@ -1,6 +1,5 @@
 // src/services/UserInputAnalysisManager.ts
 import {AISuggestion, userInputHistoryAnalysisService} from './UserInputHistoryAnalysisService.ts';
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /**
  * 用户输入分析管理器
