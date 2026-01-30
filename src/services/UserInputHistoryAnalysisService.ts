@@ -404,6 +404,18 @@ class UserInputHistoryAnalysisService {
       };
     }
   }
+
+  /**
+   * 重置高频输入历史
+   */
+  async resetSuggestions() {
+    try {
+      await AsyncStorage.removeItem(this.AI_SUGGESTIONS_KEY);
+      await AsyncStorage.removeItem(this.USER_INPUTS_KEY);
+    } catch (error) {
+      console.error('重置高频输入历史失败:', error);
+    }
+  }
 }
 
 // 导出单例

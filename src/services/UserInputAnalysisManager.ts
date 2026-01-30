@@ -1,5 +1,6 @@
 // src/services/UserInputAnalysisManager.ts
 import {AISuggestion, userInputHistoryAnalysisService} from './UserInputHistoryAnalysisService.ts';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /**
  * 用户输入分析管理器
@@ -73,6 +74,17 @@ class UserInputAnalysisManager {
    */
   async getAISuggestions(limit: number): Promise<AISuggestion[] | undefined> {
     return await userInputHistoryAnalysisService.getLatestAISuggestions(limit);
+  }
+
+  /**
+   * 重置高频输入历史
+   */
+  async resetSuggestions() {
+    try {
+      await userInputHistoryAnalysisService.resetSuggestions();
+    } catch (error) {
+      console.error('重置高频输入历史失败:', error);
+    }
   }
 }
 

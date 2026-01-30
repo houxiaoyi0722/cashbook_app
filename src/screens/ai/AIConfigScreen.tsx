@@ -21,6 +21,7 @@ import { MainStackParamList } from '../../navigation/types';
 import { KeyboardAvoidingView } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { mcpBridge } from '../../services/MCPBridge';
+import { userInputAnalysisManager } from '../../services/UserInputAnalysisManager.ts';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -123,6 +124,22 @@ const AIConfigScreen: React.FC = () => {
 
   const handleToggleAiSuggestion = (value: boolean) => {
     setAiSuggestionEnabled(value);
+  };
+
+  const handleClearSuggestHistory = ()=> {
+    Alert.alert(
+      '重置提示缓存',
+      '确定要重置提示缓存吗？',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '确定',
+          onPress: async () => {
+            await userInputAnalysisManager.resetSuggestions();
+          },
+        },
+      ]
+    );
   };
 
 
@@ -300,6 +317,12 @@ const AIConfigScreen: React.FC = () => {
                     zIndex={1900}
                     zIndexInverse={2000}
                   />
+                  <TouchableOpacity
+                    style={[styles.toolButton, { backgroundColor: colors.error + '20' }]}
+                    onPress={handleClearSuggestHistory}
+                  >
+                    <Text style={[styles.toolButtonText, { color: colors.error }]}>清空历史建议缓存</Text>
+                  </TouchableOpacity>
                 </View>
               </View>) : (<View/>)
             }
@@ -340,7 +363,7 @@ const AIConfigScreen: React.FC = () => {
                       <TouchableOpacity
                         style={[
                           styles.toolItem,
-                          index === tools.length - 1 ? { borderBottomWidth: 0 } : null
+                          index === tools.length - 1 ? { borderBottomWidth: 0 } : null,
                         ]}
                         onPress={() => handleToolToggle(tool.name)}
                       >
@@ -530,7 +553,7 @@ const AIConfigScreen: React.FC = () => {
                           <TouchableOpacity
                             style={[
                               styles.actionMenuItem,
-                              {borderBottomWidth: 1, borderBottomColor: colors.border}
+                              {borderBottomWidth: 1, borderBottomColor: colors.border},
                             ]}
                             activeOpacity={0.7}
                             onPress={() => {
@@ -546,7 +569,7 @@ const AIConfigScreen: React.FC = () => {
                           <TouchableOpacity
                             style={[
                               styles.actionMenuItem,
-                              {borderBottomWidth: 1, borderBottomColor: colors.border}
+                              {borderBottomWidth: 1, borderBottomColor: colors.border},
                             ]}
                             activeOpacity={0.7}
                             onPress={async () => {
