@@ -401,6 +401,9 @@ ${contextInfo}
       max_tokens: tokens,
       temperature: temperature,
       stream: stream, // 使用传入的stream参数，但默认值为true
+      thinking: {
+        type: config.thinking,
+      },
     };
   }
 

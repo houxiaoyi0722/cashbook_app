@@ -9,6 +9,7 @@ export interface AIConfig {
   model: string;
   maxTokens?: number;
   temperature?: number;
+  thinking?: 'enabled' | 'disabled';
   createdAt?: number;
   updatedAt?: number;
 }

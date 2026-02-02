@@ -38,6 +38,7 @@ const AIConfigEditScreen: React.FC = () => {
     maxTokens: 5000,
     temperature: 0,
     baseURL: 'https://api.openai.com/v1',
+    thinking: 'disabled',
   });
   const [models, setModels] = useState<Array<{id: string, name: string, description?: string}>>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -145,7 +146,10 @@ const AIConfigEditScreen: React.FC = () => {
         const config = await aiConfigService.getConfigById(configId);
         console.log('加载配置数据:', config);
         if (config) {
-          setEditingConfig(config);
+          setEditingConfig({
+            ...config,
+            thinking: config.thinking || 'disabled', // 确保thinking有默认值
+          });
           setProviderValue(config.provider);
           setModelValue(config.model);
           // 注意：这里不设置 useManualModelInput，将在模型加载完成后决定
@@ -158,6 +162,7 @@ const AIConfigEditScreen: React.FC = () => {
           maxTokens: 5000,
           temperature: 0,
           baseURL: 'https://api.openai.com/v1',
+          thinking: 'disabled',
         };
         setEditingConfig(defaultConfig);
         setProviderValue('openai');
@@ -275,6 +280,7 @@ const AIConfigEditScreen: React.FC = () => {
           baseURL: configToSave.baseURL,
           maxTokens: configToSave.maxTokens,
           temperature: configToSave.temperature,
+          thinking: configToSave.thinking || 'disabled',
         });
         success = true;
         Alert.alert('成功', '新配置已创建');
@@ -493,6 +499,7 @@ const AIConfigEditScreen: React.FC = () => {
               baseURL: defaultBaseURL,
               maxTokens: 5000,
               temperature: 0,
+              thinking: 'disabled',
             });
             setModelValue(modelToUse);
 
@@ -982,6 +989,32 @@ const AIConfigEditScreen: React.FC = () => {
                   控制AI回复的随机性，0表示最确定，2表示最随机
                 </Text>
               </View>
+
+              {/* 思考模式开关 */}
+              <View style={styles.section}>
+                <View style={styles.switchContainer}>
+                  <View style={styles.switchLabelContainer}>
+                    <Text style={[styles.label, {color: colors.text}]}>思考模式</Text>
+                    <Text style={[styles.helperText, {color: colors.secondaryText, marginLeft: 8}]}>
+                      （需模型支持）
+                    </Text>
+                  </View>
+                  <Switch
+                    value={editingConfig.thinking === 'enabled'}
+                    onValueChange={(value) => {
+                      setEditingConfig((prev: any) => ({
+                        ...prev,
+                        thinking: value ? 'enabled' : 'disabled',
+                      }));
+                    }}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor={colors.background}
+                  />
+                </View>
+                <Text style={[styles.helperText, {color: colors.secondaryText, marginTop: 4}]}>
+                  开启思考模式（需模型支持）
+                </Text>
+              </View>
             </>
           )}
 
@@ -1188,6 +1221,16 @@ const styles = StyleSheet.create({
   modelModeLabel: {
     fontSize: 12,
     marginRight: 8,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  switchLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });
 
