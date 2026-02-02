@@ -479,7 +479,7 @@ const AIConfigEditScreen: React.FC = () => {
                 defaultModel = 'gemini-pro';
                 break;
               case 'deepseek':
-                defaultBaseURL = 'https://api.deepseek.com';
+                defaultBaseURL = 'https://api.deepseek.com/v1';
                 defaultModel = 'deepseek-chat';
                 break;
               case 'custom':
@@ -526,7 +526,7 @@ const AIConfigEditScreen: React.FC = () => {
         defaultBaseURL = 'https://generativelanguage.googleapis.com/v1';
         break;
       case 'deepseek':
-        defaultBaseURL = 'https://api.deepseek.com';
+        defaultBaseURL = 'https://api.deepseek.com/v1';
         break;
       case 'custom':
         defaultBaseURL = '';
@@ -615,8 +615,8 @@ const AIConfigEditScreen: React.FC = () => {
       case 'openai': return 'OpenAI官方API地址：https://api.openai.com/v1';
       case 'anthropic': return 'Anthropic官方API地址：https://api.anthropic.com/v1';
       case 'google': return 'Google官方API地址：https://generativelanguage.googleapis.com/v1';
-      case 'deepseek': return 'DeepSeek官方API地址：https://api.deepseek.com';
-      case 'custom': return '请输入您的自定义API地址（OpenAI兼容格式）';
+      case 'deepseek': return 'DeepSeek官方API地址：https://api.deepseek.com/v1';
+      case 'custom': return '请输入API地址{url}/chat/completions';
       default: return '请输入API地址';
     }
   };

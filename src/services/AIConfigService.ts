@@ -386,7 +386,7 @@ class AIConfigService {
           headers.Authorization = `Bearer ${configToValidate.apiKey}`;
           method = 'POST';
           body = JSON.stringify({
-            model: configToValidate.model || 'gpt-3.5-turbo',
+            model: configToValidate.model || '',
             messages: [{ role: 'user', content: 'Hello' }],
             max_tokens: 5,
           });

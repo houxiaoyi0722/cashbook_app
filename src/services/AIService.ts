@@ -425,91 +425,12 @@ ${contextInfo}
     if (cleanedURL.endsWith('/')) {
       cleanedURL = cleanedURL.slice(0, -1);
     }
-
-    // 检查是否需要添加路径
-    // 情况1：URL已经包含/chat/completions
-    if (cleanedURL.includes('/chat/completions')) {
-      console.log('✅ 端点已包含/chat/completions路径', { final: cleanedURL });
-      return cleanedURL;
-    }
-
-    // 情况2：URL以/v1结尾
-    if (cleanedURL.endsWith('/v1')) {
-      const finalURL = `${cleanedURL}/chat/completions`;
-      console.log('🔧 端点以/v1结尾，添加/chat/completions', {
-        original: baseURL,
-        adjusted: finalURL,
-      });
-      return finalURL;
-    }
-
-    // 情况3：URL包含/v1/但不是以它结尾
-    if (cleanedURL.includes('/v1/')) {
-      // 如果已经有其他路径，直接返回
-      console.log('✅ 端点已包含/v1/路径', { final: cleanedURL });
-      return cleanedURL;
-    }
-
-    // 情况4：URL没有路径或路径不完整
-    // 检查是否有路径部分
-    try {
-      const urlObj = new URL(cleanedURL);
-      const pathname = urlObj.pathname;
-
-      // 如果路径为空或只有斜杠
-      if (!pathname || pathname === '/' || pathname === '') {
-        const finalURL = `${cleanedURL}/v1/chat/completions`;
-        console.log('🔧 端点没有路径，添加/v1/chat/completions', {
-          original: baseURL,
-          adjusted: finalURL,
-        });
-        return finalURL;
-      }
-
-      // 如果有路径但不是/v1相关
-      // 对于 custom provider，我们总是添加 /v1/chat/completions 以确保兼容性
-      if (provider === 'custom') {
-        const finalURL = `${cleanedURL}/v1/chat/completions`;
-        console.log('🔧 custom provider：添加/v1/chat/completions以确保兼容性', {
-          original: baseURL,
-          adjusted: finalURL,
-        });
-        return finalURL;
-      }
-
-      // 对于其他提供商，保持原样
-      console.log('⚠️ 端点有自定义路径，保持原样', {
-        original: baseURL,
-        pathname: pathname,
-        final: cleanedURL,
-      });
-      return cleanedURL;
-    } catch (error) {
-      // 如果不是有效的URL，可能是格式错误
-      console.error('❌ 端点URL格式无效', {
-        original: baseURL,
-        error: error instanceof Error ? error.message : String(error),
-      });
-
-      // 尝试修复：如果看起来像域名但没有协议，添加https://
-      if (!cleanedURL.startsWith('http://') && !cleanedURL.startsWith('https://')) {
-        const fixedURL = `https://${cleanedURL}/v1/chat/completions`;
-        console.log('🔧 添加https://协议和/v1/chat/completions路径', {
-          original: baseURL,
-          fixed: fixedURL,
-        });
-        return fixedURL;
-      }
-
-      // 如果已经是http/https开头但解析失败，可能是格式问题
-      // 直接添加/v1/chat/completions并返回
-      const finalURL = `${cleanedURL}/v1/chat/completions`;
-      console.log('🔧 端点解析失败，尝试添加/v1/chat/completions', {
-        original: baseURL,
-        adjusted: finalURL,
-      });
-      return finalURL;
-    }
+    const finalURL = `${cleanedURL}/chat/completions`;
+    console.log('🔧 端点添加/chat/completions', {
+      original: baseURL,
+      adjusted: finalURL,
+    });
+    return finalURL;
   }
 
   // 检查是否有活动的SSE连接
@@ -942,12 +863,7 @@ ${contextInfo}
       const requestBody = this.buildRequestBody(config, messages, false, 200, 0.3);
 
       // 获取端点
-      let apiEndpoint;
-      if (config.baseURL) {
-        apiEndpoint = this.adjustEndpoint(config.baseURL, config.provider);
-      } else {
-        apiEndpoint = this.getDefaultEndpoint(config.provider);
-      }
+      let apiEndpoint = this.adjustEndpoint(config.baseURL, config.provider);
 
       // 设置超时
       const timeoutPromise = new Promise<never>((_, reject) => {
