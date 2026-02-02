@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   StyleSheet, Platform, KeyboardAvoidingView,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon } from '@rneui/themed';
@@ -45,6 +46,9 @@ const AIConfigEditScreen: React.FC = () => {
   const [modelLoadError, setModelLoadError] = useState<string | null>(null);
   const [cachedModels, setCachedModels] = useState<Record<string, Array<{id: string, name: string}>>>({});
 
+  // 新增：控制模型输入模式的状态
+  const [useManualModelInput, setUseManualModelInput] = useState(false);
+
   // 下拉选择器状态 - 服务商选择
   const [providerOpen, setProviderOpen] = useState(false);
   const [providerValue, setProviderValue] = useState<string>('openai');
@@ -79,7 +83,7 @@ const AIConfigEditScreen: React.FC = () => {
     }
   }, [editingConfig.apiKey, editingConfig.provider]);
 
-  // 当models变化时，更新模型下拉选择器的items
+  // 当models变化时，更新模型下拉选择器的items，并检查是否需要启用手动输入模式
   useEffect(() => {
     const items = models.map(model => ({
       label: model.name || model.id,
@@ -87,12 +91,25 @@ const AIConfigEditScreen: React.FC = () => {
     }));
     setModelItems(items);
 
-    // 如果当前选择的模型不在列表中，且列表不为空，则选择第一个模型
-    if (items.length > 0 && !items.some(item => item.value === modelValue)) {
-      setModelValue(items[0].value);
-      setEditingConfig(prev => ({ ...prev, model: items[0].value }));
+    // 检查当前模型是否在模型列表中
+    const currentModel = editingConfig.model;
+    const isModelInList = models.some(model => model.id === currentModel);
+
+    // 如果当前模型不在列表中，且是编辑现有配置，则启用手动输入模式
+    if (configId && currentModel && !isModelInList) {
+      setUseManualModelInput(true);
+    } else {
+      // 如果当前模型在列表中，确保使用下拉列表模式
+      // 但只在不是手动输入模式时更新modelValue
+      if (!useManualModelInput) {
+        // 如果当前选择的模型不在列表中，且列表不为空，则选择第一个模型
+        if (items.length > 0 && !items.some(item => item.value === modelValue)) {
+          setModelValue(items[0].value);
+          setEditingConfig(prev => ({ ...prev, model: items[0].value }));
+        }
+      }
     }
-  }, [models]);
+  }, [models, configId, editingConfig.model, useManualModelInput]);
 
   // 当providerValue变化时，更新editingConfig
   useEffect(() => {
@@ -101,12 +118,25 @@ const AIConfigEditScreen: React.FC = () => {
     }
   }, [providerValue]);
 
-  // 当modelValue变化时，更新editingConfig
+  // 当modelValue变化时，更新editingConfig（仅在下拉列表模式下）
   useEffect(() => {
-    if (modelValue !== editingConfig.model) {
+    if (!useManualModelInput && modelValue !== editingConfig.model) {
       setEditingConfig(prev => ({ ...prev, model: modelValue }));
     }
-  }, [modelValue]);
+  }, [modelValue, useManualModelInput]);
+
+  // 当切换到手动输入模式时，确保model值正确
+  useEffect(() => {
+    if (useManualModelInput) {
+      // 如果当前modelValue不在模型列表中，保持当前值
+      // 否则，使用editingConfig.model的值
+    } else {
+      // 切换到下拉列表模式时，确保modelValue与editingConfig.model同步
+      if (editingConfig.model && editingConfig.model !== modelValue) {
+        setModelValue(editingConfig.model);
+      }
+    }
+  }, [useManualModelInput]);
 
   const loadConfig = async () => {
     try {
@@ -118,6 +148,7 @@ const AIConfigEditScreen: React.FC = () => {
           setEditingConfig(config);
           setProviderValue(config.provider);
           setModelValue(config.model);
+          // 注意：这里不设置 useManualModelInput，将在模型加载完成后决定
         }
       } else {
         // 新建配置，使用默认值
@@ -131,6 +162,7 @@ const AIConfigEditScreen: React.FC = () => {
         setEditingConfig(defaultConfig);
         setProviderValue('openai');
         setModelValue('gpt-3.5-turbo');
+        setUseManualModelInput(false); // 新建时默认使用下拉列表
       }
     } catch (error) {
       console.error('加载配置失败:', error);
@@ -163,7 +195,7 @@ const AIConfigEditScreen: React.FC = () => {
       // 检查当前选择的模型是否在缓存列表中
       if (cached.length > 0) {
         const currentModelExists = cached.some(model => model.id === modelValue);
-        if (!currentModelExists) {
+        if (!currentModelExists && !useManualModelInput) {
           setModelValue(cached[0].id);
           setEditingConfig(prev => ({ ...prev, model: cached[0].id }));
         }
@@ -190,7 +222,7 @@ const AIConfigEditScreen: React.FC = () => {
       setModels(availableModels);
 
       // 如果当前选择的模型不在新获取的列表中，且列表不为空，则选择第一个模型
-      if (availableModels.length > 0) {
+      if (availableModels.length > 0 && !useManualModelInput) {
         const currentModelExists = availableModels.some(model => model.id === modelValue);
         if (!currentModelExists) {
           setModelValue(availableModels[0].id);
@@ -209,7 +241,7 @@ const AIConfigEditScreen: React.FC = () => {
     } finally {
       setLoadingModels(false);
     }
-  }, [editingConfig, modelValue, cachedModels, getCacheKey]);
+  }, [editingConfig, modelValue, cachedModels, getCacheKey, useManualModelInput]);
 
   const handleSave = async () => {
     if (!editingConfig.apiKey?.trim()) {
@@ -494,16 +526,35 @@ const AIConfigEditScreen: React.FC = () => {
         break;
     }
 
+    // 获取默认模型
     const defaultModel = getDefaultModelForProvider(provider);
+
+    // 确定要使用的模型
+    let modelToUse: string;
+
+    if (useManualModelInput) {
+      // 手动输入模式下：保留用户输入的模型名称，除非当前模型为空
+      if (editingConfig.model && editingConfig.model.trim().length > 0) {
+        modelToUse = editingConfig.model;
+      } else {
+        modelToUse = defaultModel;
+      }
+    } else {
+      // 下拉列表模式下：使用默认模型
+      modelToUse = defaultModel;
+    }
 
     setEditingConfig({
       ...editingConfig,
       provider,
       baseURL: defaultBaseURL,
-      model: defaultModel,
+      model: modelToUse,
       // 保留现有的API Key，因为用户可能只是切换提供商但想使用相同的密钥
     });
-    setModelValue(defaultModel);
+
+    // 更新modelValue状态以保持同步
+    // 注意：在手动输入模式下，modelValue可能不是最新的，所以我们需要同步它
+    setModelValue(modelToUse);
 
     // 切换服务商时重置验证状态
     setValidationState('none');
@@ -741,46 +792,92 @@ const AIConfigEditScreen: React.FC = () => {
 
           {/* 模型选择 */}
           <View style={styles.section}>
-            <Text style={[styles.label, {color: colors.text}]}>模型</Text>
-            <DropDownPicker
-              open={modelOpen}
-              value={modelValue}
-              items={modelItems}
-              setOpen={setModelOpen}
-              setValue={setModelValue}
-              setItems={setModelItems}
-              searchable={true}
-              listMode="MODAL"
-              searchPlaceholder="输入关键词搜索模型..."
-              style={[
-                styles.dropdown,
-                {
-                  backgroundColor: colors.input,
-                  borderColor: colors.border,
-                },
-              ]}
-              textStyle={[styles.dropdownText, {color: colors.text}]}
-              dropDownContainerStyle={[
-                styles.dropdownContainer,
-                {
-                  backgroundColor: colors.input,
-                  borderColor: colors.border,
-                },
-              ]}
-              loading={loadingModels}
-              disabled={loadingModels || !editingConfig.apiKey}
-              zIndex={2000}
-              zIndexInverse={2000}
-            />
-            {modelLoadError && (
-              <Text style={[styles.errorText, {color: colors.error}]}>{modelLoadError}</Text>
-            )}
-            {loadingModels && (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={[styles.loadingText, {color: colors.secondaryText}]}>正在加载模型列表...</Text>
+            <View style={styles.modelHeader}>
+              <Text style={[styles.label, {color: colors.text}]}>模型</Text>
+              <View style={styles.modelModeToggle}>
+                <Text style={[styles.modelModeLabel, {color: colors.secondaryText}]}>
+                  {useManualModelInput ? '手动输入' : '从列表选择'}
+                </Text>
+                <Switch
+                  value={useManualModelInput}
+                  onValueChange={(value) => {
+                    setUseManualModelInput(value);
+                    // 切换模式时，如果是从手动输入切换到列表选择，尝试同步模型值
+                    if (!value && editingConfig.model) {
+                      setModelValue(editingConfig.model);
+                    }
+                  }}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={colors.background}
+                />
               </View>
+            </View>
+
+            {useManualModelInput ? (
+              // 手动输入模式
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.input,
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                value={editingConfig.model || ''}
+                onChangeText={(text) => setEditingConfig((prev: any) => ({ ...prev, model: text }))}
+                placeholder="输入模型名称，例如：gpt-4-turbo"
+                placeholderTextColor={colors.hint}
+              />
+            ) : (
+              // 下拉列表模式
+              <>
+                <DropDownPicker
+                  open={modelOpen}
+                  value={modelValue}
+                  items={modelItems}
+                  setOpen={setModelOpen}
+                  setValue={setModelValue}
+                  setItems={setModelItems}
+                  searchable={true}
+                  listMode="MODAL"
+                  searchPlaceholder="输入关键词搜索模型..."
+                  style={[
+                    styles.dropdown,
+                    {
+                      backgroundColor: colors.input,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  textStyle={[styles.dropdownText, {color: colors.text}]}
+                  dropDownContainerStyle={[
+                    styles.dropdownContainer,
+                    {
+                      backgroundColor: colors.input,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  loading={loadingModels}
+                  disabled={loadingModels || !editingConfig.apiKey}
+                  zIndex={2000}
+                  zIndexInverse={2000}
+                />
+                {modelLoadError && (
+                  <Text style={[styles.errorText, {color: colors.error}]}>{modelLoadError}</Text>
+                )}
+                {loadingModels && (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={[styles.loadingText, {color: colors.secondaryText}]}>正在加载模型列表...</Text>
+                  </View>
+                )}
+              </>
             )}
+            <Text style={[styles.helperText, {color: colors.secondaryText}]}>
+              {useManualModelInput
+                ? '请输入完整的模型名称，确保与所选服务商兼容'
+                : '从列表中选择模型，或切换到手动输入模式'}
+            </Text>
           </View>
 
           {/* 高级设置开关 */}
@@ -818,7 +915,7 @@ const AIConfigEditScreen: React.FC = () => {
                   ]}
                   value={editingConfig.baseURL}
                   onChangeText={(text) => setEditingConfig((prev: any) => ({ ...prev, baseURL: text }))}
-                  placeholder={getApiKeyPlaceholder(editingConfig.provider)}
+                  placeholder={getBaseURLHelperText(editingConfig.provider)}
                   placeholderTextColor={colors.hint}
                 />
                 <Text style={[styles.helperText, {color: colors.secondaryText}]}>
@@ -1076,6 +1173,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '500',
+  },
+  // 新增样式
+  modelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modelModeToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modelModeLabel: {
+    fontSize: 12,
+    marginRight: 8,
   },
 });
 
