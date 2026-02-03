@@ -332,7 +332,7 @@ const AIConfigScreen: React.FC = () => {
                 style={styles.toolsHeader}
                 onPress={() => setShowToolsSection(!showToolsSection)}
               >
-                <Text style={[styles.rowLabel, { color: colors.text }]}>工具管理</Text>
+                <Text style={[styles.rowLabel, { color: colors.text }]}>工具管理(初次使用需开启工具)</Text>
                 <Icon
                   name={showToolsSection ? 'expand-less' : 'expand-more'}
                   type="material"
@@ -363,6 +363,7 @@ const AIConfigScreen: React.FC = () => {
                       <TouchableOpacity
                         style={[
                           styles.toolItem,
+                          { borderBottomColor: colors.border },
                           index === tools.length - 1 ? { borderBottomWidth: 0 } : null,
                         ]}
                         onPress={() => handleToolToggle(tool.name)}
@@ -504,13 +505,21 @@ const AIConfigScreen: React.FC = () => {
                           <View style={styles.timeInfoContainer}>
                             <View style={styles.timeInfoItem}>
                               <Icon name="access-time" type="material" color={colors.hint} size={10}/>
-                              <Text style={[styles.timeInfoText, {color: colors.hint}]}>
+                              <Text
+                                style={[styles.timeInfoText, {color: colors.hint}]}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                              >
                                 创建: {formatTime(config.createdAt)}
                               </Text>
                             </View>
                             <View style={styles.timeInfoItem}>
                               <Icon name="update" type="material" color={colors.hint} size={10}/>
-                              <Text style={[styles.timeInfoText, {color: colors.hint}]}>
+                              <Text
+                                style={[styles.timeInfoText, {color: colors.hint}]}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                              >
                                 更新: {formatTime(config.updatedAt)}
                               </Text>
                             </View>
@@ -724,15 +733,19 @@ const styles = StyleSheet.create({
   },
   timeInfoContainer: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   timeInfoItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 1,
+    minWidth: 0,
   },
   timeInfoText: {
     fontSize: 10,
     marginLeft: 4,
+    flexShrink: 1,
   },
   configItemActions: {
     marginLeft: 8,
@@ -784,6 +797,7 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontSize: 14,
     flex: 1,
+    lineHeight: 20, // 14 * 1.428 ≈ 20
   },
   dropdownContainer: {
     flex: 1,
@@ -818,12 +832,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    paddingVertical: 4, // 增加垂直内边距确保有足够空间
   },
   toolItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12, // 增加垂直内边距
     borderBottomWidth: 1,
+    minHeight: 44, // 确保最小高度，防止文本被裁剪
   },
   toolInfo: {
     flexDirection: 'row',
@@ -834,17 +850,26 @@ const styles = StyleSheet.create({
   toolLabel: {
     fontSize: 14,
     flex: 1,
+    lineHeight: 20, // 14 * 1.428 ≈ 20
   },
   infoButton: {
     padding: 4,
   },
   toolDescription: {
-    padding: 8,
-    borderRadius: 4,
+    padding: 12,
+    borderRadius: 6,
     marginBottom: 8,
+    marginTop: 4,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    // 确保不会被其他元素遮挡
+    zIndex: 1,
+    elevation: 1, // Android
   },
   toolDescriptionText: {
     fontSize: 12,
+    lineHeight: 16,
   },
   saveButton: {
     paddingVertical: 12,
