@@ -33,11 +33,11 @@ const AIConfigEditScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [validating, setValidating] = useState(false);
   const [editingConfig, setEditingConfig] = useState<Partial<AIConfig>>({
-    provider: 'openai',
-    model: 'gpt-3.5-turbo',
+    provider: undefined,
+    model: '',
     maxTokens: 5000,
     temperature: 0,
-    baseURL: 'https://api.openai.com/v1',
+    baseURL: '',
     thinking: 'disabled',
   });
   const [models, setModels] = useState<Array<{id: string, name: string, description?: string}>>([]);
@@ -48,7 +48,7 @@ const AIConfigEditScreen: React.FC = () => {
   const [cachedModels, setCachedModels] = useState<Record<string, Array<{id: string, name: string}>>>({});
 
   // 新增：控制模型输入模式的状态
-  const [useManualModelInput, setUseManualModelInput] = useState(false);
+  const [useManualModelInput, setUseManualModelInput] = useState(true);
 
   // 下拉选择器状态 - 服务商选择
   const [providerOpen, setProviderOpen] = useState(false);
@@ -63,7 +63,7 @@ const AIConfigEditScreen: React.FC = () => {
 
   // 下拉选择器状态 - 模型选择
   const [modelOpen, setModelOpen] = useState(false);
-  const [modelValue, setModelValue] = useState<string>('gpt-3.5-turbo');
+  const [modelValue, setModelValue] = useState<string>('');
   const [modelItems, setModelItems] = useState<Array<{label: string, value: string}>>([]);
 
   const getCacheKey = useCallback((provider: string, apiKey: string) => {
@@ -157,16 +157,16 @@ const AIConfigEditScreen: React.FC = () => {
       } else {
         // 新建配置，使用默认值
         const defaultConfig: Partial<AIConfig> = {
-          provider: 'openai',
-          model: 'gpt-3.5-turbo',
+          provider: undefined,
+          model: '',
           maxTokens: 5000,
           temperature: 0,
-          baseURL: 'https://api.openai.com/v1',
+          baseURL: '',
           thinking: 'disabled',
         };
         setEditingConfig(defaultConfig);
-        setProviderValue('openai');
-        setModelValue('gpt-3.5-turbo');
+        setProviderValue('');
+        setModelValue('');
         setUseManualModelInput(false); // 新建时默认使用下拉列表
       }
     } catch (error) {
@@ -276,7 +276,7 @@ const AIConfigEditScreen: React.FC = () => {
           name: configToSave.name,
           provider: configToSave.provider || 'openai',
           apiKey: configToSave.apiKey || '',
-          model: configToSave.model || 'gpt-3.5-turbo',
+          model: configToSave.model || '',
           baseURL: configToSave.baseURL,
           maxTokens: configToSave.maxTokens,
           temperature: configToSave.temperature,
@@ -304,9 +304,9 @@ const AIConfigEditScreen: React.FC = () => {
     return {
       id: configId || 'temp-validation-id',
       name: editingConfig.name || '验证配置',
-      provider: editingConfig.provider || 'openai',
+      provider: editingConfig.provider || 'custom',
       apiKey: editingConfig.apiKey || '',
-      model: editingConfig.model || 'gpt-3.5-turbo',
+      model: editingConfig.model || '',
       baseURL: editingConfig.baseURL,
       maxTokens: editingConfig.maxTokens,
       temperature: editingConfig.temperature,
@@ -460,48 +460,21 @@ const AIConfigEditScreen: React.FC = () => {
         {
           text: '确定',
           onPress: async () => {
-            const currentProvider = editingConfig.provider || 'openai';
-
             // 为当前供应商设置默认配置
             let defaultBaseURL = '';
             let defaultModel = '';
-            switch (currentProvider) {
-              case 'openai':
-                defaultBaseURL = 'https://api.openai.com/v1';
-                defaultModel = 'gpt-3.5-turbo';
-                break;
-              case 'anthropic':
-                defaultBaseURL = 'https://api.anthropic.com/v1';
-                defaultModel = 'claude-3-haiku-20240307';
-                break;
-              case 'google':
-                defaultBaseURL = 'https://generativelanguage.googleapis.com/v1';
-                defaultModel = 'gemini-pro';
-                break;
-              case 'deepseek':
-                defaultBaseURL = 'https://api.deepseek.com/v1';
-                defaultModel = 'deepseek-chat';
-                break;
-              case 'custom':
-                defaultBaseURL = '';
-                defaultModel = '';
-                break;
-            }
-
-            // 确保 model 有值
-            const modelToUse = defaultModel || 'gpt-3.5-turbo';
 
             // 更新当前配置状态
             setEditingConfig({
               ...editingConfig,
               apiKey: '',
-              model: modelToUse,
+              model: defaultModel,
               baseURL: defaultBaseURL,
               maxTokens: 5000,
               temperature: 0,
               thinking: 'disabled',
             });
-            setModelValue(modelToUse);
+            setModelValue(defaultModel);
 
             // 重置验证状态和模型列表
             setValidationState('none');
@@ -534,7 +507,7 @@ const AIConfigEditScreen: React.FC = () => {
     }
 
     // 获取默认模型
-    const defaultModel = getDefaultModelForProvider(provider);
+    const defaultModel = getDefaultModelForProvider();
 
     // 确定要使用的模型
     let modelToUse: string;
@@ -571,21 +544,8 @@ const AIConfigEditScreen: React.FC = () => {
   };
 
   // 辅助函数：获取默认模型
-  const getDefaultModelForProvider = (provider: AIConfig['provider']): string => {
-    switch (provider) {
-      case 'deepseek':
-        return 'deepseek-chat';
-      case 'openai':
-        return 'gpt-3.5-turbo';
-      case 'anthropic':
-        return 'claude-3-haiku-20240307';
-      case 'google':
-        return 'gemini-pro';
-      case 'custom':
-        return '';
-      default:
-        return 'gpt-3.5-turbo';
-    }
+  const getDefaultModelForProvider = (): string => {
+    return '';
   };
 
   const getApiKeyPlaceholder = (provider?: string) => {

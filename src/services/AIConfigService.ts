@@ -32,7 +32,7 @@ const DEFAULT_AI_CONFIG: {
   baseURL: string;
 } = {
   provider: 'openai',
-  model: 'gpt-3.5-turbo',
+  model: '',
   maxTokens: 3000,
   temperature: 0.7,
   baseURL: 'https://api.openai.com/v1',
@@ -95,7 +95,6 @@ class AIConfigService {
         return this.storage!;
       }
 
-      // 如果没有存储数据，创建默认存储
       return await this.createDefaultStorage();
     } catch (error) {
       console.error('获取存储失败:', error);
@@ -105,22 +104,9 @@ class AIConfigService {
   }
 
   private async createDefaultStorage(): Promise<AIConfigStorage> {
-    const defaultConfig: AIConfig = {
-      id: this.generateId(),
-      name: '默认配置',
-      provider: DEFAULT_AI_CONFIG.provider,
-      apiKey: '',
-      model: DEFAULT_AI_CONFIG.model,
-      baseURL: DEFAULT_AI_CONFIG.baseURL,
-      maxTokens: DEFAULT_AI_CONFIG.maxTokens,
-      temperature: DEFAULT_AI_CONFIG.temperature,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
     const defaultStorage: AIConfigStorage = {
       version: STORAGE_VERSION,
-      configs: [defaultConfig],
+      configs: [],
       aiSuggestionEnabled: DEFAULT_GLOBAL_CONFIG.aiSuggestionEnabled,
       chatModelConfigId: DEFAULT_GLOBAL_CONFIG.chatModelConfigId,
       suggestionModelConfigId: DEFAULT_GLOBAL_CONFIG.suggestionModelConfigId,
@@ -341,7 +327,7 @@ class AIConfigService {
           headers.Authorization = `Bearer ${configToValidate.apiKey}`;
           method = 'POST';
           body = JSON.stringify({
-            model: configToValidate.model || 'gpt-3.5-turbo',
+            model: configToValidate.model,
             messages: [{ role: 'user', content: 'Hello' }],
             max_tokens: 5,
           });
@@ -353,7 +339,7 @@ class AIConfigService {
           headers['anthropic-version'] = '2023-06-01';
           method = 'POST';
           body = JSON.stringify({
-            model: configToValidate.model || 'claude-3-haiku-20240307',
+            model: configToValidate.model,
             max_tokens: 5,
             messages: [{ role: 'user', content: 'Hello' }],
           });
@@ -373,7 +359,7 @@ class AIConfigService {
           headers.Authorization = `Bearer ${configToValidate.apiKey}`;
           method = 'POST';
           body = JSON.stringify({
-            model: configToValidate.model || 'deepseek-chat',
+            model: configToValidate.model,
             messages: [{ role: 'user', content: 'Hello' }],
             max_tokens: 5,
           });
@@ -386,7 +372,7 @@ class AIConfigService {
           headers.Authorization = `Bearer ${configToValidate.apiKey}`;
           method = 'POST';
           body = JSON.stringify({
-            model: configToValidate.model || '',
+            model: configToValidate.model,
             messages: [{ role: 'user', content: 'Hello' }],
             max_tokens: 5,
           });

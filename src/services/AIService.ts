@@ -261,17 +261,6 @@ ${contextInfo}
     return endpoints[provider] || endpoints.openai;
   }
 
-  private getDefaultModel(provider: string): string {
-    const models: Record<string, string> = {
-      openai: 'gpt-3.5-turbo',
-      anthropic: 'claude-3-haiku-20240307',
-      deepseek: 'deepseek-chat',
-      google: 'gemini-pro',
-      custom: 'gpt-3.5-turbo', // 为 custom provider 提供合理的默认值
-    };
-    return models[provider] || models.openai;
-  }
-
   private buildRequestBody(config: any, messages: any[], stream: boolean = true, tools?: any[], maxTokensLimit?: number, temperatureLimit?: number): any {
     // 统一使用OpenAI兼容格式
     // 注意：对于Anthropic和Google，需要确保端点支持OpenAI格式
@@ -455,7 +444,6 @@ ${contextInfo}
     console.log('messages',messages);
     // 获取端点和模型
     const defaultEndpoint = this.getDefaultEndpoint(config.provider);
-    const defaultModel = this.getDefaultModel(config.provider);
 
     // 使用调整后的端点
     let apiEndpoint;
@@ -465,7 +453,7 @@ ${contextInfo}
       apiEndpoint = defaultEndpoint;
     }
 
-    const model = config.model || defaultModel;
+    const model = config.model;
 
     console.log('🚀 准备AI API调用（仅流式）', {
       provider: config.provider,
