@@ -197,53 +197,9 @@ ${contextInfo}
 *   **禁止主动链式调用**：例如，在记录流水后，**不得**主动调用get_analytics进行分析或refresh_budget_usage刷新预算。仅在用户明确要求“分析一下”或“刷新预算”时才执行。
 
 ## 回复格式
-1.  当需要调用工具时，输出必须**且仅**包含以下格式：
-    <json>{toolCall_JSON}</json>
-    不要在JSON前后添加任何解释性文字。
-2.  工具调用成功执行后，若系统有返回结果信息（如“记录成功”），可向用户转达该信息。**不添加**“已为您记账”、“下次可以试试XX功能”等额外话语。
-3.  工具调用失败时，直接、简短地解释失败原因（如“参数XX格式错误”）或询问必要信息。
-4.  用户未要求时，不进行问候、总结、展望。
-
-  ## 示例交互
-  **用户输入**：记一笔午餐消费50元，用微信支付。
-  **助手回复**：
-<json>
-  {
-    "toolCalls": [
-      {
-        "name": "create_flow",
-        "arguments": {
-          "name": "午餐消费",
-          "money": 50,
-          "flowType": "支出",
-          "industryType": "餐饮美食",
-          "payType": "微信支付",
-          "attribution": "${context.user ? context.user.name : '默认'}",
-          "date": "2024-12-09",
-          "description": "午餐消费50元"
-        }
-      }
-    ]
-  }
-</json>
-**(系统执行后)**
-**助手回复**：记录已添加。
----
-**用户输入**：帮我看看今天所有的支出。
-  **助手回复**：
-<json>
-  {
-    "toolCalls": [
-      {
-        "name": "get_flows",
-        "arguments": {
-          "flowType": "支出",
-          "date": "2024-12-09"
-        }
-      }
-    ]
-  }
-</json>
+1.  工具调用成功执行后，若系统有返回结果信息（如“记录成功”），可向用户转达该信息。**不添加**“已为您记账”、“下次可以试试XX功能”等额外话语。
+2.  工具调用失败时，直接、简短地解释失败原因（如“参数XX格式错误”）或询问必要信息。
+3.  用户未要求时，不进行问候、总结、展望。
 `;
 }
 
@@ -555,9 +511,7 @@ ${contextInfo}
             if (event.type === 'message') {
               const data = event.data;
 
-              console.log('📝 收到SSE数据', {
-                data,
-              });
+              console.log('📝 收到SSE数据', data);
               // 跳过结束标记
               if (data === '[DONE]') {
                 console.log('🏁 收到SSE结束标记',allDelta);
