@@ -277,7 +277,7 @@ ${contextInfo}
       temperature = config.temperature;
     }
 
-    const requestBody = {
+    const requestBody: Record<string, any> = {
       model: config.model,
       messages: messages.map(msg => ({
         role: msg.role,
@@ -286,10 +286,14 @@ ${contextInfo}
       max_tokens: tokens,
       temperature: temperature,
       stream: stream, // 使用传入的stream参数，但默认值为true
-      thinking: {
+    };
+
+    // 只有在thinkingEnabled为true且config.thinking有值时，才添加thinking参数
+    if (config.thinkingEnabled === true && config.thinking) {
+      requestBody.thinking = {
         type: config.thinking,
-      },
-    } as Record<string, any>;
+      };
+    }
 
     // 如果提供了tools参数且不为空，添加到requestBody中
     if (tools && Array.isArray(tools) && tools.length > 0) {

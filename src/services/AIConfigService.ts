@@ -9,7 +9,8 @@ export interface AIConfig {
   model: string;
   maxTokens?: number;
   temperature?: number;
-  thinking?: 'enabled' | 'disabled';
+  thinkingEnabled?: boolean; // 思考模式参数开关
+  thinking?: 'enabled' | 'disabled'; // 思考模式状态
   createdAt?: number;
   updatedAt?: number;
 }

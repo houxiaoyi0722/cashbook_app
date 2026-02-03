@@ -38,6 +38,7 @@ const AIConfigEditScreen: React.FC = () => {
     maxTokens: 5000,
     temperature: 0,
     baseURL: '',
+    thinkingEnabled: false,
     thinking: 'disabled',
   });
   const [models, setModels] = useState<Array<{id: string, name: string, description?: string}>>([]);
@@ -148,6 +149,7 @@ const AIConfigEditScreen: React.FC = () => {
         if (config) {
           setEditingConfig({
             ...config,
+            thinkingEnabled: config.thinkingEnabled !== undefined ? config.thinkingEnabled : false,
             thinking: config.thinking || 'disabled', // 确保thinking有默认值
           });
           setProviderValue(config.provider);
@@ -162,6 +164,7 @@ const AIConfigEditScreen: React.FC = () => {
           maxTokens: 5000,
           temperature: 0,
           baseURL: '',
+          thinkingEnabled: false,
           thinking: 'disabled',
         };
         setEditingConfig(defaultConfig);
@@ -280,6 +283,7 @@ const AIConfigEditScreen: React.FC = () => {
           baseURL: configToSave.baseURL,
           maxTokens: configToSave.maxTokens,
           temperature: configToSave.temperature,
+          thinkingEnabled: configToSave.thinkingEnabled !== undefined ? configToSave.thinkingEnabled : false,
           thinking: configToSave.thinking || 'disabled',
         });
         success = true;
@@ -472,6 +476,7 @@ const AIConfigEditScreen: React.FC = () => {
               baseURL: defaultBaseURL,
               maxTokens: 5000,
               temperature: 0,
+              thinkingEnabled: false,
               thinking: 'disabled',
             });
             setModelValue(defaultModel);
@@ -530,6 +535,9 @@ const AIConfigEditScreen: React.FC = () => {
       baseURL: defaultBaseURL,
       model: modelToUse,
       // 保留现有的API Key，因为用户可能只是切换提供商但想使用相同的密钥
+      // 重置思考模式相关设置
+      thinkingEnabled: false,
+      thinking: 'disabled',
     });
 
     // 更新modelValue状态以保持同步
@@ -950,21 +958,23 @@ const AIConfigEditScreen: React.FC = () => {
                 </Text>
               </View>
 
-              {/* 思考模式开关 */}
+              {/* 思考模式参数开关 */}
               <View style={styles.section}>
                 <View style={styles.switchContainer}>
                   <View style={styles.switchLabelContainer}>
-                    <Text style={[styles.label, {color: colors.text}]}>思考模式</Text>
+                    <Text style={[styles.label, {color: colors.text}]}>思考模式参数开关</Text>
                     <Text style={[styles.helperText, {color: colors.secondaryText, marginLeft: 8}]}>
-                      （需模型支持）
+                      （控制是否启用思考模式参数）
                     </Text>
                   </View>
                   <Switch
-                    value={editingConfig.thinking === 'enabled'}
+                    value={editingConfig.thinkingEnabled || false}
                     onValueChange={(value) => {
                       setEditingConfig((prev: any) => ({
                         ...prev,
-                        thinking: value ? 'enabled' : 'disabled',
+                        thinkingEnabled: value,
+                        // 当关闭主开关时，确保thinking状态为'disabled'
+                        thinking: value ? (prev.thinking || 'disabled') : 'disabled',
                       }));
                     }}
                     trackColor={{ false: colors.border, true: colors.primary }}
@@ -972,9 +982,37 @@ const AIConfigEditScreen: React.FC = () => {
                   />
                 </View>
                 <Text style={[styles.helperText, {color: colors.secondaryText, marginTop: 4}]}>
-                  开启思考模式（需模型支持）
+                  请确认模型提供商是否支持此参数,可能导致接口错误
                 </Text>
               </View>
+
+              {/* 思考模式状态开关 - 仅在thinkingEnabled为true时显示 */}
+              {(editingConfig.thinkingEnabled) && (
+                <View style={styles.section}>
+                  <View style={styles.switchContainer}>
+                    <View style={styles.switchLabelContainer}>
+                      <Text style={[styles.label, {color: colors.text}]}>思考模式状态</Text>
+                      <Text style={[styles.helperText, {color: colors.secondaryText, marginLeft: 8}]}>
+                        （需模型支持）
+                      </Text>
+                    </View>
+                    <Switch
+                      value={editingConfig.thinking === 'enabled'}
+                      onValueChange={(value) => {
+                        setEditingConfig((prev: any) => ({
+                          ...prev,
+                          thinking: value ? 'enabled' : 'disabled',
+                        }));
+                      }}
+                      trackColor={{ false: colors.border, true: colors.primary }}
+                      thumbColor={colors.background}
+                    />
+                  </View>
+                  <Text style={[styles.helperText, {color: colors.secondaryText, marginTop: 4}]}>
+                    开启思考模式（需模型支持）
+                  </Text>
+                </View>
+              )}
             </>
           )}
 
