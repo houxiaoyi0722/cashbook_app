@@ -359,34 +359,40 @@ export class AIRecursiveService {
 
     // 创建流式解析器（使用AIService内部的StreamMessageParser）
     const streamParser = this.aiService.streamParser;
+    // 每次迭代清理流解析器状态
+    if (streamParser) {
+      streamParser.reset();
+      console.log('🔄 流解析器状态已重置');
+    }
     // 内部流式回调
-    const internalStreamCallback = async (content: string, reasoning_content: string, isComplete: boolean) => {
+    const internalStreamCallback = async (content: string, reasoning_content: string, tool_calls: any[] | null, isComplete: boolean) => {
       // 检查是否正在取消操作
       if (this.aiService.isCancelling()) {
         console.log('🛑 检测到取消操作，停止流式处理');
         return;
       }
 
-      if (content || reasoning_content || isComplete) {
-        if (content || isComplete) {
-          // 使用解析器处理数据块
-          const result = streamParser!.processChunk(content || '', isComplete);
-          // console.log('解析到内容',result);
-          currentIterationStreamedContent = streamParser!.accumulatedContent;
+      if (content || reasoning_content || tool_calls || isComplete) {
+        // 使用解析器处理数据块
+        const result = streamParser!.processChunk({
+          content: content || '',
+          thinking: reasoning_content || '',
+          tool_calls: tool_calls || undefined,
+        }, isComplete);
 
-          // 检查是否有工具调用
-          if (result.toolCalls && result.toolCalls.length > 0) {
-            detectedToolCalls = result.toolCalls;
-          }
-
-          // 更新消息列表
-          if (result.content) {
-            this.addOrUpdateTextMessage(state!.aiMessage.messageList, result.content, false);
-          }
+        currentIterationStreamedContent = result.content;
+        // 检查是否有工具调用
+        if (result.toolCalls && result.toolCalls.length > 0) {
+          detectedToolCalls = result.toolCalls;
         }
 
-        if (reasoning_content) {
-          this.addThinkingMessage(state!.aiMessage.messageList, reasoning_content);
+        // 更新消息列表
+        if (result.content) {
+          this.addOrUpdateTextMessage(state!.aiMessage.messageList, result.content, false);
+        }
+
+        if (result.thinking) {
+          this.addThinkingMessage(state!.aiMessage.messageList, result.thinking);
         }
 
         // 更新AI消息
@@ -482,8 +488,6 @@ export class AIRecursiveService {
         } else {
           // 生成最终响应
           const finalResponse = await this.generateFinalResponse(
-            userMessage,
-            currentIterationStreamedContent,
             results,
             state.allStreamedContent
           );
@@ -542,8 +546,6 @@ export class AIRecursiveService {
 
   // 生成最终响应（从AIService复制并调整）
   private async generateFinalResponse(
-    userMessage: string,
-    currentIterationStreamedContent: string,
     toolResults: any[],
     allStreamedContent: string
   ): Promise<string> {

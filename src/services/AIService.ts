@@ -363,29 +363,13 @@ ${contextInfo}
           console.warn('⚠️ 重置流解析器时发生警告:', parserError);
         }
       }
-
-      // 清理对话历史中的临时状态
-      this.cleanupTemporaryStates();
-
       console.log('🧹 所有相关状态已清理完成');
     }
   }
 
-  // 清理临时状态
-  private cleanupTemporaryStates(): void {
-    // 这里可以添加其他需要清理的状态
-    // 例如：重置任何正在进行的操作标志等
-
-    // 记录清理操作
-    console.log('🧽 正在清理临时状态...', {
-      hasStreamParser: !!this.streamParser,
-      conversationHistoryLength: this.conversationHistory.length,
-      timestamp: new Date().toISOString(),
-    });
-  }
-
   // 注意：所有API调用现在只支持流式模式，非流式调用已被移除
-  async callAIAPI(config: any, systemPrompt: string, userMessage: string, streamCallback: (content: string, reasoning_content: string, isComplete: boolean) => void): Promise<void> {
+  // streamCallback 现在接收四个参数：content, reasoning_content, tool_calls, isComplete
+  async callAIAPI(config: any, systemPrompt: string, userMessage: string, streamCallback: (content: string, reasoning_content: string, tool_calls: any[] | null, isComplete: boolean) => void): Promise<void> {
     // 只支持流式调用，streamCallback 必须提供
     if (!streamCallback) {
       throw new Error('流式回调函数必须提供，接口调用只支持流式模式');
@@ -471,7 +455,7 @@ ${contextInfo}
     endpoint: string,
     headers: Record<string, string>,
     body: any,
-    streamCallback: (content: string, reasoning_content: string, isComplete: boolean) => void
+    streamCallback: (content: string, reasoning_content: string, tool_calls: any[] | null, isComplete: boolean) => void
   ): Promise<string> {
     return new Promise(async (resolve, reject) => {
       try {
@@ -531,6 +515,7 @@ ${contextInfo}
               // 提取内容：检查多个可能的字段
               let delta = '';
               let thinkingDelta = '';
+              let toolCallsDelta: any[] | null = null;
 
               // 1. 首先检查 reasoning_content（思考内容）
               if (parsedData.choices?.[0]?.delta?.reasoning_content !== undefined) {
@@ -557,11 +542,17 @@ ${contextInfo}
                 delta = parsedData.message.content || '';
               }
 
+              // 4. 提取 tool_calls 数据（OpenAI function calling 格式）
+              if (parsedData.choices?.[0]?.delta?.tool_calls !== undefined) {
+                toolCallsDelta = parsedData.choices[0].delta.tool_calls || null;
+                console.log('🔧 检测到 tool_calls 数据:', toolCallsDelta);
+              }
+
               // 发送到流式回调
-              if (delta || thinkingDelta) {
+              if (delta || thinkingDelta || toolCallsDelta) {
                 allDelta += delta;
                 allDelta += thinkingDelta;
-                streamCallback(delta,thinkingDelta, false);
+                streamCallback(delta, thinkingDelta, toolCallsDelta, false);
               }
             }
           } catch (parseError) {
@@ -605,7 +596,7 @@ ${contextInfo}
 
           if (!hasError) {
             // 正常关闭，完成流式处理
-            streamCallback('', '', true);
+            streamCallback('', '', null, true);
             // 清理引用
             this.currentEventSource = null;
             // 返回空字符串，因为内容已经通过回调处理
