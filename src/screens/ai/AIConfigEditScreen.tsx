@@ -83,7 +83,7 @@ const AIConfigEditScreen: React.FC = () => {
       setModels([]);
       setModelLoadError(null);
     }
-  }, [editingConfig.apiKey, editingConfig.provider]);
+  }, [editingConfig.apiKey, editingConfig.provider, editingConfig.baseURL]);
 
   // 当models变化时，更新模型下拉选择器的items，并检查是否需要启用手动输入模式
   useEffect(() => {
