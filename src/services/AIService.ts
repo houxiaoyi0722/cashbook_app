@@ -1,7 +1,7 @@
 import {mcpBridge} from './MCPBridge';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EventSource from 'react-native-sse';
-import {Message, TextMessage, ThinkingMessage, ToolCallMessage,} from '../types';
+import {Message, TextMessage, ThinkingMessage, ToolCallMessage} from '../types';
 import {AIRecursiveService} from './AIRecursiveService';
 import {StreamMessageParser} from './StreamMessageParser.ts';
 import 'react-native-url-polyfill/auto';
@@ -143,107 +143,6 @@ export class AIService {
   }
 
   async buildSystemPrompt(context: any): Promise<string> {
-    // 动态导入AIConfigService以避免循环依赖
-    let aiConfigModule;
-    try {
-      aiConfigModule = await import('./AIConfigService');
-    } catch (importError) {
-      console.error('导入AIConfigService失败:', importError);
-      // 如果无法导入，使用所有工具
-      return this.buildSystemPromptWithTools(context, mcpBridge.getTools());
-    }
-
-    // 获取可用工具
-    const availableTools = await aiConfigModule.aiConfigService.getAvailableTools();
-    const allTools = mcpBridge.getTools();
-
-    const tools = availableTools.length === 0
-      ? []
-      : allTools.filter(tool => availableTools.includes(tool.name));
-
-    return this.buildSystemPromptWithTools(context, tools);
-  }
-
-  private buildSystemPromptWithTools(context: any, tools: any[]): string {
-    // 为每个工具创建详细的参数说明表格
-    const toolsDetailedDescription = tools.map(tool => {
-      let toolInfo = `${tool.name}\n`;
-      toolInfo += `描述: ${tool.description}\n`;
-
-      // 添加参数说明
-      if (tool.inputSchema && tool.inputSchema.properties) {
-
-        const props = tool.inputSchema.properties;
-        const required = tool.inputSchema.required || [];
-
-        // 创建参数表格
-        if (Object.entries(props).length !== 0) {
-          toolInfo += '参数说明:\n';
-          toolInfo += '| 参数名 | 类型 | 必需 | 格式/枚举 | 示例值 | 描述 |\n';
-          toolInfo += '|--------|------|------|-----------|--------|------|\n';
-        }
-
-        for (const [paramName, paramSchema] of Object.entries(props) as [string, any][]) {
-          const isRequired = required.includes(paramName) ? '是' : '否';
-          let typeInfo = paramSchema.type || 'any';
-          let formatEnum = '';
-
-          if (paramSchema.enum) {
-            formatEnum = `枚举: ${paramSchema.enum.join(', ')}`;
-          } else if (paramSchema.format) {
-            formatEnum = `格式: ${paramSchema.format}`;
-          } else if (paramSchema.minimum !== undefined || paramSchema.maximum !== undefined) {
-            const min = paramSchema.minimum !== undefined ? `≥${paramSchema.minimum}` : '';
-            const max = paramSchema.maximum !== undefined ? `≤${paramSchema.maximum}` : '';
-            formatEnum = `范围: ${min}${min && max ? '~' : ''}${max}`;
-          }
-
-          // 获取示例值
-          let example = '';
-          switch (paramName) {
-            case 'name':
-              example = '"午餐消费"';
-              break;
-            case 'money':
-              example = '50.5';
-              break;
-            case 'flowType':
-              example = '"支出"';
-              break;
-            case 'industryType':
-              example = '"餐饮美食"';
-              break;
-            case 'payType':
-              example = '"微信支付"';
-              break;
-            case 'date':
-              example = '"2024-12-09"';
-              break;
-            case 'month':
-              example = '"2024-12"';
-              break;
-            case 'pageNum':
-              example = '1';
-              break;
-            case 'pageSize':
-              example = '20';
-              break;
-            default:
-              example = paramSchema.example || '""';
-          }
-
-          toolInfo += `| ${paramName} | ${typeInfo} | ${isRequired} | ${formatEnum} | ${example} | ${paramSchema.description || ''} |\n`;
-        }
-
-        // 添加必需参数说明
-        if (required.length > 0) {
-          toolInfo += `\n必需参数: ${required.join(', ')}`;
-        }
-      }
-
-      toolInfo += '\n---\n';
-      return toolInfo;
-    }).join('\n');
     // 构建上下文信息字符串
     let contextInfo = `当前时间: ${context.localTime}\n`;
 
@@ -271,9 +170,6 @@ export class AIService {
     contextInfo += `当前月份: ${currentMonth}\n`;
 
     return `你是一个专业的记账助手，严格遵循用户指示，用户未明确要求时不进行任何额外分析、总结或主动建议。你的核心职责是准确调用工具完成任务。
-
-## 可用工具列表及详细说明（工具未列出表示已禁用，不要调用）
-${toolsDetailedDescription}
 
 ## 重要上下文信息
 ${contextInfo}
@@ -376,7 +272,7 @@ ${contextInfo}
     return models[provider] || models.openai;
   }
 
-  private buildRequestBody(config: any, messages: any[], stream: boolean = true, maxTokensLimit?: number, temperatureLimit?: number): any {
+  private buildRequestBody(config: any, messages: any[], stream: boolean = true, tools?: any[], maxTokensLimit?: number, temperatureLimit?: number): any {
     // 统一使用OpenAI兼容格式
     // 注意：对于Anthropic和Google，需要确保端点支持OpenAI格式
     let tokens = 1000;
@@ -392,7 +288,7 @@ ${contextInfo}
       temperature = config.temperature;
     }
 
-    return {
+    const requestBody = {
       model: config.model,
       messages: messages.map(msg => ({
         role: msg.role,
@@ -404,7 +300,30 @@ ${contextInfo}
       thinking: {
         type: config.thinking,
       },
-    };
+    } as Record<string, any>;
+
+    // 如果提供了tools参数且不为空，添加到requestBody中
+    if (tools && Array.isArray(tools) && tools.length > 0) {
+      // 按照OpenAI的function calling格式组织tools
+      requestBody.tools = tools.map(tool => {
+        return {
+          type: 'function',
+          function: {
+            name: tool.function.name,
+            description: tool.function.description || '',
+            parameters: tool.function.parameters || {
+              type: 'object',
+              properties: {},
+              required: [],
+            },
+          },
+        };
+      });
+
+      // 添加tool_choice参数
+      requestBody.tool_choice = 'auto';
+    }
+    return requestBody;
   }
 
   private adjustEndpoint(baseURL: string, provider: string): string {
@@ -533,6 +452,7 @@ ${contextInfo}
       { role: 'system', content: systemPrompt },
       ...this.getRecentHistory(),
     ];
+    console.log('messages',messages);
     // 获取端点和模型
     const defaultEndpoint = this.getDefaultEndpoint(config.provider);
     const defaultModel = this.getDefaultModel(config.provider);
@@ -557,15 +477,42 @@ ${contextInfo}
 
     // 构建请求头和请求体
     const headers = this.buildHeaders(config);
-    const requestBody = this.buildRequestBody(config, messages, true); // 总是使用流式
+    // 动态导入AIConfigService以避免循环依赖
+    let tools = mcpBridge.getTools();
+    let aiConfigModule;
+    try {
+      aiConfigModule = await import('./AIConfigService');
+      // 获取可用工具
+      const availableTools = await aiConfigModule.aiConfigService.getAvailableTools();
+
+      tools = availableTools.length === 0
+        ? []
+        : tools.filter(tool => availableTools.includes(tool.name));
+
+    } catch (importError) {
+      console.error('导入AIConfigService失败:', importError);
+      // 如果无法导入，使用所有工具
+    }
+
+    // 转换为OpenAI格式
+    const openAITools = tools.map(tool => ({
+      type: 'function' as const,
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.inputSchema || {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+    }));
+
+    const requestBody = this.buildRequestBody(config, messages, true, openAITools); // 总是使用流式，并传入tools
 
     console.log('📦 请求体信息', {
       provider: config.provider,
-      model: requestBody.model,
-      messageCount: requestBody.messages?.length || 0,
-      maxTokens: requestBody.max_tokens,
-      temperature: requestBody.temperature,
-      stream: requestBody.stream,
+      requestBody: requestBody,
     });
 
     // 只使用流式调用
@@ -608,6 +555,7 @@ ${contextInfo}
         this.currentEventSource = es;
 
         let hasError = false;
+        let allDelta = '';
 
         // 监听消息事件
         es.addEventListener('message', (event) => {
@@ -615,12 +563,12 @@ ${contextInfo}
             if (event.type === 'message') {
               const data = event.data;
 
-              // console.log('📝 收到SSE数据', {
-              //   data,
-              // });
+              console.log('📝 收到SSE数据', {
+                data,
+              });
               // 跳过结束标记
               if (data === '[DONE]') {
-                console.log('🏁 收到SSE结束标记');
+                console.log('🏁 收到SSE结束标记',allDelta);
                 es.close();
                 es.removeAllEventListeners();
                 this.currentEventSource = null;
@@ -665,6 +613,8 @@ ${contextInfo}
 
               // 发送到流式回调
               if (delta || thinkingDelta) {
+                allDelta += delta;
+                allDelta += thinkingDelta;
                 streamCallback(delta,thinkingDelta, false);
               }
             }
@@ -860,7 +810,7 @@ ${contextInfo}
       const headers = this.buildHeaders(config);
 
       // 构建请求体
-      const requestBody = this.buildRequestBody(config, messages, false, 200, 0.3);
+      const requestBody = this.buildRequestBody(config, messages, false, [], 200, 0.3);
 
       // 获取端点
       let apiEndpoint = this.adjustEndpoint(config.baseURL, config.provider);
@@ -876,10 +826,11 @@ ${contextInfo}
         headers: headers,
         body: JSON.stringify(requestBody),
       });
-
+      console.log('callAIForTextGeneration AI API请求: ',apiEndpoint, requestBody);
       const response = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (!response.ok) {
+        console.log('AI API请求失败: ',apiEndpoint, requestBody);
         throw new Error(`AI API请求失败: ${response.status} ${response.statusText}`);
       }
 
@@ -1004,7 +955,7 @@ ${frequentInputsContext}
 请严格遵循上述规则，生成${count}个提示建议`;
 
       // 构建完整的提示消息
-      console.log('构建完整的提示消息',systemPrompt)
+      console.log('构建完整的提示消息',systemPrompt);
       // 使用新的callAIForTextGeneration方法调用AI
       const aiResponseText = await this.callAIForTextGeneration(systemPrompt, config, [], 600000);
 
