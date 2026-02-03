@@ -638,7 +638,9 @@ ${contextInfo}
             es.close();
             es.removeAllEventListeners();
             this.currentEventSource = null;
-            reject(new Error('SSE连接错误'));
+            if ('message' in event) {
+              reject(new Error(`SSE连接错误: ${event.message ? event.message : ''}`));
+            }
           }
         });
 
@@ -826,11 +828,10 @@ ${contextInfo}
         headers: headers,
         body: JSON.stringify(requestBody),
       });
-      console.log('callAIForTextGeneration AI API请求: ',apiEndpoint, requestBody);
       const response = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (!response.ok) {
-        console.log('AI API请求失败: ',apiEndpoint, requestBody);
+        console.log('AI API请求失败: ',apiEndpoint, requestBody, response);
         throw new Error(`AI API请求失败: ${response.status} ${response.statusText}`);
       }
 
@@ -957,7 +958,7 @@ ${frequentInputsContext}
       // 构建完整的提示消息
       console.log('构建完整的提示消息',systemPrompt);
       // 使用新的callAIForTextGeneration方法调用AI
-      const aiResponseText = await this.callAIForTextGeneration(systemPrompt, config, [], 600000);
+      const aiResponseText = await this.callAIForTextGeneration(systemPrompt, config, ['严格遵循提示词'], 600000);
 
       // 处理建议文本
       const suggestions = this.parseSuggestions(aiResponseText, count);

@@ -193,7 +193,7 @@ class UserInputHistoryAnalysisService {
       try {
         console.log('高频分析提示词',prompt);
         // 设置超时时间为30秒
-        aiResponseText = await aiService.callAIForTextGeneration(prompt, aiConfig, [], 600000);
+        aiResponseText = await aiService.callAIForTextGeneration(prompt, aiConfig, ['严格遵循提示词'], 600000);
       } catch (serviceError) {
         console.warn('AI服务调用失败，使用默认建议:', serviceError);
         // 如果AI服务失败，返回默认建议
