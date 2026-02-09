@@ -218,30 +218,15 @@ ${contextInfo}
     return endpoints[provider] || endpoints.openai;
   }
 
-  private buildRequestBody(config: any, messages: any[], stream: boolean = true, tools?: any[], maxTokensLimit?: number, temperatureLimit?: number): any {
-    // 统一使用OpenAI兼容格式
-    // 注意：对于Anthropic和Google，需要确保端点支持OpenAI格式
-    let tokens = 1000;
-    if (maxTokensLimit && config.maxTokens && config.maxTokens > maxTokensLimit) {
-      tokens = maxTokensLimit;
-    } else if (config.maxTokens){
-      tokens = config.maxTokens;
-    }
-    let temperature = 0.7;
-    if (temperatureLimit && config.temperature && config.temperature > temperatureLimit) {
-      temperature = temperatureLimit;
-    } else if (config.temperature){
-      temperature = config.temperature;
-    }
-
+  private buildRequestBody(config: any, messages: any[], stream: boolean = true, tools?: any[]): any {
     const requestBody: Record<string, any> = {
       model: config.model,
       messages: messages.map(msg => ({
         role: msg.role,
         content: msg.content,
       })),
-      max_tokens: tokens,
-      temperature: temperature,
+      max_tokens: config.max_tokens,
+      temperature: config.temperature,
       stream: stream, // 使用传入的stream参数，但默认值为true
     };
 
@@ -736,21 +721,21 @@ ${contextInfo}
   public async callAIForTextGeneration(
     prompt: string,
     config: any,
-    userMessages: string[],
-    timeout: number = 30000
+    userMessages: any[],
+    timeout: number = 30000,
   ): Promise<string> {
     try {
       // 构建消息
       const messages = [
         { role: 'system' as const, content: prompt },
-        ...userMessages.map((item: string) => {return { role: 'user' as const, content: item };},),
+        ...userMessages.map((item) => {return { role: 'user' as const, content: item };},),
       ];
 
       // 构建请求头
       const headers = this.buildHeaders(config);
 
       // 构建请求体
-      const requestBody = this.buildRequestBody(config, messages, false, [], 200, 0.3);
+      const requestBody = this.buildRequestBody(config, messages, false, []);
 
       // 获取端点
       let apiEndpoint = this.adjustEndpoint(config.baseURL, config.provider);
@@ -896,7 +881,7 @@ ${frequentInputsContext}
       // 构建完整的提示消息
       console.log('构建完整的提示消息',systemPrompt);
       // 使用新的callAIForTextGeneration方法调用AI
-      const aiResponseText = await this.callAIForTextGeneration(systemPrompt, config, ['严格遵循提示词'], 600000);
+      const aiResponseText = await this.callAIForTextGeneration(systemPrompt, config, ['严格遵循提示词'], 60000);
 
       // 处理建议文本
       const suggestions = this.parseSuggestions(aiResponseText, count);

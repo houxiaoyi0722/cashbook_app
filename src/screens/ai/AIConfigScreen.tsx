@@ -307,7 +307,7 @@ const AIConfigScreen: React.FC = () => {
           {/* 建议模型选择 - 使用 DropDownPicker */}
           {
             aiSuggestionEnabled ? (<View style={[styles.row, {marginBottom: 16, zIndex: 1900}]}>
-              <Text style={[styles.rowLabel, {color: colors.text}]}>建议模型配置</Text>
+              <Text style={[styles.rowLabel, {color: colors.text}]}>建议模型配置(弱模型)</Text>
               <View style={styles.dropdownContainer}>
                 <DropDownPicker
                   open={suggestionModelOpen}
@@ -358,7 +358,7 @@ const AIConfigScreen: React.FC = () => {
           {
             ocrEnabled ? (
               <View style={[styles.row, { marginBottom: 16, zIndex: 1800 }]}>
-                <Text style={[styles.rowLabel, { color: colors.text }]}>OCR 模型配置</Text>
+                <Text style={[styles.rowLabel, { color: colors.text }]}>OCR 模型配置(需视觉理解)</Text>
                 <View style={styles.dropdownContainer}>
                   <DropDownPicker
                     open={ocrModelOpen}
@@ -553,7 +553,7 @@ const AIConfigScreen: React.FC = () => {
                               {config.name}
                             </Text>
                           )}
-                          {(chatModelConfigId === config.id || suggestionModelConfigId === config.id) && (
+                          {(chatModelConfigId === config.id || suggestionModelConfigId === config.id || ocrModelConfigId === config.id) && (
                             <View style={[styles.activeBadge, {backgroundColor: colors.success}]}>
                               <Text style={styles.activeBadgeText}>活动</Text>
                             </View>

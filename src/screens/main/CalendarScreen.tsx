@@ -430,8 +430,6 @@ const CalendarScreen: React.FC = () => {
                   date: selectedDate,
                   ocrFlow: ocrResult.flow,
                 });
-              } else {
-                Alert.alert('识别失败', '未能识别到有效的小票信息，请重试或手动输入');
               }
             } catch (error) {
               console.error('小票识别失败:', error);
@@ -454,8 +452,6 @@ const CalendarScreen: React.FC = () => {
                   date: selectedDate,
                   ocrFlow: ocrResult.flow,
                 });
-              } else {
-                Alert.alert('识别失败', '未能识别到有效的小票信息，请重试或手动输入');
               }
             } catch (error) {
               console.error('小票识别失败:', error);

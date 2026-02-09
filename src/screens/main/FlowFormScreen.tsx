@@ -38,7 +38,7 @@ const defaultPayTypes = ['现金', '支付宝', '微信', '银行卡', '信用�
 const FlowFormScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
-  const { currentFlow, date } = route.params || {};
+  const { currentFlow, date, ocrFlow } = route.params || {};
   const { currentBook, remotePayType, remoteAttributions, addFlow } = useBookkeeping();
   const {userInfo} = useAuth();
   const { isDarkMode } = useTheme();
@@ -129,31 +129,33 @@ const FlowFormScreen: React.FC = () => {
           }
         }
 
+        const initFlow = ocrFlow || currentFlow;
+
         // 处理当前流水数据
-        if (currentFlow) {
-          setName(currentFlow.name);
-          setMoney(currentFlow.money.toString());
-          setDescription(currentFlow.description || '');
-          setFlowType(currentFlow.flowType);
-          setIndustryType(currentFlow.industryType);
-          setPayType(currentFlow.payType);
-          setFlowDate(new Date(currentFlow.day));
-          setAttribution(currentFlow.attribution || '');
+        if (initFlow) {
+          setName(initFlow.name);
+          setMoney(initFlow.money.toString());
+          setDescription(initFlow.description || '');
+          setFlowType(initFlow.flowType);
+          setIndustryType(initFlow.industryType);
+          setPayType(initFlow.payType);
+          setFlowDate(new Date(initFlow.day));
+          setAttribution(initFlow.attribution || '');
 
           // 确保当前流水的选项在列表中
-          if (currentFlow.payType && !mergedPayTypes.includes(currentFlow.payType)) {
-            mergedPayTypes.unshift(currentFlow.payType);
+          if (initFlow.payType && !mergedPayTypes.includes(initFlow.payType)) {
+            mergedPayTypes.unshift(initFlow.payType);
           }
-          if (currentFlow.attribution && !mergedAttributions.includes(currentFlow.attribution)) {
-            mergedAttributions.unshift(currentFlow.attribution);
+          if (initFlow.attribution && !mergedAttributions.includes(initFlow.attribution)) {
+            mergedAttributions.unshift(initFlow.attribution);
           }
-          if (currentFlow.industryType && !mergedIndustryTypes.includes(currentFlow.industryType)) {
-            mergedIndustryTypes.unshift(currentFlow.industryType);
+          if (initFlow.industryType && !mergedIndustryTypes.includes(initFlow.industryType)) {
+            mergedIndustryTypes.unshift(initFlow.industryType);
           }
 
           // 加载小票图片
-          if (currentFlow.invoice) {
-            const invoiceNames = currentFlow.invoice.split(',');
+          if (initFlow.invoice) {
+            const invoiceNames = initFlow.invoice.split(',');
             setInvoiceImages(invoiceNames);
 
             try {
@@ -190,7 +192,7 @@ const FlowFormScreen: React.FC = () => {
     };
 
     fetchFlowDetail();
-  }, [currentFlow, flowType, currentBook]);
+  }, [currentFlow, flowType, currentBook, ocrFlow]);
 
   // 处理流类型变化（支持离线）
   useEffect(() => {

@@ -1,23 +1,24 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-  StyleSheet, Platform, KeyboardAvoidingView,
-  Switch,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Icon } from '@rneui/themed';
+import {Icon} from '@rneui/themed';
 import DropDownPicker from 'react-native-dropdown-picker';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { aiConfigService, AIConfig } from '../../services/AIConfigService';
-import { useTheme, getColors } from '../../context/ThemeContext';
-import { MainStackParamList } from '../../navigation/types';
+import {RouteProp, useNavigation, useRoute} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {AIConfig, aiConfigService} from '../../services/AIConfigService';
+import {getColors, useTheme} from '../../context/ThemeContext';
+import {MainStackParamList} from '../../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList, 'AIConfigEdit'>;
 type RoutePropType = RouteProp<MainStackParamList, 'AIConfigEdit'>;
@@ -590,23 +591,205 @@ const AIConfigEditScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* 页面标题 */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, {color: colors.text}]}>
-              {configId ? '编辑配置' : '新建配置'}
-              {configId && editingConfig.name && `: ${editingConfig.name}`}
-            </Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.keyboardAvoidingView}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* 页面标题 */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, {color: colors.text}]}>
+            {configId ? '编辑配置' : '新建配置'}
+            {configId && editingConfig.name && `: ${editingConfig.name}`}
+          </Text>
+        </View>
+
+        {/* 配置名称 */}
+        <View style={styles.section}>
+          <Text style={[styles.label, {color: colors.text}]}>配置名称</Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.input,
+                color: colors.text,
+                borderColor: colors.border,
+              },
+            ]}
+            value={editingConfig.name}
+            onChangeText={(text) => setEditingConfig((prev: any) => ({ ...prev, name: text }))}
+            placeholder="输入配置名称"
+            placeholderTextColor={colors.hint}
+          />
+        </View>
+
+        {/* 服务商选择 - 使用下拉框 */}
+        <View style={styles.section}>
+          <Text style={[styles.label, {color: colors.text}]}>AI服务商</Text>
+          <DropDownPicker
+            open={providerOpen}
+            value={providerValue}
+            items={providerItems}
+            setOpen={setProviderOpen}
+            setValue={setProviderValue}
+            setItems={setProviderItems}
+            searchable={true}
+            listMode="MODAL"
+            searchPlaceholder="输入关键词搜索..."
+            style={[
+              styles.dropdown,
+              {
+                backgroundColor: colors.input,
+                borderColor: colors.border,
+              },
+            ]}
+            textStyle={[styles.dropdownText, {color: colors.text}]}
+            dropDownContainerStyle={[
+              styles.dropdownContainer,
+              {
+                backgroundColor: colors.input,
+                borderColor: colors.border,
+              },
+            ]}
+            placeholder="选择AI服务商"
+            zIndex={3000}
+            zIndexInverse={1000}
+          />
+        </View>
+
+        {/* API Key */}
+        <View style={styles.section}>
+          <View style={styles.labelContainer}>
+            <Text style={[styles.label, {color: colors.text}]}>API Key *</Text>
+            {validationState !== 'none' && (
+              <View style={[
+                styles.validationStatusBadge,
+                {
+                  backgroundColor: validationState === 'validating' ? colors.warning + '20' :
+                                  validationState === 'success' ? colors.success + '20' :
+                                  colors.error + '20',
+                },
+              ]}>
+                <Text style={[
+                  styles.validationStatusText,
+                  {
+                    color: validationState === 'validating' ? colors.warning :
+                           validationState === 'success' ? colors.success :
+                           colors.error,
+                  },
+                ]}>
+                  {validationState === 'validating' ? '验证中...' :
+                   validationState === 'success' ? '验证成功' :
+                   '验证失败'}
+                </Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.input,
+                  color: colors.text,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                },
+                validating && {
+                  borderColor: colors.warning,
+                  borderWidth: 2,
+                },
+                validationState === 'success' && {
+                  borderColor: colors.success,
+                  borderWidth: 2,
+                },
+                validationState === 'error' && {
+                  borderColor: colors.error,
+                  borderWidth: 2,
+                },
+              ]}
+              value={editingConfig.apiKey}
+              onChangeText={(text) => {
+                setEditingConfig((prev: any) => ({ ...prev, apiKey: text }));
+                // 如果API Key发生变化，重置验证状态
+                if (validationState !== 'none') {
+                  setValidationState('none');
+                }
+              }}
+              placeholder={getApiKeyPlaceholder(editingConfig.provider)}
+              placeholderTextColor={colors.hint}
+              secureTextEntry
+              multiline
+              numberOfLines={2}
+              editable={!validating}
+            />
+            {validating && (
+              <View style={styles.inputLoading}>
+                <ActivityIndicator size="small" color={colors.warning} />
+              </View>
+            )}
+            {validationState === 'success' && !validating && (
+              <View style={styles.inputSuccess}>
+                <Icon name="check-circle" type="material" color={colors.success} size={20} />
+              </View>
+            )}
+            {validationState === 'error' && !validating && (
+              <View style={styles.inputError}>
+                <Icon name="error" type="material" color={colors.error} size={20} />
+              </View>
+            )}
+          </View>
+          <Text style={[styles.helperText, {color: colors.secondaryText}]}>
+            {getApiKeyHelperText(editingConfig.provider)}
+          </Text>
+
+          {/* 验证状态详细提示 */}
+          {validationState === 'validating' && (
+            <View style={[styles.validationDetailContainer, {backgroundColor: colors.warning + '10'}]}>
+              <ActivityIndicator size="small" color={colors.warning} style={styles.validationDetailIcon} />
+              <Text style={[styles.validationDetailText, {color: colors.warning}]}>
+                正在验证API Key，请稍候...
+              </Text>
+            </View>
+          )}
+          {validationState === 'error' && (
+            <View style={[styles.validationDetailContainer, {backgroundColor: colors.error + '10'}]}>
+              <Icon name="error-outline" type="material" color={colors.error} size={16} style={styles.validationDetailIcon} />
+              <Text style={[styles.validationDetailText, {color: colors.error}]}>
+                API Key验证失败，请检查：
+                1. API Key是否正确
+                2. 服务商选择是否匹配
+                3. 网络连接是否正常
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* 模型选择 */}
+        <View style={styles.section}>
+          <View style={styles.modelHeader}>
+            <Text style={[styles.label, {color: colors.text}]}>模型</Text>
+            <View style={styles.modelModeToggle}>
+              <Text style={[styles.modelModeLabel, {color: colors.secondaryText}]}>
+                {useManualModelInput ? '手动输入' : '从列表选择'}
+              </Text>
+              <Switch
+                value={useManualModelInput}
+                onValueChange={(value) => {
+                  setUseManualModelInput(value);
+                  // 切换模式时，如果是从手动输入切换到列表选择，尝试同步模型值
+                  if (!value && editingConfig.model) {
+                    setModelValue(editingConfig.model);
+                  }
+                }}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.background}
+              />
+            </View>
           </View>
 
-          {/* 配置名称 */}
-          <View style={styles.section}>
-            <Text style={[styles.label, {color: colors.text}]}>配置名称</Text>
+          {useManualModelInput ? (
+            // 手动输入模式
             <TextInput
               style={[
                 styles.input,
@@ -616,76 +799,86 @@ const AIConfigEditScreen: React.FC = () => {
                   borderColor: colors.border,
                 },
               ]}
-              value={editingConfig.name}
-              onChangeText={(text) => setEditingConfig((prev: any) => ({ ...prev, name: text }))}
-              placeholder="输入配置名称"
+              value={editingConfig.model || ''}
+              onChangeText={(text) => setEditingConfig((prev: any) => ({ ...prev, model: text }))}
+              placeholder="输入模型名称，例如：gpt-4-turbo"
               placeholderTextColor={colors.hint}
             />
-          </View>
-
-          {/* 服务商选择 - 使用下拉框 */}
-          <View style={styles.section}>
-            <Text style={[styles.label, {color: colors.text}]}>AI服务商</Text>
-            <DropDownPicker
-              open={providerOpen}
-              value={providerValue}
-              items={providerItems}
-              setOpen={setProviderOpen}
-              setValue={setProviderValue}
-              setItems={setProviderItems}
-              searchable={true}
-              listMode="MODAL"
-              searchPlaceholder="输入关键词搜索..."
-              style={[
-                styles.dropdown,
-                {
-                  backgroundColor: colors.input,
-                  borderColor: colors.border,
-                },
-              ]}
-              textStyle={[styles.dropdownText, {color: colors.text}]}
-              dropDownContainerStyle={[
-                styles.dropdownContainer,
-                {
-                  backgroundColor: colors.input,
-                  borderColor: colors.border,
-                },
-              ]}
-              placeholder="选择AI服务商"
-              zIndex={3000}
-              zIndexInverse={1000}
-            />
-          </View>
-
-          {/* API Key */}
-          <View style={styles.section}>
-            <View style={styles.labelContainer}>
-              <Text style={[styles.label, {color: colors.text}]}>API Key *</Text>
-              {validationState !== 'none' && (
-                <View style={[
-                  styles.validationStatusBadge,
+          ) : (
+            // 下拉列表模式
+            <>
+              <DropDownPicker
+                open={modelOpen}
+                value={modelValue}
+                items={modelItems}
+                setOpen={setModelOpen}
+                setValue={setModelValue}
+                setItems={setModelItems}
+                searchable={true}
+                listMode="MODAL"
+                searchPlaceholder="输入关键词搜索模型..."
+                style={[
+                  styles.dropdown,
                   {
-                    backgroundColor: validationState === 'validating' ? colors.warning + '20' :
-                                    validationState === 'success' ? colors.success + '20' :
-                                    colors.error + '20',
+                    backgroundColor: colors.input,
+                    borderColor: colors.border,
                   },
-                ]}>
-                  <Text style={[
-                    styles.validationStatusText,
-                    {
-                      color: validationState === 'validating' ? colors.warning :
-                             validationState === 'success' ? colors.success :
-                             colors.error,
-                    },
-                  ]}>
-                    {validationState === 'validating' ? '验证中...' :
-                     validationState === 'success' ? '验证成功' :
-                     '验证失败'}
-                  </Text>
+                ]}
+                textStyle={[styles.dropdownText, {color: colors.text}]}
+                dropDownContainerStyle={[
+                  styles.dropdownContainer,
+                  {
+                    backgroundColor: colors.input,
+                    borderColor: colors.border,
+                  },
+                ]}
+                loading={loadingModels}
+                disabled={loadingModels || !editingConfig.apiKey}
+                zIndex={2000}
+                zIndexInverse={2000}
+              />
+              {modelLoadError && (
+                <Text style={[styles.errorText, {color: colors.error}]}>{modelLoadError}</Text>
+              )}
+              {loadingModels && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.loadingText, {color: colors.secondaryText}]}>正在加载模型列表...</Text>
                 </View>
               )}
-            </View>
-            <View style={styles.inputContainer}>
+            </>
+          )}
+          <Text style={[styles.helperText, {color: colors.secondaryText}]}>
+            {useManualModelInput
+              ? '请输入完整的模型名称，确保与所选服务商兼容'
+              : '从列表中选择模型，或切换到手动输入模式'}
+          </Text>
+        </View>
+
+        {/* 高级设置开关 */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.advancedToggle}
+            onPress={() => setShowAdvanced(!showAdvanced)}
+          >
+            <Text style={[styles.advancedToggleText, {color: colors.primary}]}>
+              {showAdvanced ? '隐藏高级设置' : '显示高级设置'}
+            </Text>
+            <Icon
+              name={showAdvanced ? 'expand-less' : 'expand-more'}
+              type="material"
+              color={colors.primary}
+              size={20}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* 高级设置 */}
+        {showAdvanced && (
+          <>
+            {/* API地址 */}
+            <View style={styles.section}>
+              <Text style={[styles.label, {color: colors.text}]}>API地址</Text>
               <TextInput
                 style={[
                   styles.input,
@@ -693,288 +886,122 @@ const AIConfigEditScreen: React.FC = () => {
                     backgroundColor: colors.input,
                     color: colors.text,
                     borderColor: colors.border,
-                    borderWidth: 1,
-                  },
-                  validating && {
-                    borderColor: colors.warning,
-                    borderWidth: 2,
-                  },
-                  validationState === 'success' && {
-                    borderColor: colors.success,
-                    borderWidth: 2,
-                  },
-                  validationState === 'error' && {
-                    borderColor: colors.error,
-                    borderWidth: 2,
                   },
                 ]}
-                value={editingConfig.apiKey}
+                value={editingConfig.baseURL}
+                onChangeText={(text) => setEditingConfig((prev: any) => ({ ...prev, baseURL: text }))}
+                placeholder={getBaseURLHelperText(editingConfig.provider)}
+                placeholderTextColor={colors.hint}
+              />
+              <Text style={[styles.helperText, {color: colors.secondaryText}]}>
+                {getBaseURLHelperText(editingConfig.provider)}
+              </Text>
+            </View>
+
+            {/* 最大令牌数 */}
+            <View style={styles.section}>
+              <Text style={[styles.label, {color: colors.text}]}>最大令牌数</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.input,
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                value={editingConfig.maxTokens?.toString() || ''}
                 onChangeText={(text) => {
-                  setEditingConfig((prev: any) => ({ ...prev, apiKey: text }));
-                  // 如果API Key发生变化，重置验证状态
-                  if (validationState !== 'none') {
-                    setValidationState('none');
+                  const num = parseInt(text, 10);
+                  if (!isNaN(num) && num > 0) {
+                    setEditingConfig((prev: any) => ({ ...prev, maxTokens: num }));
+                  } else if (text === '') {
+                    setEditingConfig((prev: any) => ({ ...prev, maxTokens: undefined }));
                   }
                 }}
-                placeholder={getApiKeyPlaceholder(editingConfig.provider)}
+                placeholder="例如：5000"
                 placeholderTextColor={colors.hint}
-                secureTextEntry
-                multiline
-                numberOfLines={2}
-                editable={!validating}
+                keyboardType="numeric"
               />
-              {validating && (
-                <View style={styles.inputLoading}>
-                  <ActivityIndicator size="small" color={colors.warning} />
-                </View>
-              )}
-              {validationState === 'success' && !validating && (
-                <View style={styles.inputSuccess}>
-                  <Icon name="check-circle" type="material" color={colors.success} size={20} />
-                </View>
-              )}
-              {validationState === 'error' && !validating && (
-                <View style={styles.inputError}>
-                  <Icon name="error" type="material" color={colors.error} size={20} />
-                </View>
-              )}
+              <Text style={[styles.helperText, {color: colors.secondaryText}]}>
+                控制AI回复的最大长度，建议值：1000-8000
+              </Text>
             </View>
-            <Text style={[styles.helperText, {color: colors.secondaryText}]}>
-              {getApiKeyHelperText(editingConfig.provider)}
-            </Text>
 
-            {/* 验证状态详细提示 */}
-            {validationState === 'validating' && (
-              <View style={[styles.validationDetailContainer, {backgroundColor: colors.warning + '10'}]}>
-                <ActivityIndicator size="small" color={colors.warning} style={styles.validationDetailIcon} />
-                <Text style={[styles.validationDetailText, {color: colors.warning}]}>
-                  正在验证API Key，请稍候...
-                </Text>
-              </View>
-            )}
-            {validationState === 'error' && (
-              <View style={[styles.validationDetailContainer, {backgroundColor: colors.error + '10'}]}>
-                <Icon name="error-outline" type="material" color={colors.error} size={16} style={styles.validationDetailIcon} />
-                <Text style={[styles.validationDetailText, {color: colors.error}]}>
-                  API Key验证失败，请检查：
-                  1. API Key是否正确
-                  2. 服务商选择是否匹配
-                  3. 网络连接是否正常
-                </Text>
-              </View>
-            )}
-          </View>
+            {/* 温度 */}
+            <View style={styles.section}>
+              <Text style={[styles.label, {color: colors.text}]}>温度 (0-2)</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.input,
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                value={editingConfig.temperature?.toString() || ''}
+                onChangeText={(text) => {
+                  const num = parseFloat(text);
+                  if (!isNaN(num) && num >= 0 && num <= 2) {
+                    setEditingConfig((prev: any) => ({ ...prev, temperature: num }));
+                  } else if (text === '') {
+                    setEditingConfig((prev: any) => ({ ...prev, temperature: undefined }));
+                  }
+                }}
+                placeholder="例如：0.7"
+                placeholderTextColor={colors.hint}
+                keyboardType="numeric"
+              />
+              <Text style={[styles.helperText, {color: colors.secondaryText}]}>
+                控制AI回复的随机性，0表示最确定，2表示最随机
+              </Text>
+            </View>
 
-          {/* 模型选择 */}
-          <View style={styles.section}>
-            <View style={styles.modelHeader}>
-              <Text style={[styles.label, {color: colors.text}]}>模型</Text>
-              <View style={styles.modelModeToggle}>
-                <Text style={[styles.modelModeLabel, {color: colors.secondaryText}]}>
-                  {useManualModelInput ? '手动输入' : '从列表选择'}
-                </Text>
+            {/* 思考模式参数开关 */}
+            <View style={styles.section}>
+              <View style={styles.switchContainer}>
+                <View style={styles.switchLabelContainer}>
+                  <Text style={[styles.label, {color: colors.text}]}>思考模式参数开关</Text>
+                  <Text style={[styles.helperText, {color: colors.secondaryText, marginLeft: 8}]}>
+                    （控制是否启用思考模式参数）
+                  </Text>
+                </View>
                 <Switch
-                  value={useManualModelInput}
+                  value={editingConfig.thinkingEnabled || false}
                   onValueChange={(value) => {
-                    setUseManualModelInput(value);
-                    // 切换模式时，如果是从手动输入切换到列表选择，尝试同步模型值
-                    if (!value && editingConfig.model) {
-                      setModelValue(editingConfig.model);
-                    }
+                    setEditingConfig((prev: any) => ({
+                      ...prev,
+                      thinkingEnabled: value,
+                      // 当关闭主开关时，确保thinking状态为'disabled'
+                      thinking: value ? (prev.thinking || 'disabled') : 'disabled',
+                    }));
                   }}
                   trackColor={{ false: colors.border, true: colors.primary }}
                   thumbColor={colors.background}
                 />
               </View>
+              <Text style={[styles.helperText, {color: colors.secondaryText, marginTop: 4}]}>
+                请确认模型提供商是否支持此参数,可能导致接口错误
+              </Text>
             </View>
 
-            {useManualModelInput ? (
-              // 手动输入模式
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.input,
-                    color: colors.text,
-                    borderColor: colors.border,
-                  },
-                ]}
-                value={editingConfig.model || ''}
-                onChangeText={(text) => setEditingConfig((prev: any) => ({ ...prev, model: text }))}
-                placeholder="输入模型名称，例如：gpt-4-turbo"
-                placeholderTextColor={colors.hint}
-              />
-            ) : (
-              // 下拉列表模式
-              <>
-                <DropDownPicker
-                  open={modelOpen}
-                  value={modelValue}
-                  items={modelItems}
-                  setOpen={setModelOpen}
-                  setValue={setModelValue}
-                  setItems={setModelItems}
-                  searchable={true}
-                  listMode="MODAL"
-                  searchPlaceholder="输入关键词搜索模型..."
-                  style={[
-                    styles.dropdown,
-                    {
-                      backgroundColor: colors.input,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                  textStyle={[styles.dropdownText, {color: colors.text}]}
-                  dropDownContainerStyle={[
-                    styles.dropdownContainer,
-                    {
-                      backgroundColor: colors.input,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                  loading={loadingModels}
-                  disabled={loadingModels || !editingConfig.apiKey}
-                  zIndex={2000}
-                  zIndexInverse={2000}
-                />
-                {modelLoadError && (
-                  <Text style={[styles.errorText, {color: colors.error}]}>{modelLoadError}</Text>
-                )}
-                {loadingModels && (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={[styles.loadingText, {color: colors.secondaryText}]}>正在加载模型列表...</Text>
-                  </View>
-                )}
-              </>
-            )}
-            <Text style={[styles.helperText, {color: colors.secondaryText}]}>
-              {useManualModelInput
-                ? '请输入完整的模型名称，确保与所选服务商兼容'
-                : '从列表中选择模型，或切换到手动输入模式'}
-            </Text>
-          </View>
-
-          {/* 高级设置开关 */}
-          <View style={styles.section}>
-            <TouchableOpacity
-              style={styles.advancedToggle}
-              onPress={() => setShowAdvanced(!showAdvanced)}
-            >
-              <Text style={[styles.advancedToggleText, {color: colors.primary}]}>
-                {showAdvanced ? '隐藏高级设置' : '显示高级设置'}
-              </Text>
-              <Icon
-                name={showAdvanced ? 'expand-less' : 'expand-more'}
-                type="material"
-                color={colors.primary}
-                size={20}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* 高级设置 */}
-          {showAdvanced && (
-            <>
-              {/* API地址 */}
-              <View style={styles.section}>
-                <Text style={[styles.label, {color: colors.text}]}>API地址</Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      backgroundColor: colors.input,
-                      color: colors.text,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                  value={editingConfig.baseURL}
-                  onChangeText={(text) => setEditingConfig((prev: any) => ({ ...prev, baseURL: text }))}
-                  placeholder={getBaseURLHelperText(editingConfig.provider)}
-                  placeholderTextColor={colors.hint}
-                />
-                <Text style={[styles.helperText, {color: colors.secondaryText}]}>
-                  {getBaseURLHelperText(editingConfig.provider)}
-                </Text>
-              </View>
-
-              {/* 最大令牌数 */}
-              <View style={styles.section}>
-                <Text style={[styles.label, {color: colors.text}]}>最大令牌数</Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      backgroundColor: colors.input,
-                      color: colors.text,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                  value={editingConfig.maxTokens?.toString() || ''}
-                  onChangeText={(text) => {
-                    const num = parseInt(text, 10);
-                    if (!isNaN(num) && num > 0) {
-                      setEditingConfig((prev: any) => ({ ...prev, maxTokens: num }));
-                    } else if (text === '') {
-                      setEditingConfig((prev: any) => ({ ...prev, maxTokens: undefined }));
-                    }
-                  }}
-                  placeholder="例如：5000"
-                  placeholderTextColor={colors.hint}
-                  keyboardType="numeric"
-                />
-                <Text style={[styles.helperText, {color: colors.secondaryText}]}>
-                  控制AI回复的最大长度，建议值：1000-8000
-                </Text>
-              </View>
-
-              {/* 温度 */}
-              <View style={styles.section}>
-                <Text style={[styles.label, {color: colors.text}]}>温度 (0-2)</Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      backgroundColor: colors.input,
-                      color: colors.text,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                  value={editingConfig.temperature?.toString() || ''}
-                  onChangeText={(text) => {
-                    const num = parseFloat(text);
-                    if (!isNaN(num) && num >= 0 && num <= 2) {
-                      setEditingConfig((prev: any) => ({ ...prev, temperature: num }));
-                    } else if (text === '') {
-                      setEditingConfig((prev: any) => ({ ...prev, temperature: undefined }));
-                    }
-                  }}
-                  placeholder="例如：0.7"
-                  placeholderTextColor={colors.hint}
-                  keyboardType="numeric"
-                />
-                <Text style={[styles.helperText, {color: colors.secondaryText}]}>
-                  控制AI回复的随机性，0表示最确定，2表示最随机
-                </Text>
-              </View>
-
-              {/* 思考模式参数开关 */}
+            {/* 思考模式状态开关 - 仅在thinkingEnabled为true时显示 */}
+            {(editingConfig.thinkingEnabled) && (
               <View style={styles.section}>
                 <View style={styles.switchContainer}>
                   <View style={styles.switchLabelContainer}>
-                    <Text style={[styles.label, {color: colors.text}]}>思考模式参数开关</Text>
+                    <Text style={[styles.label, {color: colors.text}]}>思考模式状态</Text>
                     <Text style={[styles.helperText, {color: colors.secondaryText, marginLeft: 8}]}>
-                      （控制是否启用思考模式参数）
+                      （需模型支持）
                     </Text>
                   </View>
                   <Switch
-                    value={editingConfig.thinkingEnabled || false}
+                    value={editingConfig.thinking === 'enabled'}
                     onValueChange={(value) => {
                       setEditingConfig((prev: any) => ({
                         ...prev,
-                        thinkingEnabled: value,
-                        // 当关闭主开关时，确保thinking状态为'disabled'
-                        thinking: value ? (prev.thinking || 'disabled') : 'disabled',
+                        thinking: value ? 'enabled' : 'disabled',
                       }));
                     }}
                     trackColor={{ false: colors.border, true: colors.primary }}
@@ -982,78 +1009,50 @@ const AIConfigEditScreen: React.FC = () => {
                   />
                 </View>
                 <Text style={[styles.helperText, {color: colors.secondaryText, marginTop: 4}]}>
-                  请确认模型提供商是否支持此参数,可能导致接口错误
+                  开启思考模式（需模型支持）
                 </Text>
               </View>
+            )}
+          </>
+        )}
 
-              {/* 思考模式状态开关 - 仅在thinkingEnabled为true时显示 */}
-              {(editingConfig.thinkingEnabled) && (
-                <View style={styles.section}>
-                  <View style={styles.switchContainer}>
-                    <View style={styles.switchLabelContainer}>
-                      <Text style={[styles.label, {color: colors.text}]}>思考模式状态</Text>
-                      <Text style={[styles.helperText, {color: colors.secondaryText, marginLeft: 8}]}>
-                        （需模型支持）
-                      </Text>
-                    </View>
-                    <Switch
-                      value={editingConfig.thinking === 'enabled'}
-                      onValueChange={(value) => {
-                        setEditingConfig((prev: any) => ({
-                          ...prev,
-                          thinking: value ? 'enabled' : 'disabled',
-                        }));
-                      }}
-                      trackColor={{ false: colors.border, true: colors.primary }}
-                      thumbColor={colors.background}
-                    />
-                  </View>
-                  <Text style={[styles.helperText, {color: colors.secondaryText, marginTop: 4}]}>
-                    开启思考模式（需模型支持）
-                  </Text>
-                </View>
-              )}
-            </>
-          )}
-
-          {/* 操作按钮 */}
-          <View style={styles.section}>
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={[styles.button, styles.validateButton, {backgroundColor: colors.warning}]}
-                onPress={handleValidate}
-                disabled={validating}
-              >
-                {validating ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.buttonText}>验证配置</Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.button, styles.clearButton, {backgroundColor: colors.error}]}
-                onPress={handleClear}
-              >
-                <Text style={styles.buttonText}>清除</Text>
-              </TouchableOpacity>
-            </View>
-
+        {/* 操作按钮 */}
+        <View style={styles.section}>
+          <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={[styles.button, styles.saveButton, {backgroundColor: colors.primary}]}
-              onPress={handleSave}
-              disabled={loading}
+              style={[styles.button, styles.validateButton, {backgroundColor: colors.warning}]}
+              onPress={handleValidate}
+              disabled={validating}
             >
-              {loading ? (
+              {validating ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>{configId ? '更新配置' : '保存配置'}</Text>
+                <Text style={styles.buttonText}>验证配置</Text>
               )}
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.clearButton, {backgroundColor: colors.error}]}
+              onPress={handleClear}
+            >
+              <Text style={styles.buttonText}>清除</Text>
+            </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+          <TouchableOpacity
+            style={[styles.button, styles.saveButton, {backgroundColor: colors.primary}]}
+            onPress={handleSave}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>{configId ? '更新配置' : '保存配置'}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
