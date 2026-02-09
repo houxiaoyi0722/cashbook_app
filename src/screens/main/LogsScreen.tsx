@@ -301,8 +301,7 @@ const LogsScreen: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { backgroundColor: colors.card }]}>
           <TouchableOpacity
             style={styles.deleteButton}
@@ -418,7 +417,6 @@ const LogsScreen: React.FC = () => {
           </SafeAreaView>
         </Modal>
       </View>
-    </SafeAreaView>
   );
 };
 
