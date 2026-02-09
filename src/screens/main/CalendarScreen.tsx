@@ -27,6 +27,7 @@ import * as ImagePicker from 'react-native-image-picker';
 import {Swipeable} from 'react-native-gesture-handler';
 import ImageViewer from 'react-native-image-zoom-viewer';
 import ImageCacheService from '../../services/ImageCacheService';
+import OCRService from '../../services/OCRService';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useTheme, getColors} from '../../context/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -391,13 +392,40 @@ const CalendarScreen: React.FC = () => {
   const handleAddFlow = useCallback(() => {
     navigation.navigate('FlowForm', { date: selectedDate });
   }, [navigation, selectedDate]);
+
+  // 处理小票OCR记账
+  const handleReceiptOCR = useCallback(async () => {
+    try {
+      // 显示加载状态
+      // 直接调用takePhotoAndRecognize方法，它会处理拍照和OCR识别
+      const ocrResult = await OCRService.getInstance().takePhotoAndRecognize();
+
+      if (ocrResult && ocrResult.flow) {
+        // 识别成功，导航到流水表单页面，传递OCR结果
+        navigation.navigate('FlowForm', {
+          date: selectedDate,
+          currentFlow: ocrResult.flow,
+        });
+      } else {
+        Alert.alert('识别失败', '未能识别到有效的小票信息，请重试或手动输入');
+      }
+    } catch (error) {
+      console.error('小票识别失败:', error);
+      // 如果用户取消了拍照，不显示错误提示
+      Alert.alert('错误', '小票识别失败，请重试或手动输入');
+    }
+  }, [navigation, selectedDate]);
   // 日卡片组件 - 使用 React.memo 避免不必要的重新渲染
   const DayCard = React.memo(({
     selectedDate,
+    dayFlows,
+    onAddFlow,
+    onReceiptOCR,
   }: {
     selectedDate: string;
     dayFlows: Flow[];
     onAddFlow: () => void;
+    onReceiptOCR: () => void;
   }) => {
     // 获取当天的收支数据
     const dayTotals = dailyData[selectedDate] || { inSum: 0, outSum: 0, zeroSum: 0 };
@@ -419,21 +447,38 @@ const CalendarScreen: React.FC = () => {
               </Text>
             </View>
 
-            <Button
-              title=""
-              type="clear"
-              icon={
-                <Icon
-                  name="add"
-                  type="material"
-                  color="#1976d2"
-                  size={20}
-                />
-              }
-              onPress={() => {
-                handleAddFlow();
-              }}
-            />
+            <View style={styles.dayCardButtons}>
+              <Button
+                title=""
+                type="clear"
+                icon={
+                  <Icon
+                    name="receipt"
+                    type="material"
+                    color="#4caf50"
+                    size={20}
+                  />
+                }
+                onPress={() => {
+                  onReceiptOCR();
+                }}
+              />
+              <Button
+                title=""
+                type="clear"
+                icon={
+                  <Icon
+                    name="add"
+                    type="material"
+                    color="#1976d2"
+                    size={20}
+                  />
+                }
+                onPress={() => {
+                  onAddFlow();
+                }}
+              />
+            </View>
           </View>
 
           {dayDetailLoading ? (
@@ -541,7 +586,8 @@ const CalendarScreen: React.FC = () => {
     // 只有当这些属性变化时才重新渲染
     return (
       prevProps.selectedDate === nextProps.selectedDate &&
-      prevProps.dayFlows.length === nextProps.dayFlows.length
+      prevProps.dayFlows.length === nextProps.dayFlows.length &&
+      prevProps.onReceiptOCR === nextProps.onReceiptOCR
     );
   });
 
@@ -1798,6 +1844,7 @@ const CalendarScreen: React.FC = () => {
             selectedDate={dayCardData.selectedDate}
             dayFlows={dayCardData.dayFlows}
             onAddFlow={handleAddFlow}
+            onReceiptOCR={handleReceiptOCR}
         />
         {renderYearMonthSelector()}
         {renderDuplicateModal()}
@@ -2080,6 +2127,10 @@ const styles = StyleSheet.create({
   },
   flowSummary: {
     flex: 1,
+    alignItems: 'center',
+  },
+  dayCardButtons: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
   flowSummaryText: {
