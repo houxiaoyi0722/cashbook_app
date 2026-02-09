@@ -23,6 +23,9 @@ interface AIConfigStorage {
   chatModelConfigId: string | null;
   suggestionModelConfigId: string | null;
   availableTools: string[];
+  // OCR配置
+  ocrEnabled: boolean;
+  ocrModelConfigId: string | null;
 }
 
 const DEFAULT_AI_CONFIG: {
@@ -45,6 +48,9 @@ const DEFAULT_GLOBAL_CONFIG: {
   chatModelConfigId: string | null;
   suggestionModelConfigId: string | null;
   availableTools: string[];
+  // OCR配置默认值
+  ocrEnabled: boolean;
+  ocrModelConfigId: string | null;
 } = {
   // 默认启用AI建议功能
   aiSuggestionEnabled: true,
@@ -52,10 +58,13 @@ const DEFAULT_GLOBAL_CONFIG: {
   suggestionModelConfigId: null,
   // 默认空数组表示所有工具都可用
   availableTools: [],
+  // OCR配置默认值
+  ocrEnabled: false,
+  ocrModelConfigId: null,
 };
 
 const STORAGE_KEY = 'ai_config';
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 4;
 
 class AIConfigService {
   private storage: AIConfigStorage | null = null;
@@ -112,6 +121,8 @@ class AIConfigService {
       chatModelConfigId: DEFAULT_GLOBAL_CONFIG.chatModelConfigId,
       suggestionModelConfigId: DEFAULT_GLOBAL_CONFIG.suggestionModelConfigId,
       availableTools: DEFAULT_GLOBAL_CONFIG.availableTools,
+      ocrEnabled: DEFAULT_GLOBAL_CONFIG.ocrEnabled,
+      ocrModelConfigId: DEFAULT_GLOBAL_CONFIG.ocrModelConfigId,
     };
 
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultStorage));
@@ -203,6 +214,8 @@ class AIConfigService {
     chatModelConfigId: string | null;
     suggestionModelConfigId: string | null;
     availableTools: string[];
+    ocrEnabled: boolean;
+    ocrModelConfigId: string | null;
   }> {
     const storage = await this.getStorage();
     return {
@@ -210,6 +223,8 @@ class AIConfigService {
       chatModelConfigId: storage.chatModelConfigId,
       suggestionModelConfigId: storage.suggestionModelConfigId,
       availableTools: storage.availableTools,
+      ocrEnabled: storage.ocrEnabled,
+      ocrModelConfigId: storage.ocrModelConfigId,
     };
   }
 
@@ -219,6 +234,8 @@ class AIConfigService {
     chatModelConfigId: string | null;
     suggestionModelConfigId: string | null;
     availableTools: string[];
+    ocrEnabled: boolean;
+    ocrModelConfigId: string | null;
   }>): Promise<boolean> {
     try {
       const storage = await this.getStorage();
@@ -258,6 +275,22 @@ class AIConfigService {
   async isAiSuggestionEnabled(): Promise<boolean> {
     const storage = await this.getStorage();
     return storage.aiSuggestionEnabled;
+  }
+
+  // 检查OCR是否启用
+  async isOCREnabled(): Promise<boolean> {
+    const storage = await this.getStorage();
+    return storage.ocrEnabled;
+  }
+
+  // 获取OCR模型配置
+  async getOCRModelConfig(): Promise<AIConfig | null> {
+    const storage = await this.getStorage();
+    if (storage.ocrModelConfigId) {
+      return storage.configs.find(config => config.id === storage.ocrModelConfigId) || null;
+    }
+    // 如果未指定，返回null
+    return null;
   }
 
   // 获取可用工具列表

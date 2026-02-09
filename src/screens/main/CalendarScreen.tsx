@@ -32,6 +32,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {useTheme, getColors} from '../../context/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import OfflineModeOverlay from '../../components/OfflineModeOverlay';
+import { aiConfigService } from '../../services/AIConfigService';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -99,6 +100,9 @@ const CalendarScreen: React.FC = () => {
   const [currentInvoiceList, setCurrentInvoiceList] = useState<string[]>([]);
   const [showInvoiceViewer, setShowInvoiceViewer] = useState(false);
   const [uplaoding, setUploading] = useState(false);
+
+  // OCR启用状态
+  const [ocrEnabled, setOcrEnabled] = useState(false);
 
   // 渲染日历主题
   const calendarTheme = {
@@ -248,6 +252,20 @@ const CalendarScreen: React.FC = () => {
     checkOfflineMode();
   }, []);
 
+  // 加载OCR启用状态
+  useEffect(() => {
+    const loadOCREnabled = async () => {
+      try {
+        const enabled = await aiConfigService.isOCREnabled();
+        setOcrEnabled(enabled);
+      } catch (error) {
+        console.error('加载OCR启用状态失败:', error);
+        setOcrEnabled(false);
+      }
+    };
+    loadOCREnabled();
+  }, []);
+
   // 自定义日期单元格渲染函数
   const renderCustomDay = useCallback((day: any, state: any) => {
     // 获取当天的收支数据
@@ -395,25 +413,66 @@ const CalendarScreen: React.FC = () => {
 
   // 处理小票OCR记账
   const handleReceiptOCR = useCallback(async () => {
-    try {
-      // 显示加载状态
-      // 直接调用takePhotoAndRecognize方法，它会处理拍照和OCR识别
-      const ocrResult = await OCRService.getInstance().takePhotoAndRecognize();
-
-      if (ocrResult && ocrResult.flow) {
-        // 识别成功，导航到流水表单页面，传递OCR结果
-        navigation.navigate('FlowForm', {
-          date: selectedDate,
-          currentFlow: ocrResult.flow,
-        });
-      } else {
-        Alert.alert('识别失败', '未能识别到有效的小票信息，请重试或手动输入');
-      }
-    } catch (error) {
-      console.error('小票识别失败:', error);
-      // 如果用户取消了拍照，不显示错误提示
-      Alert.alert('错误', '小票识别失败，请重试或手动输入');
-    }
+    // 显示选项让用户选择拍照或从相册选择
+    Alert.alert(
+      '选择图片来源',
+      '请选择图片来源进行OCR识别',
+      [
+        {
+          text: '拍照',
+          onPress: async () => {
+            try {
+              // 调用拍照方法
+              const ocrResult = await OCRService.getInstance().takePhotoAndRecognize();
+              if (ocrResult && ocrResult.flow) {
+                // 识别成功，导航到流水表单页面，传递OCR结果
+                navigation.navigate('FlowForm', {
+                  date: selectedDate,
+                  ocrFlow: ocrResult.flow,
+                });
+              } else {
+                Alert.alert('识别失败', '未能识别到有效的小票信息，请重试或手动输入');
+              }
+            } catch (error) {
+              console.error('小票识别失败:', error);
+              // 如果用户取消了拍照，不显示错误提示
+              if (error !== 'USER_CANCELED') {
+                Alert.alert('错误', '小票识别失败，请重试或手动输入');
+              }
+            }
+          },
+        },
+        {
+          text: '从相册选择',
+          onPress: async () => {
+            try {
+              // 调用从相册选择方法
+              const ocrResult = await OCRService.getInstance().pickImageAndRecognize();
+              if (ocrResult && ocrResult.flow) {
+                // 识别成功，导航到流水表单页面，传递OCR结果
+                navigation.navigate('FlowForm', {
+                  date: selectedDate,
+                  ocrFlow: ocrResult.flow,
+                });
+              } else {
+                Alert.alert('识别失败', '未能识别到有效的小票信息，请重试或手动输入');
+              }
+            } catch (error) {
+              console.error('小票识别失败:', error);
+              // 如果用户取消了选择，不显示错误提示
+              if (error !== 'USER_CANCELED') {
+                Alert.alert('错误', '小票识别失败，请重试或手动输入');
+              }
+            }
+          },
+        },
+        {
+          text: '取消',
+          style: 'cancel',
+        },
+      ],
+      { cancelable: true }
+    );
   }, [navigation, selectedDate]);
   // 日卡片组件 - 使用 React.memo 避免不必要的重新渲染
   const DayCard = React.memo(({
@@ -448,21 +507,23 @@ const CalendarScreen: React.FC = () => {
             </View>
 
             <View style={styles.dayCardButtons}>
-              <Button
-                title=""
-                type="clear"
-                icon={
-                  <Icon
-                    name="receipt"
-                    type="material"
-                    color="#4caf50"
-                    size={20}
-                  />
-                }
-                onPress={() => {
-                  onReceiptOCR();
-                }}
-              />
+              {ocrEnabled && (
+                <Button
+                  title=""
+                  type="clear"
+                  icon={
+                    <Icon
+                      name="receipt"
+                      type="material"
+                      color="#4caf50"
+                      size={20}
+                    />
+                  }
+                  onPress={() => {
+                    onReceiptOCR();
+                  }}
+                />
+              )}
               <Button
                 title=""
                 type="clear"

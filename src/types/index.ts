@@ -43,6 +43,21 @@ export interface Flow {
   updatedAt: string;
 }
 
+export interface OcrFlow {
+  bookId: string;
+  name: string;
+  money: number;
+  flowType: '收入' | '支出' | '不计收支';
+  industryType: string;
+  payType: string;
+  description?: string;
+  attribution?: string;
+  invoice?: string;
+  day: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // 分页响应类型
 export interface PageResponse<T> {
   total: number;

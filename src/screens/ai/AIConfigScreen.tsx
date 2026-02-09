@@ -43,6 +43,12 @@ const AIConfigScreen: React.FC = () => {
   const [availableTools, setAvailableTools] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // OCR相关状态
+  const [ocrEnabled, setOcrEnabled] = useState(false);
+  const [ocrModelConfigId, setOcrModelConfigId] = useState<string | null>(null);
+  const [ocrModelOpen, setOcrModelOpen] = useState(false);
+  const [ocrModelItems, setOcrModelItems] = useState<Array<{label: string, value: string}>>([]);
+
   // 工具管理相关状态
   const [showToolsSection, setShowToolsSection] = useState(false);
   const [tools, setTools] = useState<Array<{name: string, description: string}>>([]);
@@ -65,6 +71,9 @@ const AIConfigScreen: React.FC = () => {
       setAiSuggestionEnabled(globalSettings.aiSuggestionEnabled);
       setChatModelConfigId(globalSettings.chatModelConfigId);
       setSuggestionModelConfigId(globalSettings.suggestionModelConfigId);
+      // 加载OCR配置
+      setOcrEnabled(globalSettings.ocrEnabled);
+      setOcrModelConfigId(globalSettings.ocrModelConfigId);
 
       // 获取工具列表
       const bridgeTools = mcpBridge.getTools();
@@ -85,6 +94,8 @@ const AIConfigScreen: React.FC = () => {
         { label: '使用主模型', value: '' },
         ...configItems,
       ]);
+      // 设置OCR模型下拉菜单项
+      setOcrModelItems(configItems);
     } catch (error) {
       console.error('加载配置失败:', error);
     }
@@ -97,6 +108,11 @@ const AIConfigScreen: React.FC = () => {
     }, [loadConfig])
   );
 
+  // 处理OCR开关切换
+  const handleToggleOCREnabled = (value: boolean) => {
+    setOcrEnabled(value);
+  };
+
   // 处理全局设置
   const handleSaveGlobalSettings = async () => {
     try {
@@ -106,6 +122,8 @@ const AIConfigScreen: React.FC = () => {
         chatModelConfigId,
         suggestionModelConfigId,
         availableTools,
+        ocrEnabled,
+        ocrModelConfigId,
       });
 
       if (success) {
@@ -323,6 +341,52 @@ const AIConfigScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
             </View>) : (<View/>)
+          }
+
+          {/* OCR配置部分 */}
+          <View style={[styles.row, { marginBottom: 16 }]}>
+            <Text style={[styles.rowLabel, { color: colors.text }]}>启用 OCR 识别</Text>
+            <Switch
+              value={ocrEnabled}
+              onValueChange={handleToggleOCREnabled}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={ocrEnabled ? colors.primary : colors.secondaryText}
+            />
+          </View>
+
+          {/* OCR模型选择 - 使用 DropDownPicker */}
+          {
+            ocrEnabled ? (
+              <View style={[styles.row, { marginBottom: 16, zIndex: 1800 }]}>
+                <Text style={[styles.rowLabel, { color: colors.text }]}>OCR 模型配置</Text>
+                <View style={styles.dropdownContainer}>
+                  <DropDownPicker
+                    open={ocrModelOpen}
+                    value={ocrModelConfigId}
+                    items={ocrModelItems}
+                    setOpen={setOcrModelOpen}
+                    setValue={setOcrModelConfigId}
+                    setItems={setOcrModelItems}
+                    placeholder="选择OCR模型配置"
+                    searchable={true}
+                    listMode="MODAL"
+                    searchPlaceholder="输入关键词搜索..."
+                    style={[styles.dropdown, {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    }]}
+                    textStyle={{ color: colors.text }}
+                    dropDownContainerStyle={{
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    }}
+                    listItemLabelStyle={{ color: colors.text }}
+                    zIndex={1800}
+                    zIndexInverse={2000}
+                  />
+                </View>
+              </View>
+            ) : null
           }
           {/* 可用工具管理 - 可折叠部分 */}
           <View style={{ marginTop: 8 }}>

@@ -1,4 +1,4 @@
-import {Flow} from '../types';
+import {Flow, OcrFlow} from '../types';
 
 export type MainStackParamList = {
   MainTabs: undefined;
@@ -6,6 +6,7 @@ export type MainStackParamList = {
     flowId?: number;
     date?: string;
     currentFlow?: Flow;
+    ocrFlow?: OcrFlow;
   };
   FlowDetail: {
     currentFlow: Flow;
