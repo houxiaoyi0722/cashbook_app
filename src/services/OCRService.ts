@@ -2,13 +2,10 @@ import * as ImagePicker from 'react-native-image-picker';
 import { Alert } from 'react-native';
 import RNFS from 'react-native-fs';
 import { aiConfigService } from './AIConfigService';
-import {aiService, AIService} from './AIService';
-import {OcrFlow} from '../types';
+import {AIService} from './AIService';
+import {Book, OcrFlow, OCRResult, UserInfo} from '../types';
 import LocalCacheService from './LocalCacheService';
 
-export interface OCRResult {
-  flow: OcrFlow | null | undefined;
-}
 
 class OCRService {
   private static instance: OCRService;
@@ -19,7 +16,7 @@ class OCRService {
   }
 
   // 使用AI接口进行OCR识别
-  async recognizeTextFromImage(imageUri: string): Promise<OCRResult> {
+  async recognizeTextFromImage(imageUri: string,userInfo: UserInfo | null): Promise<OCRResult> {
     try {
       console.log('开始处理图片:', imageUri);
 
@@ -39,8 +36,7 @@ class OCRService {
       if (!ocrConfig.apiKey || ocrConfig.apiKey.trim() === '') {
         throw new Error('OCR模型配置的API Key为空，请检查配置');
       }
-      // todo 修改flowform页面,保存流水数据后更新当前上传的小票图片(而不是禁止上传)
-      // todo 识别完成后添加图片到流水记录中
+
       // 读取文件为base64
       let base64Image = await RNFS.readFile(imageUri, 'base64');
       console.log('图片base64转换成功，长度:', base64Image.length);
@@ -55,8 +51,8 @@ class OCRService {
 推断以下流水信息：
  - 名称（name）：从识别文本中总结交易平台.商户.商品.品牌等信息
  - 金额（money）：交易金额（数字）
- - 行业类型（industryType）：优先从取以下列表: ${industryTypes}
- - 支付方式（payType）：优先从取以下列表: ${payTypes}
+ - 行业类型（industryType）：如餐饮美食、交通出行、购物消费等 优先从取以下列表: ${industryTypes}
+ - 支付方式（payType）：如现金、微信支付、支付宝、银行卡等 优先从取以下列表: ${payTypes}
  - 交易时间（day）：从图片中识别到的交易时间
  - 描述（description）：填入图片中识别全部文本
 
@@ -134,17 +130,15 @@ Flow对象格式示例：
 
 
       flowData.flowType = '支出'; // 默认值
-      const context = await aiService.getContext();
       // 构建Flow对象
       const flow: OcrFlow = {
-        bookId: context.bookId, // 需要在调用处设置
         name: flowData.name,
         money: typeof flowData.money === 'string' ? parseFloat(flowData.money) : Number(flowData.money),
         flowType: flowData.flowType,
         industryType: flowData.industryType || '其他',
         payType: flowData.payType || '其他',
         description: flowData.description || '',
-        attribution: context.user && context.user.name ? context.user.name : undefined,
+        attribution: userInfo && userInfo.name ? userInfo.name : undefined,
         day: flowData.day || new Date().toISOString().split('T')[0], // 默认使用当天日期
         invoice: undefined,
         createdAt: new Date().toISOString(),
@@ -152,7 +146,7 @@ Flow对象格式示例：
       };
 
       console.log('OCR识别成功:', flow);
-      return { flow };
+      return { flow, imageUri };
 
     } catch (error) {
       console.error('OCR识别失败:', error);
@@ -162,7 +156,7 @@ Flow对象格式示例：
   }
 
   // 拍照并识别
-  async takePhotoAndRecognize(): Promise<OCRResult | null> {
+  async takePhotoAndRecognize(userInfo: UserInfo | null): Promise<OCRResult | null> {
     try {
       // 打开相机
       const result = await ImagePicker.launchCamera({
@@ -196,7 +190,7 @@ Flow对象格式示例：
       }
 
       // 识别文本
-      return await this.recognizeTextFromImage(imageUri);
+      return await this.recognizeTextFromImage(imageUri,userInfo);
 
     } catch (error) {
       console.error('拍照识别失败:', error);
@@ -215,7 +209,7 @@ Flow对象格式示例：
   }
 
   // 从相册选择并识别
-  async pickImageAndRecognize(): Promise<OCRResult | null> {
+  async pickImageAndRecognize(userInfo: UserInfo | null): Promise<OCRResult | null> {
     try {
       // 打开相册
       const result = await ImagePicker.launchImageLibrary({
@@ -249,7 +243,7 @@ Flow对象格式示例：
       }
 
       // 识别文本
-      return await this.recognizeTextFromImage(imageUri);
+      return await this.recognizeTextFromImage(imageUri,userInfo);
 
     } catch (error) {
       console.error('图片识别失败:', error);

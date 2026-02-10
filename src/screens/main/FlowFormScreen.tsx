@@ -38,7 +38,7 @@ const defaultPayTypes = ['现金', '支付宝', '微信', '银行卡', '信用�
 const FlowFormScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
-  const { currentFlow, date, ocrFlow } = route.params || {};
+  const { currentFlow, date, ocrResult } = route.params || {};
   const { currentBook, remotePayType, remoteAttributions, addFlow } = useBookkeeping();
   const {userInfo} = useAuth();
   const { isDarkMode } = useTheme();
@@ -82,6 +82,44 @@ const FlowFormScreen: React.FC = () => {
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [cachedImages, setCachedImages] = useState<Set<string>>(new Set());
+
+  // 新增状态：用于处理新建流水时的图片
+  const [localInvoiceAssets, setLocalInvoiceAssets] = useState<ImagePicker.Asset[]>([]);
+  const [localInvoiceUris, setLocalInvoiceUris] = useState<string[]>([]);
+  const [pendingUploadImages, setPendingUploadImages] = useState<boolean>(false);
+
+  // 处理OCR识别结果中的图片
+  useEffect(() => {
+    const handleOCRResult = async () => {
+      if (ocrResult && ocrResult?.imageUri) {
+        try {
+          // 创建一个简化的模拟ImagePicker.Asset对象，只包含必要的属性
+          const mockAsset: ImagePicker.Asset = {
+            uri: ocrResult.imageUri,
+            fileName: `ocr_${Date.now()}.jpg`,
+            type: 'image/jpeg',
+            width: 1200,
+            height: 1200,
+            fileSize: 0,
+          };
+
+          // 添加到本地暂存列表
+          setLocalInvoiceAssets(prev => [...prev, mockAsset]);
+          // 确保uri存在后再添加到localInvoiceUris
+          if (ocrResult.imageUri) {
+            setLocalInvoiceUris(prev => [...prev, ocrResult.imageUri as string]);
+          }
+          setPendingUploadImages(true);
+
+          console.log('OCR识别图片已添加到暂存列表:', ocrResult.imageUri);
+        } catch (error) {
+          console.error('处理OCR识别图片失败:', error);
+        }
+      }
+    };
+
+    handleOCRResult();
+  }, [ocrResult]);
 
   const [editingOption, setEditingOption] = useState<{
     type: 'industryType' | 'payType' | 'attribution';
@@ -129,7 +167,7 @@ const FlowFormScreen: React.FC = () => {
           }
         }
 
-        const initFlow = ocrFlow || currentFlow;
+        const initFlow = ocrResult?.flow || currentFlow;
 
         // 处理当前流水数据
         if (initFlow) {
@@ -143,14 +181,17 @@ const FlowFormScreen: React.FC = () => {
           setAttribution(initFlow.attribution || '');
 
           // 确保当前流水的选项在列表中
-          if (initFlow.payType && !mergedPayTypes.includes(initFlow.payType)) {
+          if (initFlow.payType) {
             mergedPayTypes.unshift(initFlow.payType);
+            mergedPayTypes = [...new Set([...mergedPayTypes])];
           }
-          if (initFlow.attribution && !mergedAttributions.includes(initFlow.attribution)) {
+          if (initFlow.attribution) {
             mergedAttributions.unshift(initFlow.attribution);
+            mergedAttributions = [...new Set([...mergedAttributions])];
           }
-          if (initFlow.industryType && !mergedIndustryTypes.includes(initFlow.industryType)) {
+          if (initFlow.industryType) {
             mergedIndustryTypes.unshift(initFlow.industryType);
+            mergedIndustryTypes = [...new Set([...mergedIndustryTypes])];
           }
 
           // 加载小票图片
@@ -192,7 +233,7 @@ const FlowFormScreen: React.FC = () => {
     };
 
     fetchFlowDetail();
-  }, [currentFlow, flowType, currentBook, ocrFlow]);
+  }, [currentFlow, flowType, currentBook, ocrResult]);
 
   // 处理流类型变化（支持离线）
   useEffect(() => {
@@ -222,8 +263,9 @@ const FlowFormScreen: React.FC = () => {
         }
 
         // 确保当前流水的行业类型在列表中
-        if (currentFlow?.industryType && !merged.includes(currentFlow.industryType)) {
-          merged.unshift(currentFlow.industryType);
+        const initFlow = ocrResult?.flow || currentFlow;
+        if (initFlow?.industryType && !merged.includes(initFlow.industryType)) {
+          merged.unshift(initFlow.industryType);
         }
 
         setIndustryTypes(merged);
@@ -289,7 +331,20 @@ const FlowFormScreen: React.FC = () => {
           description: description.trim() || undefined,
           day: dayjs(flowDate).format('YYYY-MM-DD'),
         });
+
+        // 如果有暂存图片需要上传
+        if (pendingUploadImages && localInvoiceAssets.length > 0) {
+          try {
+            await uploadPendingImages(currentFlow.id, currentBook.bookId);
+          } catch (uploadError) {
+            console.error('上传暂存图片失败:', uploadError);
+            // 不阻止导航，但记录错误
+            Alert.alert('提示', '流水更新成功，但部分图片上传失败');
+          }
+        }
+
         eventBus.emit('refreshCalendarFlows');
+        navigation.goBack();
       } else {
         // 创建流水 - 使用BookkeepingContext的addFlow方法
         const flowData = {
@@ -304,11 +359,22 @@ const FlowFormScreen: React.FC = () => {
           day: dayjs(flowDate).format('YYYY-MM-DD'),
         };
 
-        await addFlow(flowData);
-        eventBus.emit('refreshCalendarFlows');
-      }
+        const newFlow = await addFlow(flowData);
 
-      navigation.goBack();
+        // 如果有暂存图片需要上传
+        if (pendingUploadImages && localInvoiceAssets.length > 0 && newFlow?.id) {
+          try {
+            await uploadPendingImages(newFlow.id, currentBook.bookId);
+          } catch (uploadError) {
+            console.error('上传暂存图片失败:', uploadError);
+            // 不阻止导航，但记录错误
+            Alert.alert('提示', '流水保存成功，但部分图片上传失败');
+          }
+        }
+
+        eventBus.emit('refreshCalendarFlows');
+        navigation.goBack();
+      }
     } catch (error) {
       console.error('保存流水失败', error);
       Alert.alert('错误', '保存流水失败');
@@ -327,8 +393,8 @@ const FlowFormScreen: React.FC = () => {
 
   // 处理小票上传
   const handleInvoiceUpload = async () => {
-    if (!currentFlow || !currentBook) {
-      Alert.alert('提示', '请先保存流水后再上传小票');
+    if (!currentBook) {
+      Alert.alert('提示', '请先选择账本');
       return;
     }
 
@@ -391,23 +457,34 @@ const FlowFormScreen: React.FC = () => {
     }
   };
 
-  // 上传图片
-  const uploadImage = async (image: ImagePicker.Asset) => {
-    if (!currentFlow || !currentBook) {return;}
+  // 上传暂存图片的辅助函数
+  const uploadPendingImages = async (flowId: number, bookId: string) => {
+    if (localInvoiceAssets.length === 0) {
+      return;
+    }
 
     try {
       setUploadingImage(true);
-      const response = await api.flow.uploadInvoice(currentFlow.id, currentBook.bookId, image);
+      // 上传所有本地暂存图片
+      for (const asset of localInvoiceAssets) {
+        await api.flow.uploadInvoice(flowId, bookId, asset);
+      }
+      console.log('所有暂存图片上传完成');
 
-      if (response.c === 200) {
-        // 刷新流水信息以获取更新后的小票列表
+      // 清空暂存列表
+      setLocalInvoiceAssets([]);
+      setLocalInvoiceUris([]);
+      setPendingUploadImages(false);
+
+      // 如果是更新场景，刷新图片列表
+      if (currentFlow) {
         const updatedFlowResponse = await api.flow.list({
-          id: currentFlow.id,
-          bookId: currentBook.bookId,
+          id: flowId,
+          bookId: bookId,
         });
 
         if (updatedFlowResponse.c === 200 && updatedFlowResponse.d.length > 0) {
-          const updatedFlow = updatedFlowResponse.d.find(flow => flow.id === currentFlow.id);
+          const updatedFlow = updatedFlowResponse.d.find(flow => flow.id === flowId);
           if (updatedFlow && updatedFlow.invoice) {
             const invoiceNames = updatedFlow.invoice.split(',');
 
@@ -430,18 +507,40 @@ const FlowFormScreen: React.FC = () => {
             setInvoiceImages(invoiceNames);
           }
         }
-      } else {
-        Alert.alert('错误', response.m || '小票上传失败');
       }
-    } catch (error) {
-      console.error('小票上传失败', error);
-      Alert.alert('错误', '小票上传失败');
+    } catch (uploadError) {
+      console.error('上传暂存图片失败:', uploadError);
+      throw uploadError;
     } finally {
       setUploadingImage(false);
     }
   };
 
-  // 查看小票图片
+  // 上传图片
+  const uploadImage = async (image: ImagePicker.Asset) => {
+    if (!currentBook) {return;}
+
+    try {
+      setUploadingImage(true);
+
+      // 无论是新建还是更新场景，都先将图片添加到本地暂存列表
+      setLocalInvoiceAssets(prev => [...prev, image]);
+      // 确保uri存在且是字符串后再添加到localInvoiceUris
+      if (image.uri) {
+        setLocalInvoiceUris(prev => [...prev, image.uri as string]);
+      }
+      // 标记有图片待上传
+      setPendingUploadImages(true);
+
+    } catch (error) {
+      console.error('添加图片到暂存列表失败', error);
+      Alert.alert('错误', '添加图片失败');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // 查看小票图片（仅用于已上传的图片）
   const viewInvoiceImage = (invoiceName: string) => {
     setSelectedImage(invoiceName);
     setShowImageViewer(true);
@@ -450,7 +549,7 @@ const FlowFormScreen: React.FC = () => {
     ImageCacheService.cacheImage(invoiceName);
   };
 
-  // 删除小票图片
+  // 删除小票图片（仅用于已上传的图片）
   const deleteInvoiceImage = async () => {
     if (!selectedImage || !currentFlow || !currentBook) {return;}
 
@@ -501,6 +600,14 @@ const FlowFormScreen: React.FC = () => {
 
   // 渲染小票图片列表
   const renderInvoiceImages = () => {
+    // 合并已上传的图片和本地图片，确保所有URI都是字符串
+    const allImages = [
+      ...invoiceImages
+        .map(uri => ({ type: 'uploaded' as const, uri })),
+      ...localInvoiceUris
+        .map(uri => ({ type: 'local' as const, uri })),
+    ];
+
     return (
       <View style={styles.invoiceContainer}>
         <Text style={[styles.label, { color: colors.text }]}>小票图片</Text>
@@ -516,32 +623,49 @@ const FlowFormScreen: React.FC = () => {
 
           <FlatList
             key={`invoice-list-${refreshKey}`} // 使用key强制刷新
-            data={invoiceImages}
+            data={allImages}
             horizontal
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.invoiceImageContainer}
-                onPress={() => viewInvoiceImage(item)}
+                onPress={() => {
+                  if (item.type === 'uploaded') {
+                    viewInvoiceImage(item.uri);
+                  } else {
+                    // 对于本地图片，直接显示
+                    setSelectedImage(item.uri);
+                    setShowImageViewer(true);
+                  }
+                }}
               >
-                <View style={[styles.invoiceImageWrapper, { borderColor: colors.border }]}>
+                <View style={[
+                  styles.invoiceImageWrapper,
+                  { borderColor: colors.border },
+                  item.type === 'local' && styles.localImageWrapper,
+                ]}>
                   <Image
                     source={{
-                      uri: ImageCacheService.getImageUrl(item),
+                      uri: item.type === 'uploaded' ? ImageCacheService.getImageUrl(item.uri) : item.uri,
                     }}
                     style={styles.invoiceImage}
                     resizeMode="cover"
                   />
-                  {!ImageCacheService.isImageCached(item) && (
+                  {item.type === 'uploaded' && !ImageCacheService.isImageCached(item.uri) && (
                     <ActivityIndicator
                       style={styles.thumbnailLoading}
                       size="small"
                       color={colors.primary}
                     />
                   )}
+                  {item.type === 'local' && (
+                    <View style={styles.localImageBadge}>
+                      <Text style={styles.localImageBadgeText}>本地</Text>
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
             )}
-            keyExtractor={(item, index) => `invoice-${item}-${index}`}
+            keyExtractor={(item, index) => `${item.type}-${item.uri}-${index}`}
             showsHorizontalScrollIndicator={false}
           />
         </View>
@@ -867,11 +991,7 @@ const FlowFormScreen: React.FC = () => {
               />
 
               {/* 小票上传区域 */}
-              {currentFlow ? renderInvoiceImages() : (
-                <View style={styles.uploadContainer}>
-                  <Text style={styles.uploadInfoText}>保存流水后可上传小票图片</Text>
-                </View>
-              )}
+              {renderInvoiceImages()}
 
               <View style={styles.buttonContainer}>
                 <Button
@@ -1096,6 +1216,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+  },
+  localImageWrapper: {
+    borderColor: '#ff9800',
+    borderWidth: 2,
+  },
+  localImageBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#ff9800',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderBottomLeftRadius: 4,
+  },
+  localImageBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   thumbnailLoading: {
     position: 'absolute',

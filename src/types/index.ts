@@ -44,7 +44,6 @@ export interface Flow {
 }
 
 export interface OcrFlow {
-  bookId: string;
   name: string;
   money: number;
   flowType: '收入' | '支出' | '不计收支';
@@ -191,6 +190,12 @@ export interface ToolResultMessage extends BaseMessage {
   result?: any;
   errorMessage?: string;
   duration?: number;
+}
+
+// OCR识别结果
+export interface OCRResult {
+  flow: OcrFlow | null | undefined;
+  imageUri?: string; // 图片的URI
 }
 
 // AI复合消息 - 包含一次AI回复的所有部分

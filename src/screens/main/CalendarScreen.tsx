@@ -18,7 +18,7 @@ import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {MainStackParamList} from '../../navigation/types';
 import {useBookkeeping} from '../../context/BookkeepingContext';
 import BookSelector from '../../components/BookSelector';
-import {CalendarMark, DailyData, Flow} from '../../types';
+import {CalendarMark, DailyData, Flow, UserInfo} from '../../types';
 import dayjs from 'dayjs';
 import {eventBus} from '../../navigation';
 import {SwipeListView} from 'react-native-swipe-list-view';
@@ -33,6 +33,7 @@ import {useTheme, getColors} from '../../context/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import OfflineModeOverlay from '../../components/OfflineModeOverlay';
 import { aiConfigService } from '../../services/AIConfigService';
+import {useAuth} from '../../context/AuthContext.tsx';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -412,7 +413,7 @@ const CalendarScreen: React.FC = () => {
   }, [navigation, selectedDate]);
 
   // 处理小票OCR记账
-  const handleReceiptOCR = useCallback(async () => {
+  const handleReceiptOCR = useCallback(async (userInfo: UserInfo | null) => {
     // 显示选项让用户选择拍照或从相册选择
     Alert.alert(
       '选择图片来源',
@@ -423,12 +424,12 @@ const CalendarScreen: React.FC = () => {
           onPress: async () => {
             try {
               // 调用拍照方法
-              const ocrResult = await OCRService.getInstance().takePhotoAndRecognize();
+              const ocrResult = await OCRService.getInstance().takePhotoAndRecognize(userInfo);
               if (ocrResult && ocrResult.flow) {
                 // 识别成功，导航到流水表单页面，传递OCR结果
                 navigation.navigate('FlowForm', {
                   date: selectedDate,
-                  ocrFlow: ocrResult.flow,
+                  ocrResult: ocrResult,
                 });
               }
             } catch (error) {
@@ -445,12 +446,12 @@ const CalendarScreen: React.FC = () => {
           onPress: async () => {
             try {
               // 调用从相册选择方法
-              const ocrResult = await OCRService.getInstance().pickImageAndRecognize();
+              const ocrResult = await OCRService.getInstance().pickImageAndRecognize(userInfo);
               if (ocrResult && ocrResult.flow) {
                 // 识别成功，导航到流水表单页面，传递OCR结果
                 navigation.navigate('FlowForm', {
                   date: selectedDate,
-                  ocrFlow: ocrResult.flow,
+                  ocrResult: ocrResult,
                 });
               }
             } catch (error) {
@@ -480,10 +481,11 @@ const CalendarScreen: React.FC = () => {
     selectedDate: string;
     dayFlows: Flow[];
     onAddFlow: () => void;
-    onReceiptOCR: () => void;
+    onReceiptOCR: (userInfo: UserInfo | null) => void;
   }) => {
     // 获取当天的收支数据
     const dayTotals = dailyData[selectedDate] || { inSum: 0, outSum: 0, zeroSum: 0 };
+    const {userInfo} = useAuth();
 
     return (
       <Card containerStyle={[styles.dayCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
@@ -516,7 +518,7 @@ const CalendarScreen: React.FC = () => {
                     />
                   }
                   onPress={() => {
-                    onReceiptOCR();
+                    onReceiptOCR(userInfo);
                   }}
                 />
               )}

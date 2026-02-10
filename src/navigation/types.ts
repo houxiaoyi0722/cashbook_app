@@ -1,4 +1,4 @@
-import {Flow, OcrFlow} from '../types';
+import {Flow, OCRResult} from '../types';
 
 export type MainStackParamList = {
   MainTabs: undefined;
@@ -6,7 +6,7 @@ export type MainStackParamList = {
     flowId?: number;
     date?: string;
     currentFlow?: Flow;
-    ocrFlow?: OcrFlow;
+    ocrResult?: OCRResult; // 添加 OCRResult 参数
   };
   FlowDetail: {
     currentFlow: Flow;
