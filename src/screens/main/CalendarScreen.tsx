@@ -177,25 +177,6 @@ const OCRScanAnimation: React.FC<OCRScanAnimationProps> = ({
           />
         </View>
       </Animated.View>
-
-      {/* 扫描线头部光点 */}
-      <Animated.View
-        style={{
-          position: 'absolute',
-          top: translateY,
-          left: imageWidth / 2 - 10,
-          width: 20,
-          height: 20,
-          borderRadius: 10,
-          backgroundColor: 'rgba(25, 118, 210, 0.9)',
-          transform: [{ translateY: -10 }],
-          shadowColor: '#1976d2',
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 1,
-          shadowRadius: 15,
-          elevation: 10,
-        }}
-      />
     </View>
   );
 };
@@ -1836,12 +1817,21 @@ const CalendarScreen: React.FC = () => {
           {/* 图片预览区域 */}
           <View style={styles.ocrImageContainer}>
             {ocrImageUri ? (
-              <View style={{ position: 'relative' }}>
+              <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
                 <Image
                   source={{ uri: ocrImageUri }}
                   style={styles.ocrImage}
                   resizeMode="contain"
                 />
+                {isOCRProcessing && (
+                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+                    <OCRScanAnimation
+                      imageWidth={200}
+                      imageHeight={200}
+                      isActive={isOCRProcessing}
+                    />
+                  </View>
+                )}
               </View>
             ) : (
               <View style={[styles.ocrImagePlaceholder, { backgroundColor: colors.input }]}>
@@ -1853,23 +1843,14 @@ const CalendarScreen: React.FC = () => {
             )}
           </View>
 
-          {/* 扫描动画区域 */}
-          <View style={styles.ocrProcessingContainer}>
-            {isOCRProcessing && (
-              <>
-                <View style={styles.ocrAnimationContainer}>
-                  <OCRScanAnimation
-                    imageWidth={200}
-                    imageHeight={200}
-                    isActive={isOCRProcessing}
-                  />
-                </View>
-                <Text style={[styles.ocrProcessingMessage, { color: colors.text }]}>
-                  {ocrProcessingMessage}
-                </Text>
-              </>
-            )}
-          </View>
+          {/* 处理状态消息 */}
+          {isOCRProcessing && (
+            <View style={styles.ocrProcessingMessageContainer}>
+              <Text style={[styles.ocrProcessingMessage, { color: colors.text }]}>
+                {ocrProcessingMessage}
+              </Text>
+            </View>
+          )}
 
           {/* 取消按钮 */}
           {isOCRProcessing && (
@@ -3064,7 +3045,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 14,
   },
-  ocrProcessingContainer: {
+  ocrProcessingMessageContainer: {
     alignItems: 'center',
     paddingVertical: 15,
     paddingHorizontal: 20,
