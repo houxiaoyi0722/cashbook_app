@@ -225,8 +225,8 @@ ${contextInfo}
         role: msg.role,
         content: msg.content,
       })),
-      max_tokens: config.max_tokens,
-      temperature: config.temperature,
+      max_tokens: config.maxTokens,
+      temperature: config.temperature <= 0 ? 0.1 : config.temperature,
       stream: stream, // 使用传入的stream参数，但默认值为true
     };
 
@@ -754,7 +754,7 @@ ${contextInfo}
       const response = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (!response.ok) {
-        console.log('AI API请求失败: ',apiEndpoint, requestBody, response);
+        console.log('AI API请求失败: ',apiEndpoint, requestBody, JSON.stringify(response, null, 2), response.json());
         throw new Error(`AI API请求失败: ${response.status} ${response.statusText}`);
       }
 

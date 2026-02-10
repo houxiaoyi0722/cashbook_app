@@ -2,6 +2,7 @@
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   RefreshControl,
   ScrollView,
@@ -73,6 +74,12 @@ const CalendarScreen: React.FC = () => {
     flowType: true,
     payType: true,
   });
+
+  // OCR识别相关状态
+  const [showOCRModal, setShowOCRModal] = useState<boolean>(false);
+  const [ocrImageUri, setOcrImageUri] = useState<string | null | undefined>(null);
+  const [isOCRProcessing, setIsOCRProcessing] = useState<boolean>(false);
+  const [ocrProcessingMessage, setOcrProcessingMessage] = useState<string>('');
 
   // 使用 useRef 存储状态
   const dailyDataRef = useRef<DailyData>({});
@@ -423,20 +430,51 @@ const CalendarScreen: React.FC = () => {
           text: '拍照',
           onPress: async () => {
             try {
-              // 调用拍照方法
-              const ocrResult = await OCRService.getInstance().takePhotoAndRecognize(userInfo);
-              if (ocrResult && ocrResult.flow) {
-                // 识别成功，导航到流水表单页面，传递OCR结果
-                navigation.navigate('FlowForm', {
-                  date: selectedDate,
-                  ocrResult: ocrResult,
-                });
+              // 先使用ImagePicker拍照
+              const result = await ImagePicker.launchCamera({
+                mediaType: 'photo',
+                maxWidth: 1200,
+                maxHeight: 1200,
+                quality: 0.8,
+              });
+
+              if (result.assets && result.assets.length > 0) {
+                const imageUri = result.assets[0].uri;
+                // 设置OCR弹窗状态并显示图片预览
+                setOcrImageUri(imageUri);
+                setShowOCRModal(true);
+                setIsOCRProcessing(true);
+                setOcrProcessingMessage('正在识别中...');
+
+                // 调用OCRService的recognizeTextFromImage方法进行识别
+                const ocrResult = await OCRService.getInstance().recognizeTextFromImage(imageUri!, userInfo);
+
+                // 识别完成后关闭弹窗
+                setShowOCRModal(false);
+                setIsOCRProcessing(false);
+
+                if (ocrResult && ocrResult.flow) {
+                  // 识别成功，导航到流水表单页面，传递OCR结果
+                  navigation.navigate('FlowForm', {
+                    date: selectedDate,
+                    ocrResult: ocrResult,
+                  });
+                } else {
+                  Alert.alert('提示', '未能识别到有效的小票信息，请手动输入');
+                }
+              } else {
+                // 用户取消了拍照
+                return;
               }
             } catch (error) {
               console.error('小票识别失败:', error);
+              // 关闭弹窗
+              setShowOCRModal(false);
+              setIsOCRProcessing(false);
+
               // 如果用户取消了拍照，不显示错误提示
-              if (error !== 'USER_CANCELED') {
-                Alert.alert('错误', '小票识别失败，请重试或手动输入');
+              if (error !== 'USER_CANCELED' && (error as any)?.code !== 'E_PICKER_CANCELLED') {
+                Alert.alert('错误', `小票识别失败，请重试或手动输入 ${error}`);
               }
             }
           },
@@ -445,20 +483,51 @@ const CalendarScreen: React.FC = () => {
           text: '从相册选择',
           onPress: async () => {
             try {
-              // 调用从相册选择方法
-              const ocrResult = await OCRService.getInstance().pickImageAndRecognize(userInfo);
-              if (ocrResult && ocrResult.flow) {
-                // 识别成功，导航到流水表单页面，传递OCR结果
-                navigation.navigate('FlowForm', {
-                  date: selectedDate,
-                  ocrResult: ocrResult,
-                });
+              // 先使用ImagePicker从相册选择
+              const result = await ImagePicker.launchImageLibrary({
+                mediaType: 'photo',
+                maxWidth: 1200,
+                maxHeight: 1200,
+                quality: 0.8,
+              });
+
+              if (result.assets && result.assets.length > 0) {
+                const imageUri = result.assets[0].uri;
+                // 设置OCR弹窗状态并显示图片预览
+                setOcrImageUri(imageUri);
+                setShowOCRModal(true);
+                setIsOCRProcessing(true);
+                setOcrProcessingMessage('正在识别中...');
+
+                // 调用OCRService的recognizeTextFromImage方法进行识别
+                const ocrResult = await OCRService.getInstance().recognizeTextFromImage(imageUri!, userInfo);
+
+                // 识别完成后关闭弹窗
+                setShowOCRModal(false);
+                setIsOCRProcessing(false);
+
+                if (ocrResult && ocrResult.flow) {
+                  // 识别成功，导航到流水表单页面，传递OCR结果
+                  navigation.navigate('FlowForm', {
+                    date: selectedDate,
+                    ocrResult: ocrResult,
+                  });
+                } else {
+                  Alert.alert('提示', '未能识别到有效的小票信息，请手动输入');
+                }
+              } else {
+                // 用户取消了选择
+                return;
               }
             } catch (error) {
               console.error('小票识别失败:', error);
+              // 关闭弹窗
+              setShowOCRModal(false);
+              setIsOCRProcessing(false);
+
               // 如果用户取消了选择，不显示错误提示
-              if (error !== 'USER_CANCELED') {
-                Alert.alert('错误', '小票识别失败，请重试或手动输入');
+              if (error !== 'USER_CANCELED' && (error as any)?.code !== 'E_PICKER_CANCELLED') {
+                Alert.alert('错误', `小票识别失败，请重试或手动输入 ${error}`);
               }
             }
           },
@@ -1041,7 +1110,6 @@ const CalendarScreen: React.FC = () => {
 
     try {
       setBalanceLoading(true);
-      console.log(ignoreOutIds,balanceOperations)
       // 批量忽略
       if (ignoreOutIds.length > 0) {
         const ignoreResponse = await api.flow.ignoreAllBalanceItems({
@@ -1409,7 +1477,7 @@ const CalendarScreen: React.FC = () => {
                     leftOpenValue={200}
                     rightOpenValue={-200}
                     onRowOpen={(rowKey, rowMap, toValue) => {
-                      if (balanceLoading) return;
+                      if (balanceLoading) {return;}
                       const outId = parseInt(rowKey.replace('balance-', ''));
                       // 找到对应的item来获取inIds
                       const item = balanceCandidates.find(item => item.out.id === outId);
@@ -1559,6 +1627,75 @@ const CalendarScreen: React.FC = () => {
               <Text style={[styles.balanceEmptyText, { color: colors.text }]}>所有记录已处理</Text>
             )}
           </View>
+        </View>
+      </Overlay>
+    );
+  };
+
+  // 渲染OCR识别弹窗
+  const renderOCRModal = () => {
+    return (
+      <Overlay
+        isVisible={showOCRModal}
+        onBackdropPress={() => {
+          if (!isOCRProcessing) {
+            setShowOCRModal(false);
+          }
+        }}
+        overlayStyle={[styles.ocrOverlay, { backgroundColor: colors.dialog }]}
+      >
+        <View style={styles.ocrContainer}>
+          <View style={styles.ocrHeader}>
+            <Text style={[styles.ocrTitle, { color: colors.text }]}>小票识别中</Text>
+            {!isOCRProcessing && (
+              <TouchableOpacity onPress={() => setShowOCRModal(false)}>
+                <Icon name="close" type="material" size={24} color={colors.text} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* 图片预览区域 */}
+          <View style={styles.ocrImageContainer}>
+            {ocrImageUri ? (
+              <Image
+                source={{ uri: ocrImageUri }}
+                style={styles.ocrImage}
+                resizeMode="contain"
+              />
+            ) : (
+              <View style={[styles.ocrImagePlaceholder, { backgroundColor: colors.input }]}>
+                <Icon name="receipt" type="material" size={40} color={colors.secondaryText} />
+                <Text style={[styles.ocrImagePlaceholderText, { color: colors.secondaryText }]}>
+                  图片预览
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* 扫描动画区域 */}
+          <View style={styles.ocrProcessingContainer}>
+            {isOCRProcessing && (
+              <>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.ocrProcessingMessage, { color: colors.text }]}>
+                  {ocrProcessingMessage}
+                </Text>
+              </>
+            )}
+          </View>
+
+          {/* 取消按钮 */}
+          {isOCRProcessing && (
+            <TouchableOpacity
+              style={[styles.ocrCancelButton, { backgroundColor: colors.input }]}
+              onPress={() => {
+                setShowOCRModal(false);
+                setIsOCRProcessing(false);
+              }}
+            >
+              <Text style={[styles.ocrCancelButtonText, { color: colors.text }]}>取消识别</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </Overlay>
     );
@@ -1909,6 +2046,7 @@ const CalendarScreen: React.FC = () => {
         {renderDuplicateModal()}
         {renderBalanceModal()}
         {renderInvoiceViewer()}
+        {renderOCRModal()}
       </View>
     </SafeAreaView>
   );
@@ -2695,6 +2833,69 @@ const styles = StyleSheet.create({
   batchEditSwipeHintText: {
     fontSize: 14,
     marginHorizontal: 8,
+  },
+  // OCR弹窗样式
+  ocrOverlay: {
+    width: '80%',
+    borderRadius: 10,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  ocrContainer: {
+    width: '100%',
+  },
+  ocrHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  ocrTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  ocrImageContainer: {
+    padding: 15,
+    alignItems: 'center',
+  },
+  ocrImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 8,
+  },
+  ocrImagePlaceholder: {
+    width: 200,
+    height: 200,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ocrImagePlaceholderText: {
+    marginTop: 8,
+    fontSize: 14,
+  },
+  ocrProcessingContainer: {
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+  },
+  ocrProcessingMessage: {
+    marginTop: 10,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  ocrCancelButton: {
+    marginHorizontal: 20,
+    marginBottom: 15,
+    paddingVertical: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  ocrCancelButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 

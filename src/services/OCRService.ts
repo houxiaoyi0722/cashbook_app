@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import RNFS from 'react-native-fs';
 import { aiConfigService } from './AIConfigService';
 import {AIService} from './AIService';
-import {Book, OcrFlow, OCRResult, UserInfo} from '../types';
+import {OcrFlow, OCRResult, UserInfo} from '../types';
 import LocalCacheService from './LocalCacheService';
 
 
@@ -93,7 +93,7 @@ Flow对象格式示例：
               url: `data:image/jpeg;base64,${base64Image}`,
             },
           }]],
-        30000
+        300000
       );
 
       console.log('AI响应文本:', aiResponseText);
@@ -114,11 +114,8 @@ Flow对象格式示例：
       } catch (parseError) {
         console.error('JSON解析失败:', parseError, '原始文本:', jsonText);
         // 如果解析失败，返回一个示例Flow对象
-        Alert.alert('小票解析错误', `${parseError}`);
         throw parseError;
       }
-
-      console.log('flowData',flowData);
 
       // 验证必需字段
       if (!flowData.name || !flowData.money) {
@@ -150,7 +147,6 @@ Flow对象格式示例：
 
     } catch (error) {
       console.error('OCR识别失败:', error);
-      Alert.alert('小票识别错误', `${error}`);
       throw error;
     }
   }
