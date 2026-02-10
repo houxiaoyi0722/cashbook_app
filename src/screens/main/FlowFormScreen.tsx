@@ -235,7 +235,7 @@ const FlowFormScreen: React.FC = () => {
     };
 
     fetchFlowDetail();
-  }, [currentFlow, flowType, currentBook, ocrResult]);
+  }, [currentFlow, currentBook, ocrResult]);
 
   // 处理流类型变化（支持离线）
   useEffect(() => {
