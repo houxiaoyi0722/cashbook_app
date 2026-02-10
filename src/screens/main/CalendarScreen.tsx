@@ -10,6 +10,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  Animated,
 } from 'react-native';
 import {Picker} from '@react-native-picker/picker';
 import {Button, Card, Icon, Overlay, Text} from '@rneui/themed';
@@ -47,6 +48,158 @@ LocaleConfig.locales.zh = {
 };
 LocaleConfig.defaultLocale = 'zh';
 
+// OCR扫描动画组件
+interface OCRScanAnimationProps {
+  imageWidth: number;
+  imageHeight: number;
+  isActive: boolean;
+}
+
+const OCRScanAnimation: React.FC<OCRScanAnimationProps> = ({
+  imageWidth,
+  imageHeight,
+  isActive,
+}) => {
+  const scanLineAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!isActive) {
+      scanLineAnim.setValue(0);
+      opacityAnim.setValue(1);
+      return;
+    }
+
+    // 创建扫描线动画
+    const scanAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanLineAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scanLineAnim, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    // 创建光晕闪烁动画
+    const glowAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacityAnim, {
+          toValue: 0.7,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    scanAnimation.start();
+    glowAnimation.start();
+
+    return () => {
+      scanAnimation.stop();
+      glowAnimation.stop();
+    };
+  }, [isActive, scanLineAnim, opacityAnim]);
+
+  if (!isActive) {
+    return null;
+  }
+
+  // 扫描线位置
+  const translateY = scanLineAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, imageHeight],
+  });
+
+  return (
+    <View style={{ width: imageWidth, height: imageHeight }}>
+      {/* 扫描光晕效果 */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(25, 118, 210, 0.1)',
+          opacity: opacityAnim,
+        }}
+      />
+
+      {/* 扫描线 */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 2,
+          backgroundColor: 'rgba(25, 118, 210, 0.8)',
+          transform: [{ translateY }],
+          shadowColor: '#1976d2',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.8,
+          shadowRadius: 10,
+          elevation: 5,
+        }}
+      >
+        {/* 扫描线渐变效果 */}
+        <View
+          style={{
+            position: 'absolute',
+            top: -10,
+            left: 0,
+            right: 0,
+            height: 20,
+          }}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'transparent',
+              borderTopWidth: 10,
+              borderTopColor: 'transparent',
+              borderBottomWidth: 10,
+              borderBottomColor: 'transparent',
+              borderLeftWidth: 0,
+              borderRightWidth: 0,
+            }}
+          />
+        </View>
+      </Animated.View>
+
+      {/* 扫描线头部光点 */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: translateY,
+          left: imageWidth / 2 - 10,
+          width: 20,
+          height: 20,
+          borderRadius: 10,
+          backgroundColor: 'rgba(25, 118, 210, 0.9)',
+          transform: [{ translateY: -10 }],
+          shadowColor: '#1976d2',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 1,
+          shadowRadius: 15,
+          elevation: 10,
+        }}
+      />
+    </View>
+  );
+};
+
 const CalendarScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { currentBook, fetchCalendarData, fetchDayFlows } = useBookkeeping();
@@ -80,6 +233,7 @@ const CalendarScreen: React.FC = () => {
   const [ocrImageUri, setOcrImageUri] = useState<string | null | undefined>(null);
   const [isOCRProcessing, setIsOCRProcessing] = useState<boolean>(false);
   const [ocrProcessingMessage, setOcrProcessingMessage] = useState<string>('');
+  const [ocrCancelled, setOcrCancelled] = useState<boolean>(false);
 
   // 使用 useRef 存储状态
   const dailyDataRef = useRef<DailyData>({});
@@ -421,6 +575,9 @@ const CalendarScreen: React.FC = () => {
 
   // 处理小票OCR记账
   const handleReceiptOCR = useCallback(async (userInfo: UserInfo | null) => {
+    // 重置取消状态
+    setOcrCancelled(false);
+
     // 显示选项让用户选择拍照或从相册选择
     Alert.alert(
       '选择图片来源',
@@ -453,6 +610,11 @@ const CalendarScreen: React.FC = () => {
                 setShowOCRModal(false);
                 setIsOCRProcessing(false);
 
+                // 检查是否被取消
+                if (ocrCancelled) {
+                  return;
+                }
+
                 if (ocrResult && ocrResult.flow) {
                   // 识别成功，导航到流水表单页面，传递OCR结果
                   navigation.navigate('FlowForm', {
@@ -475,6 +637,12 @@ const CalendarScreen: React.FC = () => {
               // 如果用户取消了拍照，不显示错误提示
               if (error !== 'USER_CANCELED' && (error as any)?.code !== 'E_PICKER_CANCELLED') {
                 Alert.alert('错误', `小票识别失败，请重试或手动输入 ${error}`);
+              }
+            } finally {
+              // 确保状态被正确重置
+              if (!ocrCancelled) {
+                setShowOCRModal(false);
+                setIsOCRProcessing(false);
               }
             }
           },
@@ -506,6 +674,11 @@ const CalendarScreen: React.FC = () => {
                 setShowOCRModal(false);
                 setIsOCRProcessing(false);
 
+                // 检查是否被取消
+                if (ocrCancelled) {
+                  return;
+                }
+
                 if (ocrResult && ocrResult.flow) {
                   // 识别成功，导航到流水表单页面，传递OCR结果
                   navigation.navigate('FlowForm', {
@@ -529,6 +702,12 @@ const CalendarScreen: React.FC = () => {
               if (error !== 'USER_CANCELED' && (error as any)?.code !== 'E_PICKER_CANCELLED') {
                 Alert.alert('错误', `小票识别失败，请重试或手动输入 ${error}`);
               }
+            } finally {
+              // 确保状态被正确重置
+              if (!ocrCancelled) {
+                setShowOCRModal(false);
+                setIsOCRProcessing(false);
+              }
             }
           },
         },
@@ -539,7 +718,7 @@ const CalendarScreen: React.FC = () => {
       ],
       { cancelable: true }
     );
-  }, [navigation, selectedDate]);
+  }, [navigation, selectedDate, ocrCancelled]);
   // 日卡片组件 - 使用 React.memo 避免不必要的重新渲染
   const DayCard = React.memo(({
     selectedDate,
@@ -1657,11 +1836,13 @@ const CalendarScreen: React.FC = () => {
           {/* 图片预览区域 */}
           <View style={styles.ocrImageContainer}>
             {ocrImageUri ? (
-              <Image
-                source={{ uri: ocrImageUri }}
-                style={styles.ocrImage}
-                resizeMode="contain"
-              />
+              <View style={{ position: 'relative' }}>
+                <Image
+                  source={{ uri: ocrImageUri }}
+                  style={styles.ocrImage}
+                  resizeMode="contain"
+                />
+              </View>
             ) : (
               <View style={[styles.ocrImagePlaceholder, { backgroundColor: colors.input }]}>
                 <Icon name="receipt" type="material" size={40} color={colors.secondaryText} />
@@ -1676,7 +1857,13 @@ const CalendarScreen: React.FC = () => {
           <View style={styles.ocrProcessingContainer}>
             {isOCRProcessing && (
               <>
-                <ActivityIndicator size="large" color={colors.primary} />
+                <View style={styles.ocrAnimationContainer}>
+                  <OCRScanAnimation
+                    imageWidth={200}
+                    imageHeight={200}
+                    isActive={isOCRProcessing}
+                  />
+                </View>
                 <Text style={[styles.ocrProcessingMessage, { color: colors.text }]}>
                   {ocrProcessingMessage}
                 </Text>
@@ -1689,6 +1876,7 @@ const CalendarScreen: React.FC = () => {
             <TouchableOpacity
               style={[styles.ocrCancelButton, { backgroundColor: colors.input }]}
               onPress={() => {
+                setOcrCancelled(true);
                 setShowOCRModal(false);
                 setIsOCRProcessing(false);
               }}
@@ -2892,6 +3080,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 5,
     alignItems: 'center',
+  },
+  ocrAnimationContainer: {
+    width: 200,
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
   },
   ocrCancelButtonText: {
     fontSize: 14,
