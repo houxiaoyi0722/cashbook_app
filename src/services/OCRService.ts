@@ -4,6 +4,7 @@ import RNFS from 'react-native-fs';
 import { aiConfigService } from './AIConfigService';
 import {aiService, AIService} from './AIService';
 import {OcrFlow} from '../types';
+import LocalCacheService from './LocalCacheService';
 
 export interface OCRResult {
   flow: OcrFlow | null | undefined;
@@ -38,20 +39,24 @@ class OCRService {
       if (!ocrConfig.apiKey || ocrConfig.apiKey.trim() === '') {
         throw new Error('OCR模型配置的API Key为空，请检查配置');
       }
-      // todo 读取系统重缓存的行业类型\支付方式 设置到提示词中
-      // todo 修改flowform页面,创建保存流水数据后更新当前上传的小票图片(而不是禁止上传)
+      // todo 修改flowform页面,保存流水数据后更新当前上传的小票图片(而不是禁止上传)
       // todo 识别完成后添加图片到流水记录中
       // 读取文件为base64
       let base64Image = await RNFS.readFile(imageUri, 'base64');
       console.log('图片base64转换成功，长度:', base64Image.length);
 
+      // 优先使用本地缓存
+      const cachedIndustryTypes = await LocalCacheService.getIndustryTypes('支出');
+      const industryTypes = cachedIndustryTypes.join(',');
+      const cachedPayTypes = await LocalCacheService.getPayTypes();
+      const payTypes = cachedPayTypes.join(',');
       const ocrPrompt = `请根据用户提供的图片，返回JSON格式的Flow对象。
 分析要求：
 推断以下流水信息：
  - 名称（name）：从识别文本中总结交易平台.商户.商品.品牌等信息
  - 金额（money）：交易金额（数字）
- - 行业类型（industryType）：如餐饮美食、交通出行、购物消费等
- - 支付方式（payType）：如现金、微信支付、支付宝、银行卡等
+ - 行业类型（industryType）：优先从取以下列表: ${industryTypes}
+ - 支付方式（payType）：优先从取以下列表: ${payTypes}
  - 交易时间（day）：从图片中识别到的交易时间
  - 描述（description）：填入图片中识别全部文本
 
