@@ -551,7 +551,7 @@ const FlowFormScreen: React.FC = () => {
 
   // 删除小票图片（仅用于已上传的图片）
   const deleteInvoiceImage = async () => {
-    if (!selectedImage || !currentFlow || !currentBook) {return;}
+    if (!selectedImage) {return;}
 
     Alert.alert(
       '确认删除',
@@ -567,25 +567,37 @@ const FlowFormScreen: React.FC = () => {
           onPress: async () => {
             try {
               setUploadingImage(true);
-              const response = await api.flow.deleteInvoice(
-                currentFlow.id,
-                currentBook.bookId,
-                selectedImage
-              );
-
-              if (response.c === 200) {
-                // 从列表中移除已删除的图片
-                const updatedImages = invoiceImages.filter(invoice => invoice !== selectedImage);
-                setInvoiceImages(updatedImages);
-
-                // 从缓存中清除图片
-                await ImageCacheService.clearCache(selectedImage);
-
-                setShowImageViewer(false);
+              if (selectedImage.startsWith('file://')) {
+                // 无论是新建还是更新场景，都先将图片添加到本地暂存列表
+                setLocalInvoiceAssets(prev => prev.filter(image => image.uri !== selectedImage));
+                // 确保uri存在且是字符串后再添加到localInvoiceUris
+                setLocalInvoiceUris(prev => prev.filter(uri => uri !== selectedImage));
                 setSelectedImage(null);
               } else {
-                Alert.alert('错误', response.m || '小票删除失败');
+                if (!currentFlow || !currentBook) {
+                  return;
+                }else {
+                  const response = await api.flow.deleteInvoice(
+                    currentFlow.id,
+                    currentBook.bookId,
+                    selectedImage
+                  );
+
+                  if (response.c === 200) {
+                    // 从列表中移除已删除的图片
+                    const updatedImages = invoiceImages.filter(invoice => invoice !== selectedImage);
+                    setInvoiceImages(updatedImages);
+
+                    // 从缓存中清除图片
+                    await ImageCacheService.clearCache(selectedImage);
+
+                    setSelectedImage(null);
+                  } else {
+                    Alert.alert('错误', response.m || '小票删除失败');
+                  }
+                }
               }
+              setShowImageViewer(false);
             } catch (error) {
               console.error('小票删除失败', error);
               Alert.alert('错误', '小票删除失败');

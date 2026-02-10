@@ -82,6 +82,9 @@ class ImageCacheService {
 
   // 获取图片URL（优先返回缓存的本地路径）
   public getImageUrl(invoiceName: string): string {
+    if (invoiceName.startsWith('file://')) {
+      return invoiceName;
+    }
     const cacheRecord = this.cacheMap[invoiceName];
     if (cacheRecord) {
       return `file://${cacheRecord.localPath}`;
