@@ -87,6 +87,8 @@ const FlowFormScreen: React.FC = () => {
   const [localInvoiceAssets, setLocalInvoiceAssets] = useState<ImagePicker.Asset[]>([]);
   const [localInvoiceUris, setLocalInvoiceUris] = useState<string[]>([]);
   const [pendingUploadImages, setPendingUploadImages] = useState<boolean>(false);
+  // 新增状态：用于存储待删除的已上传图片名称
+  const [pendingDeleteImages, setPendingDeleteImages] = useState<Set<string>>(new Set());
 
   // 处理OCR识别结果中的图片
   useEffect(() => {
@@ -343,6 +345,30 @@ const FlowFormScreen: React.FC = () => {
           }
         }
 
+        // 处理待删除的图片
+        if (pendingDeleteImages.size > 0) {
+          try {
+            // 批量删除待删除的图片
+            for (const imageName of pendingDeleteImages) {
+              await api.flow.deleteInvoice(
+                currentFlow.id,
+                currentBook.bookId,
+                imageName
+              );
+              // 从缓存中清除图片
+              await ImageCacheService.clearCache(imageName);
+            }
+            console.log('已删除待删除图片:', Array.from(pendingDeleteImages));
+          } catch (deleteError) {
+            console.error('删除待删除图片失败:', deleteError);
+            // 不阻止保存，但记录错误
+            Alert.alert('提示', '流水保存成功，但部分图片删除失败');
+          }
+        }
+
+        // 清空待删除图片列表
+        setPendingDeleteImages(new Set());
+
         eventBus.emit('refreshCalendarFlows');
         navigation.goBack();
       } else {
@@ -568,34 +594,20 @@ const FlowFormScreen: React.FC = () => {
             try {
               setUploadingImage(true);
               if (selectedImage.startsWith('file://')) {
-                // 无论是新建还是更新场景，都先将图片添加到本地暂存列表
+                // 对于本地暂存图片，直接移除
                 setLocalInvoiceAssets(prev => prev.filter(image => image.uri !== selectedImage));
-                // 确保uri存在且是字符串后再添加到localInvoiceUris
                 setLocalInvoiceUris(prev => prev.filter(uri => uri !== selectedImage));
                 setSelectedImage(null);
               } else {
-                if (!currentFlow || !currentBook) {
-                  return;
-                }else {
-                  const response = await api.flow.deleteInvoice(
-                    currentFlow.id,
-                    currentBook.bookId,
-                    selectedImage
-                  );
-
-                  if (response.c === 200) {
-                    // 从列表中移除已删除的图片
-                    const updatedImages = invoiceImages.filter(invoice => invoice !== selectedImage);
-                    setInvoiceImages(updatedImages);
-
-                    // 从缓存中清除图片
-                    await ImageCacheService.clearCache(selectedImage);
-
-                    setSelectedImage(null);
-                  } else {
-                    Alert.alert('错误', response.m || '小票删除失败');
-                  }
-                }
+                // 对于已上传的图片，添加到待删除列表，不立即调用API
+                setPendingDeleteImages(prev => {
+                  const newSet = new Set(prev);
+                  newSet.add(selectedImage);
+                  return newSet;
+                });
+                // 从invoiceImages中移除，但保留在pendingDeleteImages中
+                // 这样在保存时会处理删除
+                setSelectedImage(null);
               }
               setShowImageViewer(false);
             } catch (error) {
@@ -612,9 +624,14 @@ const FlowFormScreen: React.FC = () => {
 
   // 渲染小票图片列表
   const renderInvoiceImages = () => {
+    // 过滤掉待删除的已上传图片
+    let filteredInvoiceImages = invoiceImages;
+    if (pendingDeleteImages.size > 0) {
+      filteredInvoiceImages = invoiceImages.filter(uri => !pendingDeleteImages.has(uri));
+    }
     // 合并已上传的图片和本地图片，确保所有URI都是字符串
     const allImages = [
-      ...invoiceImages
+      ...filteredInvoiceImages
         .map(uri => ({ type: 'uploaded' as const, uri })),
       ...localInvoiceUris
         .map(uri => ({ type: 'local' as const, uri })),
