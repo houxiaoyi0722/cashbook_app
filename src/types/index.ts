@@ -159,6 +159,7 @@ export interface BaseMessage {
   collapsed?: boolean;
   error?: boolean;
   loading?: boolean;
+  metadata?: Record<string, any>;
 }
 
 // 文本消息
@@ -192,6 +193,13 @@ export interface ToolResultMessage extends BaseMessage {
   duration?: number;
 }
 
+// 图片消息
+export interface ImageMessage extends BaseMessage {
+  type: 'image';
+  imageUri: string;
+  caption?: string;
+}
+
 // OCR识别结果
 export interface OCRResult {
   flow: OcrFlow | null | undefined;
@@ -206,7 +214,7 @@ export interface AIMessage extends BaseMessage {
 }
 
 // 消息联合类型
-export type Message = TextMessage | ThinkingMessage | ToolCallMessage | ToolResultMessage | AIMessage;
+export type Message = TextMessage | ThinkingMessage | ToolCallMessage | ToolResultMessage | ImageMessage | AIMessage;
 
 // 工厂函数
 
@@ -312,6 +320,33 @@ export function createToolResultMessage(
     result: options?.result,
     errorMessage: options?.errorMessage,
     duration: options?.duration,
+    error: options?.error,
+    loading: options?.loading,
+  };
+}
+
+// 创建图片消息
+export function createImageMessage(
+  imageUri: string,
+  isUser: boolean,
+  options?: {
+    id?: string;
+    timestamp?: Date;
+    metadata?: Record<string, any>;
+    collapsed?: boolean;
+    error?: boolean;
+    loading?: boolean;
+    caption?: string;
+  }
+): ImageMessage {
+  return {
+    id: options?.id || `image_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type: 'image',
+    isUser,
+    imageUri,
+    caption: options?.caption,
+    timestamp: options?.timestamp || new Date(),
+    collapsed: options?.collapsed,
     error: options?.error,
     loading: options?.loading,
   };

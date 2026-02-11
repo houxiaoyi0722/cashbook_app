@@ -2,6 +2,7 @@ import { api } from './api';
 import { authManager } from './auth';
 import { Flow } from '../types';
 import { aiConfigService } from './AIConfigService';
+import OCRService from './OCRService';
 
 type Tool = {
   name: string;
@@ -858,7 +859,7 @@ class MCPBridge {
           const updatePayload = {
             id: args.id,
             bookId: bookId,
-            ...updateData
+            ...updateData,
           };
 
           const response = await api.flow.update(updatePayload);
@@ -1704,6 +1705,173 @@ class MCPBridge {
           console.error('获取归属人列表失败:', error);
           const errorMessage = error instanceof Error ? error.message : String(error);
           throw new Error(`获取归属人列表失败: ${errorMessage}`);
+        }
+      },
+    });
+
+    // OCR识别工具
+    this.registerTool({
+      name: 'ocr_recognize',
+      description: '识别小票图片中的文字信息并提取流水数据',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          imageUri: {
+            type: 'string',
+            description: '图片地址，可以是本地文件路径或网络URL',
+          },
+        },
+        required: ['imageUri'],
+      },
+      execute: async (args) => {
+        // 验证必需参数
+        if (!args.imageUri) {
+          throw new Error('图片地址不能为空');
+        }
+        if (typeof args.imageUri !== 'string' || args.imageUri.trim() === '') {
+          throw new Error('图片地址必须是有效的字符串');
+        }
+
+        // 获取当前用户信息
+        let currentUserInfo = null;
+        try {
+          currentUserInfo = await authManager.getCurrentUser();
+        } catch (error) {
+          console.warn('获取用户信息失败，将继续进行OCR识别:', error);
+          // 不阻止OCR识别流程，但记录警告
+        }
+
+        try {
+          // 调用OCRService进行识别
+          const ocrResult = await OCRService.getInstance().recognizeTextFromImage(
+            args.imageUri,
+            currentUserInfo
+          );
+
+          // 根据OCRResult类型返回适当的结果
+          return {
+            success: true,
+            message: 'OCR识别成功',
+            data: ocrResult,
+            timestamp: new Date().toISOString(),
+            userInfo: currentUserInfo ? {
+              name: currentUserInfo.name,
+              email: currentUserInfo.email,
+              id: currentUserInfo.id,
+            } : null,
+          };
+        } catch (error) {
+          console.error('OCR识别失败:', error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+
+          // 根据错误类型提供更详细的错误信息
+          let detailedMessage = `OCR识别失败: ${errorMessage}`;
+
+          // 检查是否为OCR功能未启用错误
+          if (errorMessage.includes('OCR功能未启用')) {
+            detailedMessage = `OCR功能未启用，请在AI设置中启用OCR功能。原始错误: ${errorMessage}`;
+          }
+          // 检查是否为图片处理错误
+          else if (errorMessage.includes('图片') || errorMessage.includes('image')) {
+            detailedMessage = `图片处理失败，请检查图片地址是否正确且图片格式支持。原始错误: ${errorMessage}`;
+          }
+          throw new Error(detailedMessage);
+        }
+      },
+    });
+
+    // 小票上传工具
+    this.registerTool({
+      name: 'upload_receipt',
+      description: '上传小票图片并关联到指定的流水记录',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          flowId: {
+            type: 'number',
+            description: '流水ID，必需参数',
+          },
+          imageUri: {
+            type: 'string',
+            description: '图片地址，可以是本地文件路径或网络URL，必需参数',
+          },
+          fileName: {
+            type: 'string',
+            description: '图片文件名，可选，默认为"receipt.jpg"',
+            default: 'receipt.jpg',
+          },
+        },
+        required: ['flowId', 'imageUri'],
+      },
+      execute: async (args, currentBook) => {
+        // 验证必需参数
+        if (!args.flowId) {
+          throw new Error('流水ID不能为空');
+        }
+        if (typeof args.flowId !== 'number' || isNaN(args.flowId) || args.flowId <= 0) {
+          throw new Error('流水ID必须是有效的正整数');
+        }
+        if (!args.imageUri) {
+          throw new Error('图片地址不能为空');
+        }
+        if (typeof args.imageUri !== 'string' || args.imageUri.trim() === '') {
+          throw new Error('图片地址必须是有效的字符串');
+        }
+
+        const bookId = await this.getBookId(currentBook);
+
+        // 准备FormData
+        const formData = new FormData();
+
+        // 根据imageUri的类型处理图片数据
+        // 注意：在实际应用中，需要根据平台（React Native）处理图片URI
+        // 这里假设imageUri是本地文件路径或base64数据
+        const imageData = {
+          uri: args.imageUri,
+          type: 'image/jpeg',
+          name: args.fileName || 'receipt.jpg',
+        };
+
+        formData.append('file', imageData as any);
+        formData.append('flowId', args.flowId.toString());
+        formData.append('bookId', bookId);
+
+        try {
+          // 调用上传API
+          const response = await api.flow.uploadInvoice(args.flowId, bookId, formData);
+
+          if (response.c === 200) {
+            return {
+              success: true,
+              flowId: args.flowId,
+              imageUri: args.imageUri,
+              fileName: args.fileName || 'receipt.jpg',
+              data: response.d,
+              message: `小票图片已成功上传并关联到流水记录 #${args.flowId}`,
+              timestamp: new Date().toISOString(),
+            };
+          } else {
+            throw new Error(response.m || `上传小票失败: ${response.c}`);
+          }
+        } catch (error) {
+          console.error('上传小票API调用失败:', error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+
+          // 根据错误类型提供更详细的错误信息
+          let detailedMessage = `上传小票失败: ${errorMessage}`;
+          // 检查是否为图片格式错误
+          if (errorMessage.includes('图片') || errorMessage.includes('image') || errorMessage.includes('格式')) {
+            detailedMessage = `图片处理失败，请检查图片格式是否正确。支持JPEG、PNG等常见格式。原始错误: ${errorMessage}`;
+          }
+          // 检查是否为文件大小错误
+          else if (errorMessage.includes('大小') || errorMessage.includes('size')) {
+            detailedMessage = `图片文件过大，请压缩图片后重试。原始错误: ${errorMessage}`;
+          }
+          // 检查是否为网络错误
+          else if (errorMessage.includes('网络') || errorMessage.includes('network') || errorMessage.includes('连接')) {
+            detailedMessage = `网络连接失败，请检查网络后重试。原始错误: ${errorMessage}`;
+          }
+          throw new Error(detailedMessage);
         }
       },
     });

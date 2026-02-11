@@ -12,10 +12,13 @@ import {
   TouchableOpacity,
   View,
   Keyboard, ScrollView,
+  Image,
+  Animated,
 } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'react-native-image-picker';
 import type {MessageStreamCallback} from '../../services/AIService';
 import {aiService} from '../../services/AIService';
 import {aiConfigService} from '../../services/AIConfigService';
@@ -27,7 +30,9 @@ import {
   AIMessage,
   BaseMessage,
   createAIMessage,
+  createImageMessage,
   createTextMessage,
+  ImageMessage,
   Message,
   TextMessage,
   ThinkingMessage,
@@ -41,6 +46,67 @@ const DEFAULT_MESSAGE = '你好！我是你的记账助手，可以帮你：\n�
 interface AIChatScreenProps {
   navigation?: any;
 }
+
+// OCR扫描动画组件
+const OCRScanAnimation: React.FC<{
+  isActive: boolean;
+  containerStyle?: any;
+}> = ({ isActive, containerStyle }) => {
+  const scanLineAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isActive) {
+      scanLineAnim.setValue(0);
+      return;
+    }
+
+    const startAnimation = () => {
+      scanLineAnim.setValue(0);
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scanLineAnim, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.delay(500),
+        ])
+      ).start();
+    };
+
+    startAnimation();
+
+    return () => {
+      scanLineAnim.stopAnimation();
+    };
+  }, [isActive, scanLineAnim]);
+
+  const translateY = scanLineAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 200], // 图片高度
+  });
+
+  if (!isActive) {
+    return null;
+  }
+
+  return (
+    <View style={[styles.ocrAnimationContainer, containerStyle]}>
+      {/* 扫描线 */}
+      <Animated.View
+        style={[
+          styles.scanLine,
+          {
+            transform: [{ translateY }],
+          },
+        ]}
+      />
+      {/* 光晕效果 */}
+      <View style={styles.glowEffect} />
+      <Text style={styles.scanningText}>扫描中...</Text>
+    </View>
+  );
+};
 
 const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   const { isDarkMode } = useTheme();
@@ -70,6 +136,8 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   const [configError, setConfigError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  // 图片选择相关状态
+  const [isSelectingImage, setIsSelectingImage] = useState(false);
   // AI提示建议相关状态
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
@@ -504,12 +572,16 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       return () => {
         isMounted = false;
         unsubscribe();
+        // 清理图片选择状态
+        setIsSelectingImage(false);
       };
     } else {
       // 如果没有 navigation，只在组件挂载时执行一次
       handleFocus();
       return () => {
         isMounted = false;
+        // 清理图片选择状态
+        setIsSelectingImage(false);
       };
     }
   }, [navigation, checkAIConfig]);
@@ -700,6 +772,283 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     }
   };
 
+  // 拍照记账
+  const handleTakePhotoForAccounting = useCallback(async () => {
+    if (isSelectingImage || isProcessing) {return;}
+
+    // 检查OCR功能是否启用
+    try {
+      const isOCREnabled = await aiConfigService.isOCREnabled();
+      if (!isOCREnabled) {
+        Alert.alert(
+          'OCR功能未启用',
+          '要使用小票记账功能，请先在AI设置中启用OCR功能。',
+          [
+            { text: '取消', style: 'cancel' },
+            {
+              text: '前往设置',
+              onPress: () => {
+                if (navigation) {
+                  const parentNav = navigation.getParent ? navigation.getParent() : null;
+                  if (parentNav) {
+                    parentNav.navigate('AIConfig');
+                  } else {
+                    navigation.navigate('AIConfig');
+                  }
+                }
+              },
+            },
+          ]
+        );
+        return;
+      }
+    } catch (error) {
+      console.error('检查OCR功能状态失败:', error);
+      Alert.alert('错误', '检查OCR功能状态失败，请稍后重试');
+      return;
+    }
+
+    setIsSelectingImage(true);
+    const options: ImagePicker.CameraOptions = {
+      mediaType: 'photo' as const,
+      includeBase64: true,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      quality: 0.8,
+      cameraType: 'back',
+      saveToPhotos: true,
+    };
+
+    ImagePicker.launchCamera(options, async (response) => {
+      setIsSelectingImage(false);
+      if (response.didCancel) {
+        console.log('用户取消了拍照');
+        return;
+      }
+      if (response.errorCode) {
+        Alert.alert('拍照失败', `错误: ${response.errorMessage || '未知错误'}`);
+        return;
+      }
+      if (response.assets && response.assets.length > 0) {
+        const asset = response.assets[0];
+        const imageUri = asset.uri || asset.base64;
+        if (imageUri) {
+          // 发送图片给AI助手处理
+          await sendImageForAccounting(imageUri);
+        } else {
+          Alert.alert('错误', '无法获取图片数据');
+        }
+      }
+    });
+  }, [isSelectingImage, isProcessing, navigation]);
+
+  // 选择图片记账
+  const handleSelectImageForAccounting = useCallback(async () => {
+    if (isSelectingImage || isProcessing) {return;}
+    // 检查OCR功能是否启用
+    try {
+      const isOCREnabled = await aiConfigService.isOCREnabled();
+      if (!isOCREnabled) {
+        Alert.alert(
+          'OCR功能未启用',
+          '要使用小票记账功能，请先在AI设置中启用OCR功能。',
+          [
+            { text: '取消', style: 'cancel' },
+            {
+              text: '前往设置',
+              onPress: () => {
+                if (navigation) {
+                  const parentNav = navigation.getParent ? navigation.getParent() : null;
+                  if (parentNav) {
+                    parentNav.navigate('AIConfig');
+                  } else {
+                    navigation.navigate('AIConfig');
+                  }
+                }
+              },
+            },
+          ]
+        );
+        return;
+      }
+    } catch (error) {
+      console.error('检查OCR功能状态失败:', error);
+      Alert.alert('错误', '检查OCR功能状态失败，请稍后重试');
+      return;
+    }
+
+    setIsSelectingImage(true);
+    const options: ImagePicker.ImageLibraryOptions = {
+      mediaType: 'photo' as const,
+      includeBase64: true,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      quality: 0.8,
+      selectionLimit: 1,
+    };
+
+    ImagePicker.launchImageLibrary(options, async (response) => {
+      setIsSelectingImage(false);
+      if (response.didCancel) {
+        console.log('用户取消了选择图片');
+        return;
+      }
+      if (response.errorCode) {
+        Alert.alert('选择图片失败', `错误: ${response.errorMessage || '未知错误'}`);
+        return;
+      }
+      if (response.assets && response.assets.length > 0) {
+        const asset = response.assets[0];
+        const imageUri = asset.uri || asset.base64;
+        if (imageUri) {
+          // 发送图片给AI助手处理
+          await sendImageForAccounting(imageUri);
+        } else {
+          Alert.alert('错误', '无法获取图片数据');
+        }
+      }
+    });
+  }, [isSelectingImage, isProcessing, navigation]);
+
+  // 发送图片给AI助手处理
+  const sendImageForAccounting = useCallback(async (imageUri: string) => {
+    if (!imageUri) {return;}
+
+    // 创建用户消息
+    const userMessage = `请识别这张小票图片并帮我记账。图片地址：${imageUri}`;
+
+    // 生成唯一的消息ID
+    const userMsgId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // 设置处理状态
+    setIsProcessing(true);
+    setIsCancelling(false);
+    shouldIgnoreResponseRef.current = false;
+    currentProcessingIdRef.current = aiMsgId;
+
+    // 创建图片消息对象
+    const userMsg = createImageMessage(imageUri, true, {
+      id: userMsgId,
+      timestamp: new Date(),
+      caption: '',
+    });
+
+    // 添加用户消息到列表
+    setMessages(prev => [...prev, userMsg]);
+
+    try {
+      // 确保AIService中的账本信息是最新的
+      if (currentBook && aiService.updateBookInfo) {
+        const bookId = currentBook.bookId;
+        const bookName = currentBook.bookName;
+        aiService.updateBookInfo(bookId, bookName);
+      }
+
+      // 创建结构化消息回调函数
+      const messageStreamCallback: MessageStreamCallback = (message: Message, isComplete: boolean) => {
+        // 检查是否应该忽略响应（用户点击了终止按钮）
+        if (shouldIgnoreResponseRef.current) {
+          console.log('忽略流式响应内容，因为用户已终止');
+          return;
+        }
+
+        if (isComplete) {}
+
+        // 处理消息
+        setMessages(prev => {
+          let newMessages = [...prev];
+          // 检查是否已存在相同ID的消息（用于更新）
+          const existingIndex = newMessages.findIndex(msg => msg.id === message.id);
+          if (existingIndex !== -1) {
+            // 更新现有消息
+            newMessages[existingIndex] = message;
+          } else {
+            // 添加新消息
+            newMessages.push(message);
+          }
+          if (currentBookIdRef.current && newMessages.length > 0) {
+            saveChatForCurrentBook(currentBookIdRef.current, newMessages);
+          }
+          return newMessages;
+        });
+      };
+
+      // 发送到AI服务，使用结构化消息回调
+      await aiService.sendMessage(userMessage, messageStreamCallback);
+
+      // 检查是否应该忽略响应（用户点击了终止按钮）
+      if (shouldIgnoreResponseRef.current) {
+        console.log('忽略已终止的AI响应');
+        // 移除加载消息
+        setMessages(prev => prev.filter(msg => msg.id !== aiMsgId));
+        return;
+      }
+
+    } catch (error: any) {
+      // 检查是否应该忽略错误（用户点击了终止按钮）
+      if (shouldIgnoreResponseRef.current) {
+        console.log('忽略已终止的AI错误');
+        // 移除加载消息
+        setMessages(prev => prev.filter(msg => msg.id !== aiMsgId));
+        return;
+      }
+
+      console.error('发送图片消息失败:', error);
+
+      // 创建错误消息
+      const errorMsg = createTextMessage(
+        `错误: ${error.message || '处理图片失败'}\n\n请检查网络连接或AI配置。`,
+        false,
+        {
+          id: aiMsgId,
+          timestamp: new Date(),
+          error: true,
+        }
+      );
+
+      setMessages(prev => [...prev, errorMsg]);
+
+      // 如果是配置问题，提示用户
+      if (error.message.includes('配置') || error.message.includes('API')) {
+        Alert.alert('配置错误', error.message, [
+          { text: '取消', style: 'cancel' },
+          {
+            text: '检查配置',
+            onPress: () => {
+              if (navigation) {
+                const parentNav = navigation.getParent ? navigation.getParent() : null;
+                if (parentNav) {
+                  parentNav.navigate('AIConfig');
+                } else {
+                  navigation.navigate('AIConfig');
+                }
+              } else {
+                Alert.alert('提示', '导航不可用，请通过其他方式访问配置页面');
+              }
+            },
+          },
+          { text: '重试检查', onPress: () => handleRefreshConfig() },
+        ]);
+      }
+    } finally {
+      // 只有在没有终止的情况下才重置处理状态
+      if (!shouldIgnoreResponseRef.current) {
+        setIsProcessing(false);
+        setIsCancelling(false);
+      }
+      currentProcessingIdRef.current = null;
+
+      // 确保可以自动滚动，并滚动到底部
+      setShouldAutoScroll(true);
+      setTimeout(() => {
+        if (shouldAutoScrollRef.current) {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }
+      }, 100);
+    }
+  }, [currentBook, navigation, handleRefreshConfig, saveChatForCurrentBook]);
+
   const handleConfigure = () => {
     if (navigation) {
       // 由于AIChat在Tab导航器中，而AIConfig在Stack导航器中，我们需要通过父导航器来导航
@@ -828,6 +1177,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     const isToolCallMsg = isToolCallMessage(item);
     const isThinkingMsg = isThinkingMessage(item);
     const isToolResultMsg = isToolResultMessage(item);
+    const isImageMsg = isImageMessage(item);
 
     const messageStyle = [
       styles.messageContainer,
@@ -838,6 +1188,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       isToolCallMsg && styles.toolCallMessage,
       isThinkingMsg && styles.thinkingMessage,
       isToolResultMsg && styles.toolResultMessage,
+      isImageMsg && styles.imageMessage,
     ];
 
     // 渲染消息内容
@@ -845,6 +1196,8 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       // 根据类型渲染不同内容
       if (isAIMsg) {
         return renderAIMessage(item);
+      } else if (isImageMsg) {
+        return renderImageMessage(item);
       } else {
         // 默认为文本消息
         return renderTextMessage(item as TextMessage);
@@ -868,6 +1221,57 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           </Text>
         </View>
         {renderMessageContent()}
+      </View>
+    );
+  };
+
+  // 渲染图片消息
+  const renderImageMessage = (item: ImageMessage) => {
+    const error = item.error;
+    const imageUri = item.imageUri;
+    const caption = item.caption;
+
+    if (error) {
+      return (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onLongPress={() => handleCopyMessage(caption || '')}
+          delayLongPress={500}
+        >
+          <>
+            <Text style={[
+              styles.messageText,
+              {color: colors.text},
+              error && {color: colors.error},
+            ]}>
+              {caption}
+            </Text>
+            <TouchableOpacity
+              style={[styles.configureButton, {backgroundColor: colors.primary}]}
+              onPress={handleConfigure}
+            >
+              <Text style={styles.configureButtonText}>检查配置</Text>
+            </TouchableOpacity>
+          </>
+        </TouchableOpacity>
+      );
+    }
+
+    // 显示图片预览
+    return (
+      <View style={styles.imageMessageContainer}>
+        <View style={[styles.imagePreviewWrapper, {backgroundColor: colors.card}]}>
+          <Image
+            source={{ uri: imageUri }}
+            style={styles.imagePreview}
+            resizeMode="cover"
+          />
+        </View>
+        {caption && caption.trim() !== '' && (
+          <Text style={[styles.messageText, {color: colors.text, marginTop: 8}]}>
+            {caption}
+          </Text>
+        )}
       </View>
     );
   };
@@ -902,7 +1306,6 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       );
     }
 
-    // Use MarkdownRenderer for non-error messages
     return (
       <TouchableOpacity
         activeOpacity={0.7}
@@ -937,6 +1340,10 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
   const isAIMessage = (msg: BaseMessage): msg is AIMessage => {
     return (msg as AIMessage).type === 'ai';
+  };
+
+  const isImageMessage = (msg: BaseMessage): msg is ImageMessage => {
+    return (msg as ImageMessage).type === 'image';
   };
 
   // 渲染AI复合消息 - 按顺序循环渲染messageList中的消息
@@ -1002,6 +1409,24 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
               const statusIcon = getToolCallStatusIcon();
 
+              // 检查是否为OCR识别工具
+              const isOCRRecognize = toolCallMsg.toolName === 'ocr_recognize';
+              let imageUri: string | null = null;
+
+              if (isOCRRecognize && toolCallMsg.arguments) {
+                try {
+                  // 尝试从参数中提取imageUri
+                  const args = typeof toolCallMsg.arguments === 'string'
+                    ? JSON.parse(toolCallMsg.arguments)
+                    : toolCallMsg.arguments;
+                  if (args && args.imageUri) {
+                    imageUri = args.imageUri;
+                  }
+                } catch (error) {
+                  console.log('解析OCR参数失败:', error);
+                }
+              }
+
               return (
                 <View key={msg.id} style={styles.aiSection}>
                   <View style={styles.aiSectionHeader}>
@@ -1024,6 +1449,27 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                           {statusIcon} {toolCallMsg.toolName}
                         </Text>
                       </View>
+
+                      {/* OCR识别工具的特殊显示 */}
+                      {isOCRRecognize && imageUri && (
+                        <View style={styles.ocrPreviewContainer}>
+                          <Text style={[styles.ocrPreviewTitle, {color: colors.secondaryText}]}>
+                            小票图片预览:
+                          </Text>
+                          <View style={[styles.imagePreviewWrapper, {backgroundColor: colors.card}]}>
+                            <Image
+                              source={{ uri: imageUri }}
+                              style={styles.imagePreview}
+                              resizeMode="cover"
+                            />
+                            {/* 扫描动画 */}
+                            <OCRScanAnimation
+                              isActive={toolCallMsg.loading || false}
+                              containerStyle={styles.ocrAnimationOverlay}
+                            />
+                          </View>
+                        </View>
+                      )}
 
                       {/* 参数 */}
                       {toolCallMsg.arguments && (
@@ -1351,16 +1797,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           </View>
 
           <View style={styles.headerActions}>
-            {/* 清除按钮 */}
-            <TouchableOpacity
-              style={[styles.headerButton, {backgroundColor: colors.warning}]}
-              onPress={handleClearChat}
-              disabled={messages.length <= 1}
-            >
-              <Text style={styles.headerButtonText}>🗑️ 清除</Text>
-            </TouchableOpacity>
-
-            {/* 终止按钮 */}
+            {/* 只保留终止按钮 */}
             {isProcessing && (
               <TouchableOpacity
                 style={[styles.headerButton, {backgroundColor: colors.error}]}
@@ -1391,7 +1828,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           keyExtractor={item => item.id}
           contentContainerStyle={[
             styles.messagesList,
-            { paddingBottom: Platform.select({ios: 150, android: 130}) },
+            { paddingBottom: Platform.select({ios: 200, android: 180}) }, // 增加paddingBottom，为悬浮栏留出空间
           ]}
           onScroll={(event) => {
             // 如果正在滚动到底部，不更新 isAtBottom 状态
@@ -1436,6 +1873,33 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
           scrollEventThrottle={16}
         />
+
+        {/* 悬浮按钮栏 */}
+        <View style={[styles.floatingActionBar]}>
+          <TouchableOpacity
+            style={[styles.floatingActionButton, {backgroundColor: colors.success}]}
+            onPress={handleTakePhotoForAccounting}
+            disabled={isSelectingImage || isProcessing}
+          >
+            <Text style={styles.floatingActionButtonText}>📷 拍摄小票记账</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.floatingActionButton, {backgroundColor: colors.primary}]}
+            onPress={handleSelectImageForAccounting}
+            disabled={isSelectingImage || isProcessing}
+          >
+            <Text style={styles.floatingActionButtonText}>🖼️ 上传小票记账</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.floatingActionButton, {backgroundColor: colors.warning}]}
+            onPress={handleClearChat}
+            disabled={messages.length <= 1}
+          >
+            <Text style={styles.floatingActionButtonText}>🗑️ 清除记录</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* 输入区域 */}
         <View style={[styles.inputContainer, {backgroundColor: colors.card, borderTopColor: colors.border}]}>
@@ -1552,15 +2016,18 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
   },
   headerButton: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 60,
+    marginBottom: 4,
   },
   headerButtonText: {
     color: '#fff',
@@ -1737,6 +2204,9 @@ const styles = StyleSheet.create({
   toolResultMessage: {
     borderLeftWidth: 3,
     borderLeftColor: '#66BB6A',
+  },
+  imageMessage: {
+    // 可以添加特定的图片消息样式
   },
   aiMessageContainer: {
     width: '100%',
@@ -1915,9 +2385,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  floatingActionBar: {
+    position: 'absolute',
+    bottom: 110, // 在输入框上方
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    padding: 8,
+    zIndex: 10,
+  },
+  floatingActionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+  },
+  floatingActionButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   inputContainer: {
     padding: 8,
     borderTopWidth: 1,
+    // marginBottom: 60, // 为悬浮栏留出空间
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -1982,6 +2478,98 @@ const styles = StyleSheet.create({
   },
   markdownContainer: {
     marginTop: 4,
+  },
+  // 图片消息容器
+  imageMessageContainer: {
+    width: '100%',
+  },
+  imageSourceBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  imageSourceText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  imageHintText: {
+    fontSize: 12,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  // OCR相关样式
+  ocrPreviewContainer: {
+    marginBottom: 12,
+  },
+  ocrPreviewTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  imagePreviewWrapper: {
+    width: 200,
+    height: 200,
+    borderRadius: 8,
+    marginVertical: 8,
+    marginHorizontal: 0,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+  },
+  ocrAnimationContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  ocrAnimationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  scanLine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: '#4CAF50',
+    shadowColor: '#4CAF50',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  glowEffect: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+  },
+  scanningText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
 });
 
