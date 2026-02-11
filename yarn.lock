@@ -1577,13 +1577,6 @@
     prompts "^2.4.2"
     semver "^7.5.2"
 
-"@react-native-community/datetimepicker@^8.3.0":
-  version "8.3.0"
-  resolved "https://registry.npmmirror.com/@react-native-community/datetimepicker/-/datetimepicker-8.3.0.tgz"
-  integrity sha512-K/KgaJbLtjMpx4PaG4efrVIcSe6+DbLufeX1lwPB5YY8i3sq9dOh6WcAcMTLbaRTUpurebQTkl7puHPFm9GalA==
-  dependencies:
-    invariant "^2.2.4"
-
 "@react-native-picker/picker@^2.11.0":
   version "2.11.0"
   resolved "https://registry.npmmirror.com/@react-native-picker/picker/-/picker-2.11.0.tgz"
@@ -3051,6 +3044,11 @@ data-view-byte-offset@^1.0.1:
     call-bound "^1.0.2"
     es-errors "^1.3.0"
     is-data-view "^1.0.1"
+
+dayjs@^1.11.12:
+  version "1.11.19"
+  resolved "https://registry.npmmirror.com/dayjs/-/dayjs-1.11.19.tgz#15dc98e854bb43917f12021806af897c58ae2938"
+  integrity sha512-t5EcLVS6QPBNqM2z8fakk/NKel+Xzshgt8FFKAn+qwlD1pzZWxh0nVCrvFK7ZDb6XucZeF9z8C7CBWTRIVApAw==
 
 dayjs@^1.8.15:
   version "1.11.13"
@@ -5930,6 +5928,13 @@ react-native-calendars@^1.1310.0:
     xdate "^0.8.0"
   optionalDependencies:
     moment "^2.29.4"
+
+react-native-dates-picker@^0.2.4:
+  version "0.2.4"
+  resolved "https://registry.npmmirror.com/react-native-dates-picker/-/react-native-dates-picker-0.2.4.tgz#59257e4be5072565c1b4190eb97965cfbef88597"
+  integrity sha512-zKNri33Ci8ozvWuZW9ErlYcrs66CUy3ZyVvLqqaYz9quE+sRyu2AMouLl1LQrwq4Fsk0hUjoSDuK2PPc0zUE/g==
+  dependencies:
+    dayjs "^1.11.12"
 
 react-native-device-info@^14.0.4:
   version "14.0.4"

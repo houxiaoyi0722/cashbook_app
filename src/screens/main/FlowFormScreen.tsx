@@ -3,7 +3,6 @@ import { View, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacit
 import { Text, Card, Button, Input, ButtonGroup, Divider, Icon, Overlay } from '@rneui/themed';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { MainStackParamList } from '../../navigation/types';
 import api from '../../services/api';
 import {useBookkeeping} from '../../context/BookkeepingContext.tsx';
@@ -16,6 +15,8 @@ import ImageCacheService from '../../services/ImageCacheService';
 import { useTheme, getColors } from '../../context/ThemeContext';
 import LocalCacheService from '../../services/LocalCacheService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker, {DateType} from 'react-native-dates-picker';
+
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 type RouteProps = RouteProp<MainStackParamList, 'FlowForm'>;
@@ -410,10 +411,10 @@ const FlowFormScreen: React.FC = () => {
   };
 
   // 处理日期变更
-  const handleDateChange = (event: any, selectedDate?: Date) => {
+  const handleDateChange = (selectedDate: DateType) => {
     setShowDatePicker(false);
     if (selectedDate) {
-      setFlowDate(selectedDate);
+      setFlowDate(dayjs(selectedDate).toDate());
     }
   };
 
@@ -998,11 +999,11 @@ const FlowFormScreen: React.FC = () => {
 
               {showDatePicker && (
                 <DateTimePicker
-                  value={flowDate}
-                  mode="date"
-                  display="default"
-                  onChange={handleDateChange}
-                  maximumDate={new Date()}
+                  mode="single"
+                  date={flowDate}
+                  maxDate={new Date()}
+                  onChange={({date}) => handleDateChange(date)}
+                  format={'YYYY/MM/DD'}
                 />
               )}
 
