@@ -1837,7 +1837,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           keyExtractor={item => item.id}
           contentContainerStyle={[
             styles.messagesList,
-            { paddingBottom: Platform.select({ios: 200, android: 180}) }, // 增加paddingBottom，为悬浮栏留出空间
+            { paddingBottom: Platform.select({ios: 140, android: 120}) }, // 增加paddingBottom，为浮动操作栏和输入框留出空间
           ]}
           onScroll={(event) => {
             // 如果正在滚动到底部，不更新 isAtBottom 状态
@@ -2149,14 +2149,13 @@ const styles = StyleSheet.create({
   },
   scrollToBottomButton: {
     position: 'absolute',
-    bottom: 170, // 调整到输入框上方，避免与发送按钮重叠
-    right: 12, // 从20减少到12，使按钮更贴右侧
-    width: 50, // 从60减少到50
-    height: 50, // 从60减少到50
-    borderRadius: 25, // 从30减少到25
+    bottom: 150, // 调整位置，因为输入容器现在包含浮动操作栏
+    right: 12,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
-    // 移除阴影效果，参考账本列表页面的customFab样式
     shadowColor: 'transparent',
     shadowOffset: {
       width: 0,
@@ -2395,34 +2394,34 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   floatingActionBar: {
-    position: 'absolute',
-    bottom: 110, // 在输入框上方
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    padding: 8,
-    zIndex: 10,
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 4,
+    marginBottom: 8,
+    position: 'relative',
   },
   floatingActionButton: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingVertical: 6,
+    borderRadius: 16,
     marginHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 80,
+    minWidth: 60,
   },
   floatingActionButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   inputContainer: {
-    padding: 8,
+    paddingTop: 4,
+    paddingHorizontal: 8,
+    paddingBottom: 16,
     borderTopWidth: 1,
-    // marginBottom: 60, // 为悬浮栏留出空间
   },
   inputWrapper: {
     flexDirection: 'row',
