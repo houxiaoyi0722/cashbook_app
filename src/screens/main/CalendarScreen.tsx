@@ -332,6 +332,8 @@ const CalendarScreen: React.FC = () => {
   const [currentInvoiceList, setCurrentInvoiceList] = useState<string[]>([]);
   const [showInvoiceViewer, setShowInvoiceViewer] = useState(false);
   const [uplaoding, setUploading] = useState(false);
+  // 上传小票的图片来源选择弹窗状态
+  const [showInvoiceUploadModal, setShowInvoiceUploadModal] = useState<boolean>(false);
 
   // OCR启用状态
   const [ocrEnabled, setOcrEnabled] = useState(false);
@@ -1959,31 +1961,38 @@ const CalendarScreen: React.FC = () => {
     }
   }, [currentUserInfo, navigation, selectedDate]);
 
-  // 渲染图片来源选择弹窗
-  const renderImageSourceModal = () => {
+  // 通用的图片来源选择弹窗组件
+  const renderImageSourceSelector = (
+    visible: boolean,
+    onClose: () => void,
+    title: string,
+    description: string,
+    onTakePhoto: () => void,
+    onSelectFromLibrary: () => void
+  ) => {
     return (
       <Overlay
-        isVisible={showImageSourceModal}
-        onBackdropPress={() => setShowImageSourceModal(false)}
+        isVisible={visible}
+        onBackdropPress={onClose}
         overlayStyle={[styles.imageSourceOverlay, { backgroundColor: colors.dialog }]}
       >
         <View style={styles.imageSourceContainer}>
           <View style={styles.imageSourceHeader}>
-            <Text style={[styles.imageSourceTitle, { color: colors.text }]}>选择图片来源</Text>
-            <TouchableOpacity onPress={() => setShowImageSourceModal(false)}>
+            <Text style={[styles.imageSourceTitle, { color: colors.text }]}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
               <Icon name="close" type="material" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
 
           <Text style={[styles.imageSourceDescription, { color: colors.secondaryText }]}>
-            请选择图片来源进行OCR识别
+            {description}
           </Text>
 
           <View style={styles.imageSourceButtons}>
             {/* 拍照按钮 */}
             <TouchableOpacity
               style={[styles.imageSourceButton, { backgroundColor: colors.card }]}
-              onPress={handleTakePhoto}
+              onPress={onTakePhoto}
             >
               <Icon name="camera-alt" type="material" size={32} color={colors.primary} />
               <Text style={[styles.imageSourceButtonText, { color: colors.text }]}>拍照</Text>
@@ -1992,7 +2001,7 @@ const CalendarScreen: React.FC = () => {
             {/* 从相册选择按钮 */}
             <TouchableOpacity
               style={[styles.imageSourceButton, { backgroundColor: colors.card }]}
-              onPress={handleSelectFromLibrary}
+              onPress={onSelectFromLibrary}
             >
               <Icon name="photo-library" type="material" size={32} color={colors.primary} />
               <Text style={[styles.imageSourceButtonText, { color: colors.text }]}>从相册选择</Text>
@@ -2002,12 +2011,42 @@ const CalendarScreen: React.FC = () => {
           {/* 取消按钮 */}
           <TouchableOpacity
             style={[styles.imageSourceCancelButton, { backgroundColor: colors.input }]}
-            onPress={() => setShowImageSourceModal(false)}
+            onPress={onClose}
           >
             <Text style={[styles.imageSourceCancelButtonText, { color: colors.text }]}>取消</Text>
           </TouchableOpacity>
         </View>
       </Overlay>
+    );
+  };
+
+  // 渲染图片来源选择弹窗 - 现在使用通用组件
+  const renderImageSourceModal = () => {
+    return renderImageSourceSelector(
+      showImageSourceModal,
+      () => setShowImageSourceModal(false),
+      '小票识别',
+      '请选择图片来源进行识别',
+      handleTakePhoto,
+      handleSelectFromLibrary
+    );
+  };
+
+  // 渲染上传小票的图片来源选择弹窗
+  const renderInvoiceUploadModal = () => {
+    return renderImageSourceSelector(
+      showInvoiceUploadModal,
+      () => {
+        setShowInvoiceUploadModal(false);
+        // 关闭滑动选项
+        if (currentFlow) {
+          swipeableRefs.current[currentFlow.id]?.close();
+        }
+      },
+      '上传小票图片',
+      '请选择图片来源',
+      handleTakePhotoForInvoice,
+      handleSelectFromLibraryForInvoice
     );
   };
 
@@ -2041,29 +2080,62 @@ const CalendarScreen: React.FC = () => {
   // 处理小票上传
   const handleInvoiceUpload = async (flow: Flow) => {
     setCurrentFlow(flow);
-
-    Alert.alert(
-      '上传小票图片',
-      '请选择图片来源',
-      [
-        {
-          text: '拍照',
-          onPress: () => launchCamera(flow),
-        },
-        {
-          text: '从相册选择',
-          onPress: () => launchImageLibrary(flow),
-        },
-        {
-          text: '取消',
-          style: 'cancel',
-        },
-      ],
-      { cancelable: true }
-    );
+    setShowInvoiceUploadModal(true);
   };
 
-  // 启动相机
+  // 处理拍照上传小票
+  const handleTakePhotoForInvoice = useCallback(async () => {
+    if (!currentFlow) {return;}
+    setShowInvoiceUploadModal(false);
+    try {
+      const result = await ImagePicker.launchCamera({
+        mediaType: 'photo',
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.8,
+      });
+
+      if (result.assets && result.assets.length > 0) {
+        uploadImage(currentFlow, result.assets[0]);
+      } else {
+        // 关闭滑动选项
+        swipeableRefs.current[currentFlow.id]?.close();
+      }
+    } catch (error) {
+      console.error('相机启动失败', error);
+      Alert.alert('错误', '无法启动相机');
+      // 关闭滑动选项
+      swipeableRefs.current[currentFlow.id]?.close();
+    }
+  }, [currentFlow]);
+
+  // 处理从相册选择上传小票
+  const handleSelectFromLibraryForInvoice = useCallback(async () => {
+    if (!currentFlow) {return;}
+    setShowInvoiceUploadModal(false);
+    try {
+      const result = await ImagePicker.launchImageLibrary({
+        mediaType: 'photo',
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.8,
+      });
+
+      if (result.assets && result.assets.length > 0) {
+        uploadImage(currentFlow, result.assets[0]);
+      } else {
+        // 关闭滑动选项
+        swipeableRefs.current[currentFlow.id]?.close();
+      }
+    } catch (error) {
+      console.error('图片库启动失败', error);
+      Alert.alert('错误', '无法打开图片库');
+      // 关闭滑动选项
+      swipeableRefs.current[currentFlow.id]?.close();
+    }
+  }, [currentFlow]);
+
+  // 启动相机（保留原有函数供其他部分使用）
   const launchCamera = async (flow: Flow) => {
     try {
       const result = await ImagePicker.launchCamera({
@@ -2087,7 +2159,7 @@ const CalendarScreen: React.FC = () => {
     }
   };
 
-  // 启动图片库
+  // 启动图片库（保留原有函数供其他部分使用）
   const launchImageLibrary = async (flow: Flow) => {
     try {
       const result = await ImagePicker.launchImageLibrary({
@@ -2358,6 +2430,7 @@ const CalendarScreen: React.FC = () => {
         {renderInvoiceViewer()}
         {renderOCRModal()}
         {renderImageSourceModal()}
+        {renderInvoiceUploadModal()}
       </View>
     </SafeAreaView>
   );
