@@ -61,11 +61,13 @@ const OCRScanAnimation: React.FC<OCRScanAnimationProps> = ({
   isActive,
 }) => {
   const scanLineAnim = useRef(new Animated.Value(0)).current;
+  const sweepAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (!isActive) {
       scanLineAnim.setValue(0);
+      sweepAnim.setValue(0);
       opacityAnim.setValue(1);
       return;
     }
@@ -79,6 +81,22 @@ const OCRScanAnimation: React.FC<OCRScanAnimationProps> = ({
           useNativeDriver: true,
         }),
         Animated.timing(scanLineAnim, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    // 扫光层 - 从上往下移动
+    const sweepAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sweepAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sweepAnim, {
           toValue: 0,
           duration: 0,
           useNativeDriver: true,
@@ -103,13 +121,15 @@ const OCRScanAnimation: React.FC<OCRScanAnimationProps> = ({
     );
 
     scanAnimation.start();
+    sweepAnimation.start();
     glowAnimation.start();
 
     return () => {
       scanAnimation.stop();
+      sweepAnimation.stop();
       glowAnimation.stop();
     };
-  }, [isActive, scanLineAnim, opacityAnim]);
+  }, [isActive, scanLineAnim, sweepAnim, opacityAnim]);
 
   if (!isActive) {
     return null;
@@ -117,6 +137,12 @@ const OCRScanAnimation: React.FC<OCRScanAnimationProps> = ({
 
   // 扫描线位置
   const translateY = scanLineAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, imageHeight],
+  });
+
+  // 扫光层位置 - 从上往下移动
+  const sweepTranslateY = sweepAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, imageHeight],
   });
@@ -136,7 +162,76 @@ const OCRScanAnimation: React.FC<OCRScanAnimationProps> = ({
         }}
       />
 
-      {/* 扫描线 */}
+      {/* 扫光层 - 使用5层透明度不同的层实现平滑渐变 */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: -imageHeight * 0.15 / 2, // 初始位置向上偏移一半高度，使中心点对齐
+          left: 0,
+          width: imageWidth,
+          height: imageHeight * 0.15, // 扫光层高度为图片高度的15%
+          transform: [{ translateY: sweepTranslateY }],
+          overflow: 'hidden',
+        }}
+      >
+        {/* 第1层：完全透明 (0%) */}
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '20%',
+            backgroundColor: 'rgba(255, 255, 255, 0)',
+          }}
+        />
+        {/* 第2层：轻微透明 (20%) */}
+        <View
+          style={{
+            position: 'absolute',
+            top: '20%',
+            left: 0,
+            right: 0,
+            height: '20%',
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+          }}
+        />
+        {/* 第3层：中心最亮 (40%) */}
+        <View
+          style={{
+            position: 'absolute',
+            top: '40%',
+            left: 0,
+            right: 0,
+            height: '20%',
+            backgroundColor: 'rgba(255, 255, 255, 0.4)',
+          }}
+        />
+        {/* 第4层：轻微透明 (20%) */}
+        <View
+          style={{
+            position: 'absolute',
+            top: '60%',
+            left: 0,
+            right: 0,
+            height: '20%',
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+          }}
+        />
+        {/* 第5层：完全透明 (0%) */}
+        <View
+          style={{
+            position: 'absolute',
+            top: '80%',
+            left: 0,
+            right: 0,
+            height: '20%',
+            backgroundColor: 'rgba(255, 255, 255, 0)',
+          }}
+        />
+      </Animated.View>
+
+      {/* 扫描线 - 改为白色 */}
       <Animated.View
         style={{
           position: 'absolute',
@@ -144,38 +239,27 @@ const OCRScanAnimation: React.FC<OCRScanAnimationProps> = ({
           left: 0,
           right: 0,
           height: 2,
-          backgroundColor: 'rgba(25, 118, 210, 0.8)',
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
           transform: [{ translateY }],
-          shadowColor: '#1976d2',
+          shadowColor: '#ffffff',
           shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.8,
+          shadowOpacity: 0.9,
           shadowRadius: 10,
           elevation: 5,
         }}
       >
-        {/* 扫描线渐变效果 */}
+        {/* 扫描线发光效果 */}
         <View
           style={{
             position: 'absolute',
-            top: -10,
+            top: -5,
             left: 0,
             right: 0,
-            height: 20,
+            height: 12,
+            backgroundColor: 'rgba(255, 255, 255, 0.3)',
+            borderRadius: 6,
           }}
-        >
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: 'transparent',
-              borderTopWidth: 10,
-              borderTopColor: 'transparent',
-              borderBottomWidth: 10,
-              borderBottomColor: 'transparent',
-              borderLeftWidth: 0,
-              borderRightWidth: 0,
-            }}
-          />
-        </View>
+        />
       </Animated.View>
     </View>
   );
@@ -214,7 +298,12 @@ const CalendarScreen: React.FC = () => {
   const [ocrImageUri, setOcrImageUri] = useState<string | null | undefined>(null);
   const [isOCRProcessing, setIsOCRProcessing] = useState<boolean>(false);
   const [ocrProcessingMessage, setOcrProcessingMessage] = useState<string>('');
-  const [ocrCancelled, setOcrCancelled] = useState<boolean>(false);
+  // 使用ref来跟踪取消状态，因为状态更新是异步的
+  const ocrCancelledRef = useRef<boolean>(false);
+  // 图片来源选择弹窗状态
+  const [showImageSourceModal, setShowImageSourceModal] = useState<boolean>(false);
+  // 当前用户信息，用于OCR识别
+  const [currentUserInfo, setCurrentUserInfo] = useState<UserInfo | null>(null);
 
   // 使用 useRef 存储状态
   const dailyDataRef = useRef<DailyData>({});
@@ -556,150 +645,11 @@ const CalendarScreen: React.FC = () => {
 
   // 处理小票OCR记账
   const handleReceiptOCR = useCallback(async (userInfo: UserInfo | null) => {
-    // 重置取消状态
-    setOcrCancelled(false);
-
-    // 显示选项让用户选择拍照或从相册选择
-    Alert.alert(
-      '选择图片来源',
-      '请选择图片来源进行OCR识别',
-      [
-        {
-          text: '拍照',
-          onPress: async () => {
-            try {
-              // 先使用ImagePicker拍照
-              const result = await ImagePicker.launchCamera({
-                mediaType: 'photo',
-                maxWidth: 1200,
-                maxHeight: 1200,
-                quality: 0.8,
-              });
-
-              if (result.assets && result.assets.length > 0) {
-                const imageUri = result.assets[0].uri;
-                // 设置OCR弹窗状态并显示图片预览
-                setOcrImageUri(imageUri);
-                setShowOCRModal(true);
-                setIsOCRProcessing(true);
-                setOcrProcessingMessage('正在识别中...');
-
-                // 调用OCRService的recognizeTextFromImage方法进行识别
-                const ocrResult = await OCRService.getInstance().recognizeTextFromImage(imageUri!, userInfo);
-
-                // 识别完成后关闭弹窗
-                setShowOCRModal(false);
-                setIsOCRProcessing(false);
-
-                // 检查是否被取消
-                if (ocrCancelled) {
-                  return;
-                }
-
-                if (ocrResult && ocrResult.flow) {
-                  // 识别成功，导航到流水表单页面，传递OCR结果
-                  navigation.navigate('FlowForm', {
-                    date: selectedDate,
-                    ocrResult: ocrResult,
-                  });
-                } else {
-                  Alert.alert('提示', '未能识别到有效的小票信息，请手动输入');
-                }
-              } else {
-                // 用户取消了拍照
-                return;
-              }
-            } catch (error) {
-              console.error('小票识别失败:', error);
-              // 关闭弹窗
-              setShowOCRModal(false);
-              setIsOCRProcessing(false);
-
-              // 如果用户取消了拍照，不显示错误提示
-              if (error !== 'USER_CANCELED' && (error as any)?.code !== 'E_PICKER_CANCELLED') {
-                Alert.alert('错误', `小票识别失败，请重试或手动输入 ${error}`);
-              }
-            } finally {
-              // 确保状态被正确重置
-              if (!ocrCancelled) {
-                setShowOCRModal(false);
-                setIsOCRProcessing(false);
-              }
-            }
-          },
-        },
-        {
-          text: '从相册选择',
-          onPress: async () => {
-            try {
-              // 先使用ImagePicker从相册选择
-              const result = await ImagePicker.launchImageLibrary({
-                mediaType: 'photo',
-                maxWidth: 1200,
-                maxHeight: 1200,
-                quality: 0.8,
-              });
-
-              if (result.assets && result.assets.length > 0) {
-                const imageUri = result.assets[0].uri;
-                // 设置OCR弹窗状态并显示图片预览
-                setOcrImageUri(imageUri);
-                setShowOCRModal(true);
-                setIsOCRProcessing(true);
-                setOcrProcessingMessage('正在识别中...');
-
-                // 调用OCRService的recognizeTextFromImage方法进行识别
-                const ocrResult = await OCRService.getInstance().recognizeTextFromImage(imageUri!, userInfo);
-
-                // 识别完成后关闭弹窗
-                setShowOCRModal(false);
-                setIsOCRProcessing(false);
-
-                // 检查是否被取消
-                if (ocrCancelled) {
-                  return;
-                }
-
-                if (ocrResult && ocrResult.flow) {
-                  // 识别成功，导航到流水表单页面，传递OCR结果
-                  navigation.navigate('FlowForm', {
-                    date: selectedDate,
-                    ocrResult: ocrResult,
-                  });
-                } else {
-                  Alert.alert('提示', '未能识别到有效的小票信息，请手动输入');
-                }
-              } else {
-                // 用户取消了选择
-                return;
-              }
-            } catch (error) {
-              console.error('小票识别失败:', error);
-              // 关闭弹窗
-              setShowOCRModal(false);
-              setIsOCRProcessing(false);
-
-              // 如果用户取消了选择，不显示错误提示
-              if (error !== 'USER_CANCELED' && (error as any)?.code !== 'E_PICKER_CANCELLED') {
-                Alert.alert('错误', `小票识别失败，请重试或手动输入 ${error}`);
-              }
-            } finally {
-              // 确保状态被正确重置
-              if (!ocrCancelled) {
-                setShowOCRModal(false);
-                setIsOCRProcessing(false);
-              }
-            }
-          },
-        },
-        {
-          text: '取消',
-          style: 'cancel',
-        },
-      ],
-      { cancelable: true }
-    );
-  }, [navigation, selectedDate, ocrCancelled]);
+    // 保存userInfo到状态中，以便在弹窗中使用
+    setCurrentUserInfo(userInfo);
+    // 显示自定义图片来源选择弹窗
+    setShowImageSourceModal(true);
+  }, []);
   // 日卡片组件 - 使用 React.memo 避免不必要的重新渲染
   const DayCard = React.memo(({
     selectedDate,
@@ -1857,7 +1807,8 @@ const CalendarScreen: React.FC = () => {
             <TouchableOpacity
               style={[styles.ocrCancelButton, { backgroundColor: colors.input }]}
               onPress={() => {
-                setOcrCancelled(true);
+                // 同时更新状态和ref
+                ocrCancelledRef.current = true;
                 setShowOCRModal(false);
                 setIsOCRProcessing(false);
               }}
@@ -1865,6 +1816,196 @@ const CalendarScreen: React.FC = () => {
               <Text style={[styles.ocrCancelButtonText, { color: colors.text }]}>取消识别</Text>
             </TouchableOpacity>
           )}
+        </View>
+      </Overlay>
+    );
+  };
+
+  // 拍照处理函数
+  const handleTakePhoto = useCallback(async () => {
+    setShowImageSourceModal(false);
+    // 重置取消状态
+    ocrCancelledRef.current = false;
+
+    try {
+      // 先使用ImagePicker拍照
+      const result = await ImagePicker.launchCamera({
+        mediaType: 'photo',
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.8,
+      });
+
+      if (result.assets && result.assets.length > 0) {
+        const imageUri = result.assets[0].uri;
+        // 设置OCR弹窗状态并显示图片预览
+        setOcrImageUri(imageUri);
+        setShowOCRModal(true);
+        setIsOCRProcessing(true);
+        setOcrProcessingMessage('正在识别中...');
+
+        // 调用OCRService的recognizeTextFromImage方法进行识别
+        const ocrResult = await OCRService.getInstance().recognizeTextFromImage(imageUri!, currentUserInfo);
+
+        // 识别完成后关闭弹窗
+        setShowOCRModal(false);
+        setIsOCRProcessing(false);
+
+        // 检查是否被取消（使用ref而不是状态，因为状态更新是异步的）
+        if (ocrCancelledRef.current) {
+          return;
+        }
+
+        if (ocrResult && ocrResult.flow) {
+          // 识别成功，导航到流水表单页面，传递OCR结果
+          navigation.navigate('FlowForm', {
+            date: selectedDate,
+            ocrResult: ocrResult,
+          });
+        } else {
+          Alert.alert('提示', '未能识别到有效的小票信息，请手动输入');
+        }
+      } else {
+        // 用户取消了拍照
+        return;
+      }
+    } catch (error) {
+      console.error('小票识别失败:', error);
+      // 关闭弹窗
+      setShowOCRModal(false);
+      setIsOCRProcessing(false);
+
+      // 如果用户取消了拍照，不显示错误提示
+      if (error !== 'USER_CANCELED' && (error as any)?.code !== 'E_PICKER_CANCELLED') {
+        Alert.alert('错误', `小票识别失败，请重试或手动输入 ${error}`);
+      }
+    } finally {
+      // 确保状态被正确重置
+      if (!ocrCancelledRef.current) {
+        setShowOCRModal(false);
+        setIsOCRProcessing(false);
+      }
+      // 重置取消状态
+      ocrCancelledRef.current = false;
+    }
+  }, [currentUserInfo, navigation, selectedDate]);
+
+  // 从相册选择处理函数
+  const handleSelectFromLibrary = useCallback(async () => {
+    setShowImageSourceModal(false);
+    // 重置取消状态
+    ocrCancelledRef.current = false;
+
+    try {
+      // 先使用ImagePicker从相册选择
+      const result = await ImagePicker.launchImageLibrary({
+        mediaType: 'photo',
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.8,
+      });
+
+      if (result.assets && result.assets.length > 0) {
+        const imageUri = result.assets[0].uri;
+        // 设置OCR弹窗状态并显示图片预览
+        setOcrImageUri(imageUri);
+        setShowOCRModal(true);
+        setIsOCRProcessing(true);
+        setOcrProcessingMessage('正在识别中...');
+
+        // 调用OCRService的recognizeTextFromImage方法进行识别
+        const ocrResult = await OCRService.getInstance().recognizeTextFromImage(imageUri!, currentUserInfo);
+
+        // 识别完成后关闭弹窗
+        setShowOCRModal(false);
+        setIsOCRProcessing(false);
+
+        // 检查是否被取消（使用ref而不是状态，因为状态更新是异步的）
+        if (ocrCancelledRef.current) {
+          return;
+        }
+
+        if (ocrResult && ocrResult.flow) {
+          // 识别成功，导航到流水表单页面，传递OCR结果
+          navigation.navigate('FlowForm', {
+            date: selectedDate,
+            ocrResult: ocrResult,
+          });
+        } else {
+          Alert.alert('提示', '未能识别到有效的小票信息，请手动输入');
+        }
+      } else {
+        // 用户取消了选择
+        return;
+      }
+    } catch (error) {
+      console.error('小票识别失败:', error);
+      // 关闭弹窗
+      setShowOCRModal(false);
+      setIsOCRProcessing(false);
+
+      // 如果用户取消了选择，不显示错误提示
+      if (error !== 'USER_CANCELED' && (error as any)?.code !== 'E_PICKER_CANCELLED') {
+        Alert.alert('错误', `小票识别失败，请重试或手动输入 ${error}`);
+      }
+    } finally {
+      // 确保状态被正确重置
+      if (!ocrCancelledRef.current) {
+        setShowOCRModal(false);
+        setIsOCRProcessing(false);
+      }
+      // 重置取消状态
+      ocrCancelledRef.current = false;
+    }
+  }, [currentUserInfo, navigation, selectedDate]);
+
+  // 渲染图片来源选择弹窗
+  const renderImageSourceModal = () => {
+    return (
+      <Overlay
+        isVisible={showImageSourceModal}
+        onBackdropPress={() => setShowImageSourceModal(false)}
+        overlayStyle={[styles.imageSourceOverlay, { backgroundColor: colors.dialog }]}
+      >
+        <View style={styles.imageSourceContainer}>
+          <View style={styles.imageSourceHeader}>
+            <Text style={[styles.imageSourceTitle, { color: colors.text }]}>选择图片来源</Text>
+            <TouchableOpacity onPress={() => setShowImageSourceModal(false)}>
+              <Icon name="close" type="material" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.imageSourceDescription, { color: colors.secondaryText }]}>
+            请选择图片来源进行OCR识别
+          </Text>
+
+          <View style={styles.imageSourceButtons}>
+            {/* 拍照按钮 */}
+            <TouchableOpacity
+              style={[styles.imageSourceButton, { backgroundColor: colors.card }]}
+              onPress={handleTakePhoto}
+            >
+              <Icon name="camera-alt" type="material" size={32} color={colors.primary} />
+              <Text style={[styles.imageSourceButtonText, { color: colors.text }]}>拍照</Text>
+            </TouchableOpacity>
+
+            {/* 从相册选择按钮 */}
+            <TouchableOpacity
+              style={[styles.imageSourceButton, { backgroundColor: colors.card }]}
+              onPress={handleSelectFromLibrary}
+            >
+              <Icon name="photo-library" type="material" size={32} color={colors.primary} />
+              <Text style={[styles.imageSourceButtonText, { color: colors.text }]}>从相册选择</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 取消按钮 */}
+          <TouchableOpacity
+            style={[styles.imageSourceCancelButton, { backgroundColor: colors.input }]}
+            onPress={() => setShowImageSourceModal(false)}
+          >
+            <Text style={[styles.imageSourceCancelButtonText, { color: colors.text }]}>取消</Text>
+          </TouchableOpacity>
         </View>
       </Overlay>
     );
@@ -2216,6 +2357,7 @@ const CalendarScreen: React.FC = () => {
         {renderBalanceModal()}
         {renderInvoiceViewer()}
         {renderOCRModal()}
+        {renderImageSourceModal()}
       </View>
     </SafeAreaView>
   );
@@ -3071,6 +3213,64 @@ const styles = StyleSheet.create({
   },
   ocrCancelButtonText: {
     fontSize: 14,
+    fontWeight: '500',
+  },
+  // 图片来源选择弹窗样式
+  imageSourceOverlay: {
+    width: '80%',
+    borderRadius: 10,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  imageSourceContainer: {
+    width: '100%',
+  },
+  imageSourceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  imageSourceTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  imageSourceDescription: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  imageSourceButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 16,
+  },
+  imageSourceButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 10,
+    width: 120,
+    height: 120,
+  },
+  imageSourceButtonText: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  imageSourceCancelButton: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingVertical: 12,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  imageSourceCancelButtonText: {
+    fontSize: 16,
     fontWeight: '500',
   },
 });
