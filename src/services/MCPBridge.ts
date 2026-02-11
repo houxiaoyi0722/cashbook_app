@@ -1712,7 +1712,7 @@ class MCPBridge {
     // OCR识别工具
     this.registerTool({
       name: 'ocr_recognize',
-      description: '识别小票图片中的文字信息并提取流水数据',
+      description: 'OCR识别小票图片中的文字信息并提取流水数据',
       inputSchema: {
         type: 'object',
         properties: {
@@ -1820,9 +1820,6 @@ class MCPBridge {
 
         const bookId = await this.getBookId(currentBook);
 
-        // 准备FormData
-        const formData = new FormData();
-
         // 根据imageUri的类型处理图片数据
         // 注意：在实际应用中，需要根据平台（React Native）处理图片URI
         // 这里假设imageUri是本地文件路径或base64数据
@@ -1832,13 +1829,9 @@ class MCPBridge {
           name: args.fileName || 'receipt.jpg',
         };
 
-        formData.append('file', imageData as any);
-        formData.append('flowId', args.flowId.toString());
-        formData.append('bookId', bookId);
-
         try {
           // 调用上传API
-          const response = await api.flow.uploadInvoice(args.flowId, bookId, formData);
+          const response = await api.flow.uploadInvoice(args.flowId, bookId, imageData);
 
           if (response.c === 200) {
             return {

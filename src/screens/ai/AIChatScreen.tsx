@@ -915,7 +915,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     if (!imageUri) {return;}
 
     // 创建用户消息
-    const userMessage = `请识别这张小票图片并帮我记账。图片地址：${imageUri}`;
+    const userMessage = `imageUri:${imageUri}`;
 
     // 生成唯一的消息ID
     const userMsgId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
