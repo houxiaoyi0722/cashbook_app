@@ -791,8 +791,6 @@ const CalendarScreen: React.FC = () => {
                               try {
                                 if (!currentBook) {return;}
                                 await api.flow.delete(item.id, currentBook.bookId);
-                                // 重新获取日期流水
-                                fetchDayDetail(selectedDate);
                                 // 刷新日历数据
                                 fetchCalendarFlows();
                               } catch (error) {
@@ -2134,54 +2132,6 @@ const CalendarScreen: React.FC = () => {
       swipeableRefs.current[currentFlow.id]?.close();
     }
   }, [currentFlow]);
-
-  // 启动相机（保留原有函数供其他部分使用）
-  const launchCamera = async (flow: Flow) => {
-    try {
-      const result = await ImagePicker.launchCamera({
-        mediaType: 'photo',
-        maxWidth: 1200,
-        maxHeight: 1200,
-        quality: 0.8,
-      });
-
-      if (result.assets && result.assets.length > 0) {
-        uploadImage(flow, result.assets[0]);
-      } else {
-        // 关闭滑动选项
-        swipeableRefs.current[flow.id]?.close();
-      }
-    } catch (error) {
-      console.error('相机启动失败', error);
-      Alert.alert('错误', '无法启动相机');
-      // 关闭滑动选项
-      swipeableRefs.current[flow.id]?.close();
-    }
-  };
-
-  // 启动图片库（保留原有函数供其他部分使用）
-  const launchImageLibrary = async (flow: Flow) => {
-    try {
-      const result = await ImagePicker.launchImageLibrary({
-        mediaType: 'photo',
-        maxWidth: 1200,
-        maxHeight: 1200,
-        quality: 0.8,
-      });
-
-      if (result.assets && result.assets.length > 0) {
-        uploadImage(flow, result.assets[0]);
-      } else {
-        // 关闭滑动选项
-        swipeableRefs.current[flow.id]?.close();
-      }
-    } catch (error) {
-      console.error('图片库启动失败', error);
-      Alert.alert('错误', '无法打开图片库');
-      // 关闭滑动选项
-      swipeableRefs.current[flow.id]?.close();
-    }
-  };
 
   // 上传图片
   const uploadImage = async (flow: Flow, image: ImagePicker.Asset) => {
