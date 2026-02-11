@@ -275,7 +275,7 @@ const AIConfigScreen: React.FC = () => {
 
           {/* 聊天模型选择 - 使用 DropDownPicker */}
           <View style={[styles.row, { marginBottom: 16, zIndex: 2000 }]}>
-            <Text style={[styles.rowLabel, { color: colors.text }]}>主模型配置</Text>
+            <Text style={[styles.rowLabel, { color: colors.text }]}>主模型配置(需FunctionCall)</Text>
             <View style={styles.dropdownContainer}>
               <DropDownPicker
                 open={chatModelOpen}
