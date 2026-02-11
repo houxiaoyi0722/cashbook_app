@@ -39,6 +39,7 @@ import {
   ToolCallMessage,
   ToolResultMessage,
 } from '../../types';
+import dayjs from "dayjs";
 
 // 配置状态缓存
 const DEFAULT_MESSAGE = '你好！我是你的记账助手，可以帮你：\n• 记录收支流水\n• 查询账单记录\n• 分析消费习惯\n• 平账于账本去重\n• 重新分类流水数据\n• 提供省钱建议\n• 其他app功能\n\n试试对我说："记一笔午餐支出50元" 或 "查看本月消费统计"';
@@ -235,6 +236,14 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                   loading: msgWithType.loading,
                 }
               );
+            case 'image':
+              const imageMessage = msg as ImageMessage;
+              // 确保messageList存在，如果不存在则使用空数组
+              return createImageMessage(imageMessage.imageUri, true, {
+                id: imageMessage.id,
+                timestamp: timestamp,
+                caption: imageMessage.caption,
+              });
             default:
               // 默认为文本消息
               return createTextMessage(
@@ -697,7 +706,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       };
 
       // 发送到AI服务，使用结构化消息回调
-       await aiService.sendMessage(userMessage, messageStreamCallback);
+       await aiService.sendMessage(createTextMessage(userMessage,true), messageStreamCallback);
 
       // 检查是否应该忽略响应（用户点击了终止按钮）
       if (shouldIgnoreResponseRef.current) {
@@ -914,9 +923,6 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   const sendImageForAccounting = useCallback(async (imageUri: string) => {
     if (!imageUri) {return;}
 
-    // 创建用户消息
-    const userMessage = `imageUri:${imageUri}`;
-
     // 生成唯一的消息ID
     const userMsgId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -935,7 +941,13 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     });
 
     // 添加用户消息到列表
-    setMessages(prev => [...prev, userMsg]);
+    setMessages(prev => {
+      let newMessages = [...prev, userMsg];
+      if (currentBookIdRef.current && newMessages.length > 0) {
+        saveChatForCurrentBook(currentBookIdRef.current, newMessages);
+      }
+      return newMessages;
+    });
 
     try {
       // 确保AIService中的账本信息是最新的
@@ -975,7 +987,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       };
 
       // 发送到AI服务，使用结构化消息回调
-      await aiService.sendMessage(userMessage, messageStreamCallback);
+      await aiService.sendMessage(userMsg, messageStreamCallback);
 
       // 检查是否应该忽略响应（用户点击了终止按钮）
       if (shouldIgnoreResponseRef.current) {
@@ -1214,10 +1226,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
             {isToolResultMsg && ' 📊'}
           </Text>
           <Text style={[styles.messageTime, {color: colors.secondaryText}]}>
-            {item.timestamp.toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
+            {item.timestamp ? dayjs(item.timestamp).format('YYYY/MM/DD HH:mm:ss') : ''}
           </Text>
         </View>
         {renderMessageContent()}

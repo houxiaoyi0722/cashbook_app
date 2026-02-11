@@ -1,7 +1,7 @@
 import {mcpBridge} from './MCPBridge';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EventSource from 'react-native-sse';
-import {Message, TextMessage, ThinkingMessage, ToolCallMessage} from '../types';
+import {ImageMessage, Message, TextMessage, ThinkingMessage, ToolCallMessage} from '../types';
 import {AIRecursiveService} from './AIRecursiveService';
 import {StreamMessageParser} from './StreamMessageParser.ts';
 import 'react-native-url-polyfill/auto';
@@ -46,7 +46,7 @@ export class AIService {
     console.log(`AIService: 当前账本已更新为 ${bookId} (${bookName})`);
   }
 
-  async sendMessage(userMessage: string, streamCallback?: MessageStreamCallback): Promise<AIResponse> {
+  async sendMessage(userMessage: Message, streamCallback?: MessageStreamCallback): Promise<AIResponse> {
     // 记录用户输入到历史记录
     try {
       // 使用UserInputAnalysisManager记录用户输入
@@ -63,8 +63,18 @@ export class AIService {
     this.streamParser = new StreamMessageParser();
     // 创建递归服务实例
     const recursiveService = new AIRecursiveService(this);
+
+    let content = '';
+    if ((userMessage as ImageMessage).type === 'image') {
+      const imageMessage = userMessage as ImageMessage;
+      content = `imageUri: ${imageMessage.imageUri}`;
+    } else if ((userMessage as TextMessage).type === 'text') {
+      const textMessage = userMessage as TextMessage;
+      content = textMessage.content;
+    }
+
     // 调用递归函数
-    return recursiveService.sendMessageRecursive(userMessage, streamCallback);
+    return recursiveService.sendMessageRecursive(content, streamCallback);
   }
 
   async getContext(): Promise<any> {

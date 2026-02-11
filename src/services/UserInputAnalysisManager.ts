@@ -1,5 +1,6 @@
 // src/services/UserInputAnalysisManager.ts
 import {AISuggestion, userInputHistoryAnalysisService} from './UserInputHistoryAnalysisService.ts';
+import {ImageMessage, Message, TextMessage} from "../types";
 
 /**
  * 用户输入分析管理器
@@ -46,21 +47,24 @@ class UserInputAnalysisManager {
   /**
    * 记录用户输入
    */
-  async recordUserInput(text: string, bookId?: string | null, category?: string): Promise<void> {
+  async recordUserInput(message: Message, bookId?: string | null, category?: string): Promise<void> {
     try {
-      // 将 null 转换为 undefined，以匹配 userInputHistoryService.recordUserInput 的签名
-      const bookIdForRecord = bookId === null ? undefined : bookId;
-      // 记录到历史
-      await userInputHistoryAnalysisService.recordUserInput(text, bookIdForRecord, category);
+      if ((message as TextMessage).type === 'text') {
+        const textMessage = message as TextMessage;
+        // 将 null 转换为 undefined，以匹配 userInputHistoryService.recordUserInput 的签名
+        const bookIdForRecord = bookId === null ? undefined : bookId;
+        // 记录到历史
+        await userInputHistoryAnalysisService.recordUserInput(textMessage.content, bookIdForRecord, category);
 
-      // 检查是否需要立即分析（例如，当达到一定数量时）
-      const stats = await userInputHistoryAnalysisService.getStatistics();
-      if (stats.totalRecords % 10 === 0) {
-        // 每记录10条输入，检查一次是否需要分析
-        console.log(`已记录${stats.totalRecords}条输入，检查是否需要分析...`);
-        await userInputHistoryAnalysisService.checkAndAnalyze();
-      } else {
-        console.log('未满足条件...');
+        // 检查是否需要立即分析（例如，当达到一定数量时）
+        const stats = await userInputHistoryAnalysisService.getStatistics();
+        if (stats.totalRecords % 10 === 0) {
+          // 每记录10条输入，检查一次是否需要分析
+          console.log(`已记录${stats.totalRecords}条输入，检查是否需要分析...`);
+          await userInputHistoryAnalysisService.checkAndAnalyze();
+        } else {
+          console.log('未满足条件...');
+        }
       }
     } catch (error) {
       console.warn('记录用户输入失败:', error);
