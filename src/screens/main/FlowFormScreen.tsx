@@ -997,6 +997,22 @@ const FlowFormScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
 
+              {/* 日期选择器 - 放在交易日期组件下方 */}
+              {showDatePicker && (
+                <View style={[styles.datePickerWrapper, {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                  }]}
+                >
+                  <DateTimePicker
+                    mode="single"
+                    date={flowDate}
+                    maxDate={new Date()}
+                    onChange={({date}) => handleDateChange(date)}
+                    format={'YYYY/MM/DD'}
+                  />
+                </View>
+              )}
 
               <Input
                 label="备注（可选）"
@@ -1042,21 +1058,6 @@ const FlowFormScreen: React.FC = () => {
 
           {/* 编辑选项的 Overlay */}
           {renderEditOptionOverlay()}
-
-          {/* 日期选择器的 Overlay */}
-          <Overlay
-            isVisible={showDatePicker}
-            onBackdropPress={() => setShowDatePicker(false)}
-            overlayStyle={[styles.datePickerOverlay, { backgroundColor: colors.card }]}
-          >
-            <DateTimePicker
-              mode="single"
-              date={flowDate}
-              maxDate={new Date()}
-              onChange={({date}) => handleDateChange(date)}
-              format={'YYYY/MM/DD'}
-            />
-          </Overlay>
 
           {/* 加载指示器 */}
           {(isLoading || uploadingImage) && (
@@ -1313,12 +1314,22 @@ const styles = StyleSheet.create({
   editOptionButton: {
     width: '48%',
   },
-  // 日期选择器 Overlay 样式
-  datePickerOverlay: {
-    width: '90%',
+  datePickerWrapper: {
+    marginTop: 10,
+    marginHorizontal: 10,
+    marginBottom: 20,
     borderRadius: 12,
-    padding: 0,
-    overflow: 'hidden',
+    padding: 15,
+    borderWidth: 1,
+    zIndex: 999,
+    // 阴影效果
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   offlineBanner: {
     paddingVertical: 10,
