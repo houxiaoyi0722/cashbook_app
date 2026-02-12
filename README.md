@@ -224,6 +224,47 @@ AI助手支持多种AI服务商，您可以根据需求选择合适的服务：
 - [Cashbook 服务端](https://github.com/dingdangdog/cashbook)
 - [问题反馈](https://github.com/houxiaoyi0722/cashbook_app/issues)
 
+## ☕ 支持项目
+
+如果觉得 Cashbook App 对您有帮助，欢迎打赏支持后续开发与维护。
+
+### 请作者喝杯咖啡
+
+您可以通过以下方式支持项目：
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>微信支付</strong><br/>
+        <img src="screenshots/微信支付.jpg" alt="微信支付二维码" width="200"/><br/>
+        <em>扫描二维码通过微信支持</em>
+      </td>
+      <td align="center">
+        <strong>支付宝</strong><br/>
+        <img src="screenshots/支付宝.jpg" alt="支付宝二维码" width="200"/><br/>
+        <em>扫描二维码通过支付宝支持</em>
+      </td>
+    </tr>
+  </table>
+</div>
+
+您的支持将用于：
+- 持续维护和更新项目
+- 添加新功能和改进
+- 支付服务器和API费用
+- 改善用户体验
+
+感谢您的支持！❤️
+
+## ⭐ Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=houxiaoyi0722/cashbook_app&type=Date)](https://star-history.com/#houxiaoyi0722/cashbook_app&Date)
+
+这个图表展示了项目 star 数量的增长历史。如果您喜欢这个项目，请考虑给它一个 star！🌟
+
+您的 star 是对项目最大的鼓励和支持！
+
 ## 📸 截图
 
 ![日历视图](screenshots/calendar.png)
