@@ -6,21 +6,29 @@ variables:
   # Settings → CI/CD → Variables
   GITHUB_TOKEN: $GITHUB_TOKEN
   SYNC_BRANCH: "master"
+  # 关键：禁用浅克隆，拉取完整历史
+  GIT_DEPTH: 0
 
 sync-to-github:
   stage: sync
   image:
     name: 10.144.233.86:8082/sang/bitnami/git:latest
-    pull_policy: if-not-present  # 添加这行
+    pull_policy: if-not-present
   tags:
     - docker
+  before_script:
+    # 若仓库使用了 Git LFS，需要安装并拉取 LFS 对象
+    - apt-get update && apt-get install -y git-lfs || true
+    - git lfs install
+    - git lfs pull
   script:
-    - |
-      # 添加GitHub远程仓库
-      git fetch https://houxiaoyi0722:${GITHUB_TOKEN}@github.com/houxiaoyi0722/cashbook_app.git
-      
-      # 推送到GitHub
-      git push -f https://houxiaoyi0722:${GITHUB_TOKEN}@github.com/houxiaoyi0722/cashbook_app.git HEAD:main
+    # 添加 GitHub 远程
+    - git remote add github https://houxiaoyi0722:${GITHUB_TOKEN}@github.com/houxiaoyi0722/cashbook_app.git
+    # 确保获取所有远程分支和对象（即便 GIT_DEPTH=0 也执行一次全量 fetch）
+    - git fetch --all
+    # 推送完整分支，同时上传所有 Git LFS 对象
+    - git lfs push --all github main || true
+    - git push -f github HEAD:main
   rules:
     - if: $CI_COMMIT_BRANCH == $SYNC_BRANCH
       when: always
