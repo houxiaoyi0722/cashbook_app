@@ -997,15 +997,6 @@ const FlowFormScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
 
-              {showDatePicker && (
-                <DateTimePicker
-                  mode="single"
-                  date={flowDate}
-                  maxDate={new Date()}
-                  onChange={({date}) => handleDateChange(date)}
-                  format={'YYYY/MM/DD'}
-                />
-              )}
 
               <Input
                 label="备注（可选）"
@@ -1051,6 +1042,21 @@ const FlowFormScreen: React.FC = () => {
 
           {/* 编辑选项的 Overlay */}
           {renderEditOptionOverlay()}
+
+          {/* 日期选择器的 Overlay */}
+          <Overlay
+            isVisible={showDatePicker}
+            onBackdropPress={() => setShowDatePicker(false)}
+            overlayStyle={[styles.datePickerOverlay, { backgroundColor: colors.card }]}
+          >
+            <DateTimePicker
+              mode="single"
+              date={flowDate}
+              maxDate={new Date()}
+              onChange={({date}) => handleDateChange(date)}
+              format={'YYYY/MM/DD'}
+            />
+          </Overlay>
 
           {/* 加载指示器 */}
           {(isLoading || uploadingImage) && (
@@ -1306,6 +1312,13 @@ const styles = StyleSheet.create({
   },
   editOptionButton: {
     width: '48%',
+  },
+  // 日期选择器 Overlay 样式
+  datePickerOverlay: {
+    width: '90%',
+    borderRadius: 12,
+    padding: 0,
+    overflow: 'hidden',
   },
   offlineBanner: {
     paddingVertical: 10,
