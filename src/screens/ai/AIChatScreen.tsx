@@ -1657,11 +1657,6 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           backgroundColor={colors.background}
         />
         <BookSelector />
-        <View style={[styles.headerContainer, {backgroundColor: colors.card}]}>
-          <View style={styles.headerTitleContainer}>
-            <Text style={[styles.headerTitle, {color: colors.text}]}>AI助手</Text>
-          </View>
-        </View>
         <View style={[styles.configureContainer, {backgroundColor: colors.background, flex: 1}]}>
           <View style={styles.configureHeader}>
             <Text style={[styles.configureTitle, {color: colors.error}]}>配置检查失败</Text>
@@ -1719,11 +1714,6 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           backgroundColor={colors.background}
         />
         <BookSelector />
-        <View style={[styles.headerContainer, {backgroundColor: colors.card}]}>
-          <View style={styles.headerTitleContainer}>
-            <Text style={[styles.headerTitle, {color: colors.text}]}>AI助手</Text>
-          </View>
-        </View>
         <View style={[styles.configureContainer, {backgroundColor: colors.background, flex: 1}]}>
           <View style={styles.configureHeader}>
             <Text style={[styles.configureTitle, {color: colors.text}]}>AI助手未配置</Text>
@@ -1798,30 +1788,6 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       <View style={[styles.topSection, {backgroundColor: colors.background}]}>
         {/* BookSelector - 确保在状态栏下方 */}
         <BookSelector />
-
-        {/* 标题和操作按钮区域 */}
-        <View style={[styles.headerContainer, {backgroundColor: colors.card}]}>
-          <View style={styles.headerTitleContainer}>
-            <Text style={[styles.headerTitle, {color: colors.text}]}>AI助手</Text>
-          </View>
-
-          <View style={styles.headerActions}>
-            {/* 只保留终止按钮 */}
-            {isProcessing && (
-              <TouchableOpacity
-                style={[styles.headerButton, {backgroundColor: colors.error}]}
-                onPress={handleCancelProcessing}
-                disabled={isCancelling}
-              >
-                {isCancelling ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.headerButtonText}>终止</Text>
-                )}
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
       </View>
 
       {/* 主内容区域：聊天列表和输入框 */}
@@ -1890,7 +1856,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
             onPress={handleTakePhotoForAccounting}
             disabled={isSelectingImage || isProcessing}
           >
-            <Text style={styles.floatingActionButtonText}>📷 拍摄小票记账</Text>
+            <Text style={styles.floatingActionButtonText}>📷 拍摄图片记账</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -1898,7 +1864,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
             onPress={handleSelectImageForAccounting}
             disabled={isSelectingImage || isProcessing}
           >
-            <Text style={styles.floatingActionButtonText}>🖼️ 上传小票记账</Text>
+            <Text style={styles.floatingActionButtonText}>🖼️ 上传图片记账</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -1931,21 +1897,33 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
               editable={!isProcessing}
               onSubmitEditing={handleSend}
             />
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                {backgroundColor: colors.primary},
-                (!inputText.trim() || isProcessing) && [styles.sendButtonDisabled, {backgroundColor: colors.secondaryText}],
-              ]}
-              onPress={handleSend}
-              disabled={!inputText.trim() || isProcessing}
-            >
-              {isProcessing ? (
-                <ActivityIndicator size="small" color="#fff" />
+            {isProcessing ? (
+                (
+                  <TouchableOpacity
+                    style={[styles.headerButton, {backgroundColor: colors.error}]}
+                    onPress={handleCancelProcessing}
+                    disabled={isCancelling}
+                  >
+                    {isCancelling ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.headerButtonText}>终止</Text>
+                    )}
+                  </TouchableOpacity>
+                )
               ) : (
-                <Text style={styles.sendButtonText}>发送</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.sendButton,
+                    {backgroundColor: colors.primary},
+                    (!inputText.trim() || isProcessing) && [styles.sendButtonDisabled, {backgroundColor: colors.secondaryText}],
+                  ]}
+                  onPress={handleSend}
+                  disabled={!inputText.trim() || isProcessing}
+                >
+                  <Text style={styles.sendButtonText}>发送</Text>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
           </View>
 
           {/* AI提示建议 */}
@@ -2010,8 +1988,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
@@ -2400,8 +2376,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingTop: 8,
     paddingBottom: 4,
-    marginBottom: 8,
+    marginBottom: 2,
     position: 'relative',
+    backgroundColor: 'transparent',
   },
   floatingActionButton: {
     paddingHorizontal: 12,
@@ -2420,7 +2397,7 @@ const styles = StyleSheet.create({
   inputContainer: {
     paddingTop: 4,
     paddingHorizontal: 8,
-    paddingBottom: 16,
+    paddingBottom: 2,
     borderTopWidth: 1,
   },
   inputWrapper: {
@@ -2454,13 +2431,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   hintsContainerWrapper: {
-    marginTop: 8,
+    marginTop: 2,
     minHeight: 44, // 增加最小高度以适应更高的按钮
     maxHeight: 88, // 增加最大高度以适应两行更高的按钮
   },
   hintsScrollView: {
     flexGrow: 0,
-    marginTop: 4,
+    marginTop: 0,
   },
   hintsScrollContent: {
     flexDirection: 'row',
@@ -2468,13 +2445,8 @@ const styles = StyleSheet.create({
     paddingRight: 16, // 添加右侧内边距，让最后一个按钮有空间
     paddingVertical: 2, // 添加垂直内边距，确保按钮有足够的空间
   },
-  hintsText: {
-    fontSize: 14,
-    marginRight: 8,
-    alignSelf: 'flex-start',
-  },
   hintButton: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 5, // 减少垂直内边距，为文本提供更多空间
     borderRadius: 20,
     marginRight: 10, // 从12减少到10，使建议按钮之间的间距更紧凑
