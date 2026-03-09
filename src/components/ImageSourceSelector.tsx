@@ -7,7 +7,6 @@ interface ImageSourceSelectorProps {
   visible: boolean;
   onClose: () => void;
   title: string;
-  description: string;
   onTakePhoto: () => void;
   onSelectFromLibrary: () => void;
   colors: {
