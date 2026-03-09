@@ -16,6 +16,7 @@ import { useTheme, getColors } from '../../context/ThemeContext';
 import LocalCacheService from '../../services/LocalCacheService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker, {DateType} from 'react-native-dates-picker';
+import ImageSourceSelector from '../../components/ImageSourceSelector';
 
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
@@ -90,6 +91,8 @@ const FlowFormScreen: React.FC = () => {
   const [pendingUploadImages, setPendingUploadImages] = useState<boolean>(false);
   // 新增状态：用于存储待删除的已上传图片名称
   const [pendingDeleteImages, setPendingDeleteImages] = useState<Set<string>>(new Set());
+  // 图片来源选择弹窗状态
+  const [showImageSourceModal, setShowImageSourceModal] = useState<boolean>(false);
 
   // 处理OCR识别结果中的图片
   useEffect(() => {
@@ -425,25 +428,7 @@ const FlowFormScreen: React.FC = () => {
       return;
     }
 
-    Alert.alert(
-      '选择图片来源',
-      '请选择小票图片来源',
-      [
-        {
-          text: '相机',
-          onPress: () => launchCamera(),
-        },
-        {
-          text: '相册',
-          onPress: () => launchImageLibrary(),
-        },
-        {
-          text: '取消',
-          style: 'cancel',
-        },
-      ],
-      { cancelable: true }
-    );
+    setShowImageSourceModal(true);
   };
 
   // 启动相机
@@ -482,6 +467,20 @@ const FlowFormScreen: React.FC = () => {
       console.error('图片库启动失败', error);
       Alert.alert('错误', '无法打开图片库');
     }
+  };
+
+  // 渲染图片来源选择弹窗
+  const renderImageSourceModal = () => {
+    return (
+      <ImageSourceSelector
+        visible={showImageSourceModal}
+        onClose={() => setShowImageSourceModal(false)}
+        title="上传小票图片"
+        onTakePhoto={launchCamera}
+        onSelectFromLibrary={launchImageLibrary}
+        colors={colors}
+      />
+    );
   };
 
   // 上传暂存图片的辅助函数
@@ -1058,6 +1057,9 @@ const FlowFormScreen: React.FC = () => {
 
           {/* 编辑选项的 Overlay */}
           {renderEditOptionOverlay()}
+
+          {/* 图片来源选择弹窗 */}
+          {renderImageSourceModal()}
 
           {/* 加载指示器 */}
           {(isLoading || uploadingImage) && (

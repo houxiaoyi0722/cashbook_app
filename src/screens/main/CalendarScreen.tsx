@@ -36,6 +36,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import OfflineModeOverlay from '../../components/OfflineModeOverlay';
 import { aiConfigService } from '../../services/AIConfigService';
 import {useAuth} from '../../context/AuthContext.tsx';
+import ImageSourceSelector from '../../components/ImageSourceSelector';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -1959,92 +1960,37 @@ const CalendarScreen: React.FC = () => {
     }
   }, [currentUserInfo, navigation, selectedDate]);
 
-  // 通用的图片来源选择弹窗组件
-  const renderImageSourceSelector = (
-    visible: boolean,
-    onClose: () => void,
-    title: string,
-    description: string,
-    onTakePhoto: () => void,
-    onSelectFromLibrary: () => void
-  ) => {
-    return (
-      <Overlay
-        isVisible={visible}
-        onBackdropPress={onClose}
-        overlayStyle={[styles.imageSourceOverlay, { backgroundColor: colors.dialog }]}
-      >
-        <View style={styles.imageSourceContainer}>
-          <View style={styles.imageSourceHeader}>
-            <Text style={[styles.imageSourceTitle, { color: colors.text }]}>{title}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Icon name="close" type="material" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={[styles.imageSourceDescription, { color: colors.secondaryText }]}>
-            {description}
-          </Text>
-
-          <View style={styles.imageSourceButtons}>
-            {/* 拍照按钮 */}
-            <TouchableOpacity
-              style={[styles.imageSourceButton, { backgroundColor: colors.card }]}
-              onPress={onTakePhoto}
-            >
-              <Icon name="camera-alt" type="material" size={32} color={colors.primary} />
-              <Text style={[styles.imageSourceButtonText, { color: colors.text }]}>拍照</Text>
-            </TouchableOpacity>
-
-            {/* 从相册选择按钮 */}
-            <TouchableOpacity
-              style={[styles.imageSourceButton, { backgroundColor: colors.card }]}
-              onPress={onSelectFromLibrary}
-            >
-              <Icon name="photo-library" type="material" size={32} color={colors.primary} />
-              <Text style={[styles.imageSourceButtonText, { color: colors.text }]}>从相册选择</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* 取消按钮 */}
-          <TouchableOpacity
-            style={[styles.imageSourceCancelButton, { backgroundColor: colors.input }]}
-            onPress={onClose}
-          >
-            <Text style={[styles.imageSourceCancelButtonText, { color: colors.text }]}>取消</Text>
-          </TouchableOpacity>
-        </View>
-      </Overlay>
-    );
-  };
-
   // 渲染图片来源选择弹窗 - 现在使用通用组件
   const renderImageSourceModal = () => {
-    return renderImageSourceSelector(
-      showImageSourceModal,
-      () => setShowImageSourceModal(false),
-      '小票识别',
-      '请选择图片来源进行识别',
-      handleTakePhoto,
-      handleSelectFromLibrary
+    return (
+      <ImageSourceSelector
+        visible={showImageSourceModal}
+        onClose={() => setShowImageSourceModal(false)}
+        title="小票识别"
+        onTakePhoto={handleTakePhoto}
+        onSelectFromLibrary={handleSelectFromLibrary}
+        colors={colors}
+      />
     );
   };
 
   // 渲染上传小票的图片来源选择弹窗
   const renderInvoiceUploadModal = () => {
-    return renderImageSourceSelector(
-      showInvoiceUploadModal,
-      () => {
-        setShowInvoiceUploadModal(false);
-        // 关闭滑动选项
-        if (currentFlow) {
-          swipeableRefs.current[currentFlow.id]?.close();
-        }
-      },
-      '上传小票图片',
-      '请选择图片来源',
-      handleTakePhotoForInvoice,
-      handleSelectFromLibraryForInvoice
+    return (
+      <ImageSourceSelector
+        visible={showInvoiceUploadModal}
+        onClose={() => {
+          setShowInvoiceUploadModal(false);
+          // 关闭滑动选项
+          if (currentFlow) {
+            swipeableRefs.current[currentFlow.id]?.close();
+          }
+        }}
+        title="上传小票图片"
+        onTakePhoto={handleTakePhotoForInvoice}
+        onSelectFromLibrary={handleSelectFromLibraryForInvoice}
+        colors={colors}
+      />
     );
   };
 
@@ -3235,64 +3181,6 @@ const styles = StyleSheet.create({
   },
   ocrCancelButtonText: {
     fontSize: 14,
-    fontWeight: '500',
-  },
-  // 图片来源选择弹窗样式
-  imageSourceOverlay: {
-    width: '80%',
-    borderRadius: 10,
-    padding: 0,
-    overflow: 'hidden',
-  },
-  imageSourceContainer: {
-    width: '100%',
-  },
-  imageSourceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  imageSourceTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  imageSourceDescription: {
-    fontSize: 14,
-    textAlign: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  imageSourceButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 16,
-  },
-  imageSourceButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 10,
-    width: 120,
-    height: 120,
-  },
-  imageSourceButtonText: {
-    marginTop: 8,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  imageSourceCancelButton: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    paddingVertical: 12,
-    borderRadius: 5,
-    alignItems: 'center',
-  },
-  imageSourceCancelButtonText: {
-    fontSize: 16,
     fontWeight: '500',
   },
 });
