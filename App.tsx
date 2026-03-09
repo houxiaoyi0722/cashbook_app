@@ -10,6 +10,7 @@ import { StatusBar, Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider as RNEThemeProvider } from '@rneui/themed';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { enableScreens } from 'react-native-screens';
 import { logger } from './src/services/LogService';
 import { setupErrorHandlers } from './src/utils/errorHandler';
 import { userInputAnalysisManager } from './src/services/UserInputAnalysisManager';
@@ -21,6 +22,9 @@ import { BookkeepingProvider } from './src/context/BookkeepingContext';
 import { ThemeProvider, useTheme, getColors } from './src/context/ThemeContext';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import AIAssistantConfigService from './src/services/AIAssistantConfigService';
+
+// 启用原生屏幕支持以获得更好的性能
+enableScreens(true);
 
 // 应用内容组件，用于访问主题
 const AppContent = () => {
