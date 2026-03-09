@@ -901,7 +901,7 @@ const StatisticsScreen: React.FC = () => {
           <Text style={[styles.maxItemTitle, { color: colors.secondaryText }]}>最大收入</Text>
           <TouchableOpacity
             style={[styles.maxItem, { backgroundColor: colors.input }]}
-            onPress={() => monthAnalysis.maxIn && handleViewFlowDetail(monthAnalysis.maxIn)}
+            onPress={() => monthAnalysis.maxIn && monthAnalysis.maxIn.id && handleViewFlowDetail(monthAnalysis.maxIn)}
           >
             <Text style={[styles.maxItemName, { color: colors.text }]} numberOfLines={1}>
               {monthAnalysis.maxIn?.name || '无'}
@@ -916,7 +916,7 @@ const StatisticsScreen: React.FC = () => {
           <Text style={[styles.maxItemTitle, { color: colors.secondaryText }]}>最大支出</Text>
           <TouchableOpacity
             style={[styles.maxItem, { backgroundColor: colors.input }]}
-            onPress={() => monthAnalysis.maxOut && handleViewFlowDetail(monthAnalysis.maxOut)}
+            onPress={() => monthAnalysis.maxOut && monthAnalysis.maxOut.id && handleViewFlowDetail(monthAnalysis.maxOut)}
           >
             <Text style={[styles.maxItemName, { color: colors.text }]} numberOfLines={1}>
               {monthAnalysis.maxOut?.name || '无'}
@@ -1723,7 +1723,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
+    padding: 5,
   },
   title: {
     fontSize: 16,

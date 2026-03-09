@@ -2481,7 +2481,6 @@ const styles = StyleSheet.create({
   flowListTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    flex: 0.3,
   },
   flowList: {
     maxHeight: 300,
