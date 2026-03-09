@@ -350,8 +350,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 12,
-    marginTop: 16,
     marginLeft: 16,
   },
 });
