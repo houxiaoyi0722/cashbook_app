@@ -67,7 +67,13 @@ export class AIService {
     let content = '';
     if ((userMessage as ImageMessage).type === 'image') {
       const imageMessage = userMessage as ImageMessage;
-      content = `imageUri: ${imageMessage.imageUri}`;
+      // 支持imageUri为数组或字符串
+      const imageUris = Array.isArray(imageMessage.imageUri)
+        ? imageMessage.imageUri.join(', ')
+        : imageMessage.imageUri;
+      // 包含图片URI和用户输入的文本内容
+      const userText = imageMessage.content ? `\n用户说明: ${imageMessage.content}` : '';
+      content = `imageUri: ${imageUris}${userText}`;
     } else if ((userMessage as TextMessage).type === 'text') {
       const textMessage = userMessage as TextMessage;
       content = textMessage.content;
@@ -204,7 +210,7 @@ ${contextInfo}
 ## 工具调用逻辑（仅响应明确指令）
 *   **用户指令清晰时**：直接调用对应工具。若缺少必要参数且无法从当前对话中可靠推断，则仅就缺失参数进行简短询问。
 *   **用户指令模糊但可映射时**：如用户说“记一笔午餐50元”，直接映射为创建支出流水。**完成后仅返回操作结果确认，不作分析。**
-*   **用户发送图片地址时**：调用流程 ocr_recognize -> create_flow -> upload_receipt
+*   **用户发送图片地址时**：判断用户意图(图片记账|上传小票) 可用工具 ocr_recognize -> create_flow -> upload_receipt,多张图片时依据上下文和ocr结果判断是否为同一笔支出确定操作逻辑
 *   **“获取选项”类调用**：仅当创建或更新记录**且用户未提供具体选项值**时，才自动调用get_pay_types、get_belonger等工具获取列表以供使用。此步骤不向用户输出。
 *   **禁止主动链式调用**：例如，在记录流水后，**不得**主动调用get_analytics进行分析或refresh_budget_usage刷新预算。仅在用户明确要求“分析一下”或“刷新预算”时才执行。
 
@@ -675,6 +681,20 @@ ${contextInfo}
             timestamp: topMsg.timestamp,
           });
         }
+      } else if (topMsg.type === 'image') {
+        const imageMessage = topMsg as ImageMessage;
+        // 支持imageUri为数组或字符串
+        const imageUris = Array.isArray(imageMessage.imageUri)
+          ? imageMessage.imageUri.join(', ')
+          : imageMessage.imageUri;
+        // 包含图片URI和用户输入的文本内容
+        const userText = imageMessage.content ? `\n用户说明: ${imageMessage.content}` : '';
+        const content = `imageUri: ${imageUris}${userText}`;
+        this.conversationHistory.push({
+          role: imageMessage.isUser ? 'user' : 'system',
+          content: content,
+          timestamp: imageMessage.timestamp,
+        });
       } else {
         let textMessage = topMsg as TextMessage;
 

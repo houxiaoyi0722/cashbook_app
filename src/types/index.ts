@@ -196,7 +196,8 @@ export interface ToolResultMessage extends BaseMessage {
 // 图片消息
 export interface ImageMessage extends BaseMessage {
   type: 'image';
-  imageUri: string;
+  imageUri: string | string[];  // 支持单图和多图
+  content?: string;  // 用户输入的文本内容
   caption?: string;
 }
 
@@ -327,7 +328,7 @@ export function createToolResultMessage(
 
 // 创建图片消息
 export function createImageMessage(
-  imageUri: string,
+  imageUri: string | string[],
   isUser: boolean,
   options?: {
     id?: string;
@@ -337,6 +338,7 @@ export function createImageMessage(
     error?: boolean;
     loading?: boolean;
     caption?: string;
+    content?: string;  // 新增
   }
 ): ImageMessage {
   return {
@@ -344,6 +346,7 @@ export function createImageMessage(
     type: 'image',
     isUser,
     imageUri,
+    content: options?.content,  // 新增
     caption: options?.caption,
     timestamp: options?.timestamp || new Date(),
     collapsed: options?.collapsed,

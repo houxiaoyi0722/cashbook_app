@@ -16,6 +16,7 @@ import {
   Animated,
 } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
+import { Icon } from '@rneui/themed';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'react-native-image-picker';
@@ -139,6 +140,15 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   const [isCancelling, setIsCancelling] = useState(false);
   // 图片选择相关状态
   const [isSelectingImage, setIsSelectingImage] = useState(false);
+
+  // 待发送的图片列表
+  const [pendingImages, setPendingImages] = useState<string[]>([]);
+
+  // 移除待发送图片
+  const removePendingImage = useCallback((index: number) => {
+    setPendingImages(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
   // AI提示建议相关状态
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
@@ -243,6 +253,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                 id: imageMessage.id,
                 timestamp: timestamp,
                 caption: imageMessage.caption,
+                content: imageMessage.content,
               });
             default:
               // 默认为文本消息
@@ -657,11 +668,24 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     currentProcessingIdRef.current = aiMsgId;
 
-    // 添加用户消息
-    const userMsg = createTextMessage(userMessage, true, {
-      id: userMsgId,
-      timestamp: new Date(),
-    });
+    // 判断是发送文字消息还是图片消息
+    let userMsg: Message;
+    if (pendingImages.length > 0) {
+      // 创建图片消息
+      userMsg = createImageMessage(pendingImages, true, {
+        id: userMsgId,
+        timestamp: new Date(),
+        content: inputText.trim(), // 同时发送文字内容
+      });
+      // 清空待发送图片
+      setPendingImages([]);
+    } else {
+      // 添加用户消息
+      userMsg = createTextMessage(userMessage, true, {
+        id: userMsgId,
+        timestamp: new Date(),
+      });
+    }
 
 
     setMessages(prev => [...prev, userMsg]);
@@ -706,7 +730,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       };
 
       // 发送到AI服务，使用结构化消息回调
-       await aiService.sendMessage(createTextMessage(userMessage,true), messageStreamCallback);
+       await aiService.sendMessage(userMsg, messageStreamCallback);
 
       // 检查是否应该忽略响应（用户点击了终止按钮）
       if (shouldIgnoreResponseRef.current) {
@@ -842,8 +866,8 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
         const asset = response.assets[0];
         const imageUri = asset.uri || asset.base64;
         if (imageUri) {
-          // 发送图片给AI助手处理
-          await sendImageForAccounting(imageUri);
+          // 添加到待发送列表
+          setPendingImages(prev => [...prev, imageUri]);
         } else {
           Alert.alert('错误', '无法获取图片数据');
         }
@@ -910,156 +934,14 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
         const asset = response.assets[0];
         const imageUri = asset.uri || asset.base64;
         if (imageUri) {
-          // 发送图片给AI助手处理
-          await sendImageForAccounting(imageUri);
+          // 添加到待发送列表
+          setPendingImages(prev => [...prev, imageUri]);
         } else {
           Alert.alert('错误', '无法获取图片数据');
         }
       }
     });
   }, [isSelectingImage, isProcessing, navigation]);
-
-  // 发送图片给AI助手处理
-  const sendImageForAccounting = useCallback(async (imageUri: string) => {
-    if (!imageUri) {return;}
-
-    // 生成唯一的消息ID
-    const userMsgId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const aiMsgId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    // 设置处理状态
-    setIsProcessing(true);
-    setIsCancelling(false);
-    shouldIgnoreResponseRef.current = false;
-    currentProcessingIdRef.current = aiMsgId;
-
-    // 创建图片消息对象
-    const userMsg = createImageMessage(imageUri, true, {
-      id: userMsgId,
-      timestamp: new Date(),
-      caption: '',
-    });
-
-    // 添加用户消息到列表
-    setMessages(prev => {
-      let newMessages = [...prev, userMsg];
-      if (currentBookIdRef.current && newMessages.length > 0) {
-        saveChatForCurrentBook(currentBookIdRef.current, newMessages);
-      }
-      return newMessages;
-    });
-
-    try {
-      // 确保AIService中的账本信息是最新的
-      if (currentBook && aiService.updateBookInfo) {
-        const bookId = currentBook.bookId;
-        const bookName = currentBook.bookName;
-        aiService.updateBookInfo(bookId, bookName);
-      }
-
-      // 创建结构化消息回调函数
-      const messageStreamCallback: MessageStreamCallback = (message: Message, isComplete: boolean) => {
-        // 检查是否应该忽略响应（用户点击了终止按钮）
-        if (shouldIgnoreResponseRef.current) {
-          console.log('忽略流式响应内容，因为用户已终止');
-          return;
-        }
-
-        if (isComplete) {}
-
-        // 处理消息
-        setMessages(prev => {
-          let newMessages = [...prev];
-          // 检查是否已存在相同ID的消息（用于更新）
-          const existingIndex = newMessages.findIndex(msg => msg.id === message.id);
-          if (existingIndex !== -1) {
-            // 更新现有消息
-            newMessages[existingIndex] = message;
-          } else {
-            // 添加新消息
-            newMessages.push(message);
-          }
-          if (currentBookIdRef.current && newMessages.length > 0) {
-            saveChatForCurrentBook(currentBookIdRef.current, newMessages);
-          }
-          return newMessages;
-        });
-      };
-
-      // 发送到AI服务，使用结构化消息回调
-      await aiService.sendMessage(userMsg, messageStreamCallback);
-
-      // 检查是否应该忽略响应（用户点击了终止按钮）
-      if (shouldIgnoreResponseRef.current) {
-        console.log('忽略已终止的AI响应');
-        // 移除加载消息
-        setMessages(prev => prev.filter(msg => msg.id !== aiMsgId));
-        return;
-      }
-
-    } catch (error: any) {
-      // 检查是否应该忽略错误（用户点击了终止按钮）
-      if (shouldIgnoreResponseRef.current) {
-        console.log('忽略已终止的AI错误');
-        // 移除加载消息
-        setMessages(prev => prev.filter(msg => msg.id !== aiMsgId));
-        return;
-      }
-
-      console.error('发送图片消息失败:', error);
-
-      // 创建错误消息
-      const errorMsg = createTextMessage(
-        `错误: ${error.message || '处理图片失败'}\n\n请检查网络连接或AI配置。`,
-        false,
-        {
-          id: aiMsgId,
-          timestamp: new Date(),
-          error: true,
-        }
-      );
-
-      setMessages(prev => [...prev, errorMsg]);
-
-      // 如果是配置问题，提示用户
-      if (error.message.includes('配置') || error.message.includes('API')) {
-        Alert.alert('配置错误', error.message, [
-          { text: '取消', style: 'cancel' },
-          {
-            text: '检查配置',
-            onPress: () => {
-              if (navigation) {
-                const parentNav = navigation.getParent ? navigation.getParent() : null;
-                if (parentNav) {
-                  parentNav.navigate('AIConfig');
-                } else {
-                  navigation.navigate('AIConfig');
-                }
-              } else {
-                Alert.alert('提示', '导航不可用，请通过其他方式访问配置页面');
-              }
-            },
-          },
-          { text: '重试检查', onPress: () => handleRefreshConfig() },
-        ]);
-      }
-    } finally {
-      // 只有在没有终止的情况下才重置处理状态
-      if (!shouldIgnoreResponseRef.current) {
-        setIsProcessing(false);
-        setIsCancelling(false);
-      }
-      currentProcessingIdRef.current = null;
-
-      // 确保可以自动滚动，并滚动到底部
-      setShouldAutoScroll(true);
-      setTimeout(() => {
-        if (shouldAutoScrollRef.current) {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }
-      }, 100);
-    }
-  }, [currentBook, navigation, handleRefreshConfig, saveChatForCurrentBook]);
 
   const handleConfigure = () => {
     if (navigation) {
@@ -1267,15 +1149,44 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     }
 
     // 显示图片预览
+    // 支持imageUri为字符串或数组
+    const imageList = Array.isArray(imageUri) ? imageUri : [imageUri];
+    const imageContent = item.content;
+
     return (
       <View style={styles.imageMessageContainer}>
-        <View style={[styles.imagePreviewWrapper, {backgroundColor: colors.card}]}>
-          <Image
-            source={{ uri: imageUri }}
-            style={styles.imagePreview}
-            resizeMode="cover"
+        {/* 显示用户输入的文本内容 */}
+        {imageContent && imageContent.trim() !== '' && (
+          <Text style={[styles.messageText, {color: colors.text, marginBottom: 8}]}>
+            {imageContent}
+          </Text>
+        )}
+        {/* 显示图片 */}
+        {imageList.length === 1 ? (
+          <View style={[styles.imagePreviewWrapper, {backgroundColor: colors.card}]}>
+            <Image
+              source={{ uri: imageList[0] }}
+              style={styles.imagePreview}
+              resizeMode="cover"
+            />
+          </View>
+        ) : (
+          <FlatList
+            data={imageList}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(uri, index) => `image-${index}`}
+            renderItem={({ item: uri }) => (
+              <View style={[styles.imagePreviewWrapper, {backgroundColor: colors.card, marginRight: 8}]}>
+                <Image
+                  source={{ uri }}
+                  style={styles.imagePreview}
+                  resizeMode="cover"
+                />
+              </View>
+            )}
           />
-        </View>
+        )}
         {caption && caption.trim() !== '' && (
           <Text style={[styles.messageText, {color: colors.text, marginTop: 8}]}>
             {caption}
@@ -1466,11 +1377,22 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                             小票图片预览:
                           </Text>
                           <View style={[styles.imagePreviewWrapper, {backgroundColor: colors.card}]}>
-                            <Image
-                              source={{ uri: imageUri }}
-                              style={styles.imagePreview}
-                              resizeMode="cover"
-                            />
+                            {Array.isArray(imageUri) ? (
+                              <FlatList
+                                data={imageUri}
+                                horizontal
+                                keyExtractor={(uri, index) => `image-${index}`}
+                                renderItem={({ item }) => (
+                                  <Image source={{ uri: item }} style={styles.imagePreview} resizeMode="cover" />
+                                )}
+                              />
+                            ) : (
+                              <Image
+                                source={{ uri: imageUri }}
+                                style={styles.imagePreview}
+                                resizeMode="cover"
+                              />
+                            )}
                             {/* 扫描动画 */}
                             <OCRScanAnimation
                               isActive={toolCallMsg.loading || false}
@@ -1878,6 +1800,33 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
         {/* 输入区域 */}
         <View style={[styles.inputContainer, {backgroundColor: colors.card, borderTopColor: colors.border}]}>
+          {/* 待发送图片预览 */}
+          {pendingImages.length > 0 && (
+            <View style={styles.pendingImagesContainer}>
+              <FlatList
+                data={pendingImages}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(uri, index) => `pending-${index}`}
+                renderItem={({ item: uri, index }) => (
+                  <View style={styles.pendingImageWrapper}>
+                    <Image
+                      source={{ uri }}
+                      style={styles.pendingImage}
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      style={styles.removePendingImageButton}
+                      onPress={() => removePendingImage(index)}
+                    >
+                      <Icon name="close" type="material" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              />
+            </View>
+          )}
+
           <View style={styles.inputWrapper}>
             <TextInput
               style={[
@@ -1916,10 +1865,10 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                   style={[
                     styles.sendButton,
                     {backgroundColor: colors.primary},
-                    (!inputText.trim() || isProcessing) && [styles.sendButtonDisabled, {backgroundColor: colors.secondaryText}],
+                    ((!inputText.trim() && pendingImages.length === 0) || isProcessing) && [styles.sendButtonDisabled, {backgroundColor: colors.secondaryText}],
                   ]}
                   onPress={handleSend}
-                  disabled={!inputText.trim() || isProcessing}
+                  disabled={(inputText.trim() === '' && pendingImages.length === 0) || isProcessing}
                 >
                   <Text style={styles.sendButtonText}>发送</Text>
                 </TouchableOpacity>
@@ -2196,7 +2145,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   aiSection: {
-    marginBottom: 16,
+    marginBottom: 0,
   },
   aiSectionHeader: {
     flexDirection: 'row',
@@ -2395,32 +2344,64 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   inputContainer: {
-    paddingTop: 4,
-    paddingHorizontal: 8,
-    paddingBottom: 2,
+    padding: 8,
+    backgroundColor: '#fff',
     borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  pendingImagesContainer: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  pendingImageWrapper: {
+    marginRight: 8,
+    position: 'relative',
+  },
+  pendingImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+  },
+  removePendingImageButton: {
+    position: 'absolute',
+    right: -0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-end',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 20,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   input: {
     flex: 1,
-    borderRadius: 20,
-    paddingHorizontal: 16,
+    borderRadius: 16,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 16,
     maxHeight: 100,
-    marginRight: 6,
-    borderWidth: 1,
+    marginRight: 4,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
   },
   sendButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 38, // 从40减少到38，使发送按钮更紧凑
+    minHeight: 34,
   },
   sendButtonDisabled: {
     opacity: 0.5,
