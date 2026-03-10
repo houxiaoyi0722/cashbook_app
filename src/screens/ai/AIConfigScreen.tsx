@@ -51,7 +51,7 @@ const AIConfigScreen: React.FC = () => {
 
   // 工具管理相关状态
   const [showToolsSection, setShowToolsSection] = useState(false);
-  const [tools, setTools] = useState<Array<{name: string, description: string}>>([]);
+  const [tools, setTools] = useState<Array<{name: string, aliceName: string, description: string}>>([]);
   const [showToolDescription, setShowToolDescription] = useState<string | null>(null);
 
   // DropDownPicker 相关状态
@@ -79,6 +79,7 @@ const AIConfigScreen: React.FC = () => {
       const bridgeTools = mcpBridge.getTools();
       const toolList = bridgeTools.map(tool => ({
         name: tool.name,
+        aliceName: tool.aliceName,
         description: tool.description || '暂无描述',
       }));
       setTools(toolList);
@@ -442,7 +443,7 @@ const AIConfigScreen: React.FC = () => {
                         thumbColor={(availableTools.includes(tool.name)) ? colors.primary : colors.secondaryText}
                       />
                       <View style={styles.toolInfo}>
-                        <Text style={[styles.toolLabel, { color: colors.text }]}>{tool.name}</Text>
+                        <Text style={[styles.toolLabel, { color: colors.text }]}>{tool.aliceName}</Text>
                         <TouchableOpacity
                           onPress={() => setShowToolDescription(showToolDescription === tool.name ? null : tool.name)}
                           style={styles.infoButton}
