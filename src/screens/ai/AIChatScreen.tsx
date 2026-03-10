@@ -633,7 +633,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       return;
     }
 
-    if (!inputText.trim() || isProcessing || !isConfigured) {
+    if ((!inputText.trim() && pendingImages.length === 0) || isProcessing || !isConfigured) {
       if (!isConfigured) {
         Alert.alert('AI助手未配置', '请先配置AI助手以使用此功能', [
           { text: '取消', style: 'cancel' },
@@ -1778,7 +1778,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
             onPress={handleTakePhotoForAccounting}
             disabled={isSelectingImage || isProcessing}
           >
-            <Text style={styles.floatingActionButtonText}>📷 拍摄图片记账</Text>
+            <Text style={styles.floatingActionButtonText}>📷 拍摄图片</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -1786,7 +1786,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
             onPress={handleSelectImageForAccounting}
             disabled={isSelectingImage || isProcessing}
           >
-            <Text style={styles.floatingActionButtonText}>🖼️ 上传图片记账</Text>
+            <Text style={styles.floatingActionButtonText}>🖼️ 相册上传</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -2156,7 +2156,6 @@ const styles = StyleSheet.create({
   aiSectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    flex: 1,
   },
   aiThinkingContent: {
     fontSize: 14,
@@ -2352,7 +2351,6 @@ const styles = StyleSheet.create({
   pendingImagesContainer: {
     paddingHorizontal: 8,
     paddingVertical: 6,
-    borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   pendingImageWrapper: {
