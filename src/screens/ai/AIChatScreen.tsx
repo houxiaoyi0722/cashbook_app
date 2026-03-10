@@ -40,7 +40,8 @@ import {
   ToolCallMessage,
   ToolResultMessage,
 } from '../../types';
-import dayjs from "dayjs";
+import dayjs from 'dayjs';
+import {mcpBridge} from '../../services/MCPBridge.ts';
 
 // 配置状态缓存
 const DEFAULT_MESSAGE = '你好！我是你的记账助手，可以帮你：\n• 记录收支流水\n• 查询账单记录\n• 分析消费习惯\n• 平账于账本去重\n• 重新分类流水数据\n• 提供省钱建议\n• 其他app功能\n\n试试对我说："记一笔午餐支出50元" 或 "查看本月消费统计"';
@@ -1347,11 +1348,13 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                 }
               }
 
+              const tool = mcpBridge.getTools().find(item => item.name === toolCallMsg.toolName);
+
               return (
                 <View key={msg.id} style={styles.aiSection}>
                   <View style={styles.aiSectionHeader}>
                     <Text style={[styles.aiSectionTitle, {color: colors.text}]}>
-                      {statusIcon} 工具调用: {toolCallMsg.toolName}
+                      {statusIcon} {tool ? tool.aliceName : toolCallMsg.toolName}
                     </Text>
                     <TouchableOpacity
                       onPress={() => handleToggleMessageCollapse(item.id, msg.id)}
