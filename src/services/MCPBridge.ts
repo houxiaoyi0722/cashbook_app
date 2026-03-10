@@ -6,6 +6,7 @@ import OCRService from './OCRService';
 
 type Tool = {
   name: string;
+  aliceName: string;
   description: string;
   inputSchema: any;
   execute: (args: any,currentBook: any) => Promise<any>;
@@ -175,6 +176,7 @@ class MCPBridge {
     // 获取流水记录
     this.registerTool({
       name: 'get_flows',
+      aliceName: '获取流水记录',
       description: '获取指定条件的流水记录，支持分页查询',
       inputSchema: {
         type: 'object',
@@ -307,6 +309,7 @@ class MCPBridge {
     // 创建流水记录
     this.registerTool({
       name: 'create_flow',
+      aliceName: '创建流水',
       description: '创建一条流水记录',
       inputSchema: {
         type: 'object',
@@ -416,6 +419,7 @@ class MCPBridge {
     // 行业类型
     this.registerTool({
       name: 'industryType_flow',
+      aliceName: '获取行业类型',
       description: '根据流水类型返回可选industryType。根据上下文选择合适的类型,如返回空列表可自主编写',
       inputSchema: {
         type: 'object',
@@ -456,6 +460,7 @@ class MCPBridge {
     // 获取预算信息
     this.registerTool({
       name: 'get_budget',
+      aliceName: '获取预算信息',
       description: '获取指定月份的预算信息，包括预算金额、已使用金额、剩余金额等',
       inputSchema: {
         type: 'object',
@@ -492,6 +497,7 @@ class MCPBridge {
     // 更新月度预算
     this.registerTool({
       name: 'update_budget',
+      aliceName: '更新月度预算',
       description: '更新指定月份的预算金额。',
       inputSchema: {
         type: 'object',
@@ -566,6 +572,7 @@ class MCPBridge {
     // 刷新预算使用金额
     this.registerTool({
       name: 'refresh_budget_usage',
+      aliceName: '刷新预算金额',
       description: '刷新指定月份预算的已使用金额。',
       inputSchema: {
         type: 'object',
@@ -608,6 +615,7 @@ class MCPBridge {
     // 获取固定支出
     this.registerTool({
       name: 'get_fixed_flows',
+      aliceName: '获取固定支出',
       description: '获取指定月份的固定支出列表',
       inputSchema: {
         type: 'object',
@@ -645,6 +653,7 @@ class MCPBridge {
     // 获取分析数据
     this.registerTool({
       name: 'get_analytics',
+      aliceName: '获取分析数据',
       description: '获取各种维度的分析数据，包括按归属人、支付方式、行业分类或每日统计的分析结果',
       inputSchema: {
         type: 'object',
@@ -723,6 +732,7 @@ class MCPBridge {
     // 更新流水记录
     this.registerTool({
       name: 'update_flow',
+      aliceName: '更新流水记录',
       description: '更新现有的流水记录,所有字段必须赋值,优先取原数据值,原数据为空结合上下文编写',
       inputSchema: {
         type: 'object',
@@ -883,6 +893,7 @@ class MCPBridge {
     // 批量更新流水记录
     this.registerTool({
       name: 'batch_update_flows',
+      aliceName: '批量更新流水记录',
       description: '批量更新多条流水记录。可以同时修改多条流水的类型、行业分类、支付方式或归属人',
       inputSchema: {
         type: 'object',
@@ -987,6 +998,7 @@ class MCPBridge {
     // 获取重复流水
     this.registerTool({
       name: 'get_duplicate_flows',
+      aliceName: '获取重复流水',
       description: '根据指定的条件查找重复的流水记录',
       inputSchema: {
         type: 'object',
@@ -1068,6 +1080,7 @@ class MCPBridge {
     // 获取平账候选数据
     this.registerTool({
       name: 'get_balance_candidates',
+      aliceName: '获取平账候选数据',
       description: '获取可以相互抵消的支出和收入流水候选对，用于平账处理',
       inputSchema: {
         type: 'object',
@@ -1102,6 +1115,7 @@ class MCPBridge {
     // 确认平账
     this.registerTool({
       name: 'confirm_balance',
+      aliceName: '平账',
       description: '确认平账操作，将指定的支出流水和收入流水进行平账处理',
       inputSchema: {
         type: 'object',
@@ -1163,6 +1177,7 @@ class MCPBridge {
     // 忽略平账项
     this.registerTool({
       name: 'ignore_balance_item',
+      aliceName: '忽略平账',
       description: '忽略指定的平账候选项，不再显示为平账候选',
       inputSchema: {
         type: 'object',
@@ -1209,6 +1224,7 @@ class MCPBridge {
     // 忽略所有平账候选项
     this.registerTool({
       name: 'ignore_all_balance_items',
+      aliceName: '忽略所有平账',
       description: '忽略所有平账候选项，不再显示任何平账候选。这是一个批量操作，可以一次性清除所有平账候选记录。',
       inputSchema: {
         type: 'object',
@@ -1266,6 +1282,7 @@ class MCPBridge {
     // 删除流水记录
     this.registerTool({
       name: 'delete_flow',
+      aliceName: '删除流水',
       description: '删除指定的流水记录。这是一个高风险操作，删除后数据无法恢复，请谨慎使用。建议设置confirm参数为true以避免误操作。',
       inputSchema: {
         type: 'object',
@@ -1316,6 +1333,7 @@ class MCPBridge {
     // 添加固定支出
     this.registerTool({
       name: 'add_fixed_flow',
+      aliceName: '添加固定支出',
       description: '添加一个新的固定支出记录',
       inputSchema: {
         type: 'object',
@@ -1432,6 +1450,7 @@ class MCPBridge {
     // 更新固定支出
     this.registerTool({
       name: 'update_fixed_flow',
+      aliceName: '更新固定支出',
       description: '更新现有的固定支出记录',
       inputSchema: {
         type: 'object',
@@ -1579,6 +1598,7 @@ class MCPBridge {
     // 删除固定支出
     this.registerTool({
       name: 'delete_fixed_flow',
+      aliceName: '删除固定支出',
       description: '删除指定的固定支出记录。这是一个高风险操作，删除后数据无法恢复，请谨慎使用',
       inputSchema: {
         type: 'object',
@@ -1626,6 +1646,7 @@ class MCPBridge {
     // 获取支付方式列表
     this.registerTool({
       name: 'get_pay_types',
+      aliceName: '获取支付方式',
       description: '获取当前账本中可用的支付方式列表，例如：微信支付、支付宝、现金、银行卡等。',
       inputSchema: {
         type: 'object',
@@ -1669,6 +1690,7 @@ class MCPBridge {
     // 获取归属人列表
     this.registerTool({
       name: 'get_attributions',
+      aliceName: '获取归属人列表',
       description: '获取当前账本中可用的归属人列表',
       inputSchema: {
         type: 'object',
@@ -1712,6 +1734,7 @@ class MCPBridge {
     // OCR识别工具
     this.registerTool({
       name: 'ocr_recognize',
+      aliceName: 'OCR识别',
       description: 'OCR识别小票图片中的文字信息并提取流水数据',
       inputSchema: {
         type: 'object',
@@ -1783,6 +1806,7 @@ class MCPBridge {
     // 小票上传工具
     this.registerTool({
       name: 'upload_receipt',
+      aliceName: '上传小票',
       description: '上传小票图片并关联到指定的流水记录',
       inputSchema: {
         type: 'object',
@@ -1872,6 +1896,7 @@ class MCPBridge {
     // 获取默认归属人
     this.registerTool({
       name: 'get_belonger',
+      aliceName: '获取登录人',
       description: '获取当前登录用户信息做为默认归属人。如果用户未登录，返回空信息。',
       inputSchema: {
         type: 'object',
