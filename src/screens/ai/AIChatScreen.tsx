@@ -145,6 +145,9 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   // 待发送的图片列表
   const [pendingImages, setPendingImages] = useState<string[]>([]);
 
+  // 悬浮菜单显示状态
+  const [showFloatingMenu, setShowFloatingMenu] = useState(false);
+
   // 移除待发送图片
   const removePendingImage = useCallback((index: number) => {
     setPendingImages(prev => prev.filter((_, i) => i !== index));
@@ -1774,33 +1777,6 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
           scrollEventThrottle={16}
         />
 
-        {/* 悬浮按钮栏 */}
-        <View style={[styles.floatingActionBar]}>
-          <TouchableOpacity
-            style={[styles.floatingActionButton, {backgroundColor: colors.success}]}
-            onPress={handleTakePhotoForAccounting}
-            disabled={isSelectingImage || isProcessing}
-          >
-            <Text style={styles.floatingActionButtonText}>📷 拍摄图片</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.floatingActionButton, {backgroundColor: colors.primary}]}
-            onPress={handleSelectImageForAccounting}
-            disabled={isSelectingImage || isProcessing}
-          >
-            <Text style={styles.floatingActionButtonText}>🖼️ 相册上传</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.floatingActionButton, {backgroundColor: colors.warning}]}
-            onPress={handleClearChat}
-            disabled={messages.length <= 1}
-          >
-            <Text style={styles.floatingActionButtonText}>🗑️ 清除记录</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* 输入区域 */}
         <View style={[styles.inputContainer, {backgroundColor: colors.card, borderTopColor: colors.border}]}>
           {/* 待发送图片预览 */}
@@ -1864,17 +1840,61 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                   </TouchableOpacity>
                 )
               ) : (
-                <TouchableOpacity
-                  style={[
-                    styles.sendButton,
-                    {backgroundColor: colors.primary},
-                    ((!inputText.trim() && pendingImages.length === 0) || isProcessing) && [styles.sendButtonDisabled, {backgroundColor: colors.secondaryText}],
-                  ]}
-                  onPress={handleSend}
-                  disabled={(inputText.trim() === '' && pendingImages.length === 0) || isProcessing}
-                >
-                  <Text style={styles.sendButtonText}>发送</Text>
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity
+                    style={[
+                      styles.sendButton,
+                      {backgroundColor: colors.primary},
+                      ((!inputText.trim() && pendingImages.length === 0) || isProcessing) && [styles.sendButtonDisabled, {backgroundColor: colors.secondaryText}],
+                    ]}
+                    onPress={handleSend}
+                    disabled={(inputText.trim() === '' && pendingImages.length === 0) || isProcessing}
+                  >
+                    <Text style={styles.sendButtonText}>发送</Text>
+                  </TouchableOpacity>
+
+                  {/* + 按钮弹出菜单 */}
+                  <TouchableOpacity
+                    style={[styles.addButton, {backgroundColor: colors.input, borderColor: colors.text}]}
+                    onPress={() => setShowFloatingMenu(!showFloatingMenu)}
+                  >
+                    <Text style={[styles.addButtonText, {color: colors.text}]}>+</Text>
+                  </TouchableOpacity>
+
+                  {/* 弹出菜单 */}
+                  {showFloatingMenu && (
+                    <View style={[styles.floatingMenu, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                      <TouchableOpacity
+                        style={[styles.floatingMenuItem, {borderBottomColor: colors.border}]}
+                        onPress={() => {
+                          handleTakePhotoForAccounting();
+                          setShowFloatingMenu(false);
+                        }}
+                      >
+                        <Text style={[styles.floatingMenuItemText, {color: colors.text}]}>📷 拍摄图片</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.floatingMenuItem, {borderBottomColor: colors.border}]}
+                        onPress={() => {
+                          handleSelectImageForAccounting();
+                          setShowFloatingMenu(false);
+                        }}
+                      >
+                        <Text style={[styles.floatingMenuItemText, {color: colors.text}]}>🖼️ 相册上传</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.floatingMenuItem}
+                        onPress={() => {
+                          handleClearChat();
+                          setShowFloatingMenu(false);
+                        }}
+                        disabled={messages.length <= 1}
+                      >
+                        <Text style={[styles.floatingMenuItemText, {color: messages.length <= 1 ? colors.secondaryText : colors.text}]}>🗑️ 清除记录</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </>
               )}
           </View>
 
@@ -2411,6 +2431,46 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  addButton: {
+    paddingVertical: 3,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderColor: '#ffffff',
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 30,
+    marginLeft: 6,
+    backgroundColor: '#f5f5f5',
+  },
+  addButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333333',
+  },
+  floatingMenu: {
+    position: 'absolute',
+    bottom: 44,
+    right: 0,
+    borderRadius: 12,
+    minWidth: 140,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 100,
+    overflow: 'hidden',
+  },
+  floatingMenuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e0e0e0',
+  },
+  floatingMenuItemText: {
+    fontSize: 14,
   },
   hintsContainerWrapper: {
     marginTop: 2,
