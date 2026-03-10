@@ -29,10 +29,12 @@ import AINavigationIcon from '../components/icons/AINavigationIcon';
 
 // 导航类型
 import {MainStackParamList, MainTabParamList} from './types';
+import api from '../services/api';
 import {NativeEventEmitter} from 'react-native';
 import BudgetScreen from '../screens/main/BudgetScreen.tsx';
 // 导入 AI 助手配置服务
 import AIAssistantConfigService from '../services/AIAssistantConfigService';
+import serverConfigManager from '../services/serverConfig.ts';
 
 export const eventBus = new NativeEventEmitter();
 // 创建导航器
@@ -177,6 +179,30 @@ const AppNavigator = () => {
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
 
+  // 验证token是否有效的函数
+  const validateToken = async (): Promise<boolean> => {
+    try {
+			const currentServer = await serverConfigManager.getCurrentServer();
+      if (!currentServer) {
+        return false;
+      }
+      // 初始化API
+      api.init(currentServer);
+
+      // 尝试调用一个简单的API来验证token是否有效
+      const response = await api.book.list();
+      return response.c === 200;
+    } catch (error: any) {
+      console.error('Token验证失败', error);
+      // 如果是401错误，说明token无效
+      if (error.response && error.response.status === 401) {
+        await AsyncStorage.removeItem('auth_token');
+        await AsyncStorage.removeItem('current_user');
+      }
+      return false;
+    }
+  };
+
   // 检查初始路由
   useEffect(() => {
     const checkInitialRoute = async () => {
@@ -186,27 +212,32 @@ const AppNavigator = () => {
         if (offlineMode === 'true') {
           // 离线模式下，直接进入MainTabs（离线记账）
           setInitialRoute('MainTabs');
+          setIsLoading(false);
           return;
         }
 
-        // 检查是否有服务器配置
-        const serverConfig = await AsyncStorage.getItem('server_config');
-        // 检查是否已登录
-        const userInfo = await AsyncStorage.getItem('user_info');
-        // 检查是否有当前账本
-        const currentBook = await AsyncStorage.getItem('current_book');
+        // 检查是否有auth_token
+        const authToken = await AsyncStorage.getItem('auth_token');
 
-        if (serverConfig && userInfo) {
-          if (currentBook) {
-            setInitialRoute('MainTabs');
-          } else {
-            setInitialRoute('BookList');
-          }
-        } else if (serverConfig) {
-          setInitialRoute('Login');
-        } else {
+        if (!authToken) {
+          // 没有token，跳转到服务器列表
           setInitialRoute('ServerList');
+          setIsLoading(false);
+          return;
         }
+
+        // 验证token是否有效
+        const isTokenValid = await validateToken();
+        if (!isTokenValid) {
+          // token无效，清除认证信息
+          await AsyncStorage.removeItem('auth_token');
+          await AsyncStorage.removeItem('current_user');
+          setInitialRoute('ServerList');
+          setIsLoading(false);
+          return;
+        }
+        setInitialRoute('MainTabs');
+
       } catch (error) {
         console.error('检查初始路由失败', error);
         setInitialRoute('ServerList');
