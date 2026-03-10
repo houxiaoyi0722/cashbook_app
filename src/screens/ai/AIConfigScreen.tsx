@@ -82,7 +82,12 @@ const AIConfigScreen: React.FC = () => {
         description: tool.description || '暂无描述',
       }));
       setTools(toolList);
-      setAvailableTools(globalSettings.availableTools ? globalSettings.availableTools : bridgeTools.map(tool => tool.name));
+      // 如果availableTools为空数组或不存在，则默认开启全部工具
+      // null表示首次配置，默认开启全部工具；空数组表示用户手动关闭了全部工具，此时也应该开启全部工具
+      const savedTools = globalSettings.availableTools;
+      setAvailableTools(savedTools === null
+        ? bridgeTools.map(tool => tool.name)
+        : savedTools);
 
       // 准备下拉菜单项
       const configItems = allConfigs.map(config => ({

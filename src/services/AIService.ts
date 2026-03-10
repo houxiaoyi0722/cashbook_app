@@ -414,7 +414,7 @@ ${contextInfo}
       // 获取可用工具
       const availableTools = await aiConfigModule.aiConfigService.getAvailableTools();
 
-      tools = availableTools.length === 0
+      tools = availableTools === null || availableTools.length === 0
         ? []
         : tools.filter(tool => availableTools.includes(tool.name));
 

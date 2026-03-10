@@ -22,7 +22,7 @@ interface AIConfigStorage {
   aiSuggestionEnabled: boolean;
   chatModelConfigId: string | null;
   suggestionModelConfigId: string | null;
-  availableTools: string[];
+  availableTools: string[] | null;
   // OCR配置
   ocrEnabled: boolean;
   ocrModelConfigId: string | null;
@@ -47,7 +47,7 @@ const DEFAULT_GLOBAL_CONFIG: {
   aiSuggestionEnabled: boolean;
   chatModelConfigId: string | null;
   suggestionModelConfigId: string | null;
-  availableTools: string[];
+  availableTools: string[] | null;
   // OCR配置默认值
   ocrEnabled: boolean;
   ocrModelConfigId: string | null;
@@ -57,7 +57,7 @@ const DEFAULT_GLOBAL_CONFIG: {
   chatModelConfigId: null,
   suggestionModelConfigId: null,
   // 默认空数组表示所有工具都可用
-  availableTools: [],
+  availableTools: null,
   // OCR配置默认值
   ocrEnabled: false,
   ocrModelConfigId: null,
@@ -213,7 +213,7 @@ class AIConfigService {
     aiSuggestionEnabled: boolean;
     chatModelConfigId: string | null;
     suggestionModelConfigId: string | null;
-    availableTools: string[];
+    availableTools: string[] | null;
     ocrEnabled: boolean;
     ocrModelConfigId: string | null;
   }> {
@@ -233,7 +233,7 @@ class AIConfigService {
     aiSuggestionEnabled: boolean;
     chatModelConfigId: string | null;
     suggestionModelConfigId: string | null;
-    availableTools: string[];
+    availableTools: string[] | null;
     ocrEnabled: boolean;
     ocrModelConfigId: string | null;
   }>): Promise<boolean> {
@@ -294,7 +294,7 @@ class AIConfigService {
   }
 
   // 获取可用工具列表
-  async getAvailableTools(): Promise<string[]> {
+  async getAvailableTools(): Promise<string[] | null> {
     const storage = await this.getStorage();
     return storage.availableTools;
   }
@@ -311,7 +311,11 @@ class AIConfigService {
   // 检查工具是否可用
   async isToolAvailable(toolName: string): Promise<boolean> {
     const availableTools = await this.getAvailableTools();
-    // 如果列表为空，表示所有工具都可用
+    // 如果为null，表示首次配置，所有工具都可用
+    if (availableTools === null) {
+      return true;
+    }
+    // 如果列表为空，表示用户手动关闭了全部工具
     if (availableTools.length === 0) {
       return false;
     }
@@ -321,8 +325,10 @@ class AIConfigService {
   // 添加工具到可用列表
   async addAvailableTool(toolName: string): Promise<boolean> {
     const storage = await this.getStorage();
-    if (!storage.availableTools.includes(toolName)) {
-      storage.availableTools.push(toolName);
+    const tools = storage.availableTools || [];
+    if (!tools.includes(toolName)) {
+      tools.push(toolName);
+      storage.availableTools = tools;
       await this.saveStorage(storage);
       return true;
     }
@@ -332,9 +338,11 @@ class AIConfigService {
   // 从可用列表中移除工具
   async removeAvailableTool(toolName: string): Promise<boolean> {
     const storage = await this.getStorage();
-    const index = storage.availableTools.indexOf(toolName);
+    const tools = storage.availableTools || [];
+    const index = tools.indexOf(toolName);
     if (index !== -1) {
-      storage.availableTools.splice(index, 1);
+      tools.splice(index, 1);
+      storage.availableTools = tools;
       await this.saveStorage(storage);
       return true;
     }
