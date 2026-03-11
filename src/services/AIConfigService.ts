@@ -19,6 +19,7 @@ interface AIConfigStorage {
   version: number;
   configs: AIConfig[];
   // 全局设置
+  aiName: string | null;
   aiSuggestionEnabled: boolean;
   chatModelConfigId: string | null;
   suggestionModelConfigId: string | null;
@@ -44,6 +45,7 @@ const DEFAULT_AI_CONFIG: {
 
 const DEFAULT_GLOBAL_CONFIG: {
   // 全局设置的默认值
+  aiName: string | null;
   aiSuggestionEnabled: boolean;
   chatModelConfigId: string | null;
   suggestionModelConfigId: string | null;
@@ -52,6 +54,8 @@ const DEFAULT_GLOBAL_CONFIG: {
   ocrEnabled: boolean;
   ocrModelConfigId: string | null;
 } = {
+  // 默认助手名称
+  aiName: 'AI助手',
   // 默认启用AI建议功能
   aiSuggestionEnabled: true,
   chatModelConfigId: null,
@@ -116,6 +120,7 @@ class AIConfigService {
   private async createDefaultStorage(): Promise<AIConfigStorage> {
     const defaultStorage: AIConfigStorage = {
       version: STORAGE_VERSION,
+      aiName: 'AI助手',
       configs: [],
       aiSuggestionEnabled: DEFAULT_GLOBAL_CONFIG.aiSuggestionEnabled,
       chatModelConfigId: DEFAULT_GLOBAL_CONFIG.chatModelConfigId,
@@ -210,6 +215,7 @@ class AIConfigService {
 
   // 获取全局设置
   async getGlobalSettings(): Promise<{
+    aiName: string | null;
     aiSuggestionEnabled: boolean;
     chatModelConfigId: string | null;
     suggestionModelConfigId: string | null;
@@ -219,6 +225,7 @@ class AIConfigService {
   }> {
     const storage = await this.getStorage();
     return {
+      aiName: storage.aiName,
       aiSuggestionEnabled: storage.aiSuggestionEnabled,
       chatModelConfigId: storage.chatModelConfigId,
       suggestionModelConfigId: storage.suggestionModelConfigId,
@@ -230,6 +237,7 @@ class AIConfigService {
 
   // 更新全局设置
   async updateGlobalSettings(settings: Partial<{
+    aiName: string | null;
     aiSuggestionEnabled: boolean;
     chatModelConfigId: string | null;
     suggestionModelConfigId: string | null;

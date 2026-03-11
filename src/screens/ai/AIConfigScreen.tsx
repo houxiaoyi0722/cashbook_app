@@ -37,6 +37,7 @@ const AIConfigScreen: React.FC = () => {
   const [editingConfigName, setEditingConfigName] = useState<string>('');
 
   // 新增状态：全局设置
+  const [aiName, setAiName] = useState('AI助手');
   const [aiSuggestionEnabled, setAiSuggestionEnabled] = useState(true);
   const [chatModelConfigId, setChatModelConfigId] = useState<string | null>(null);
   const [suggestionModelConfigId, setSuggestionModelConfigId] = useState<string | null>(null);
@@ -68,6 +69,7 @@ const AIConfigScreen: React.FC = () => {
 
       // 加载全局设置
       const globalSettings = await aiConfigService.getGlobalSettings();
+      setAiName(globalSettings.aiName || 'AI助手');
       setAiSuggestionEnabled(globalSettings.aiSuggestionEnabled);
       setChatModelConfigId(globalSettings.chatModelConfigId);
       setSuggestionModelConfigId(globalSettings.suggestionModelConfigId);
@@ -124,6 +126,7 @@ const AIConfigScreen: React.FC = () => {
     try {
       setSaving(true);
       const success = await aiConfigService.updateGlobalSettings({
+        aiName,
         aiSuggestionEnabled,
         chatModelConfigId,
         suggestionModelConfigId,
@@ -266,6 +269,18 @@ const AIConfigScreen: React.FC = () => {
         <View style={[styles.section, { marginBottom: 24 }]}>
           <View style={styles.configHeader}>
             <Text style={[styles.label, {color: colors.text}]}>AI助手 设置</Text>
+          </View>
+
+          {/* 助手名称输入框 */}
+          <View style={[styles.row, { marginBottom: 16 }]}>
+            <Text style={[styles.rowLabel, { color: colors.text }]}>助手名称</Text>
+            <TextInput
+              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+              value={aiName}
+              onChangeText={setAiName}
+              placeholder="请输入助手名称"
+              placeholderTextColor={colors.secondaryText}
+            />
           </View>
 
           {/* AI 建议开关 */}
@@ -865,6 +880,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
     lineHeight: 20, // 14 * 1.428 ≈ 20
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    marginLeft: 12,
   },
   dropdownContainer: {
     flex: 1,

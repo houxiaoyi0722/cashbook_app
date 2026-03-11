@@ -44,9 +44,6 @@ import {
 import dayjs from 'dayjs';
 import {mcpBridge} from '../../services/MCPBridge.ts';
 
-// 配置状态缓存
-const DEFAULT_MESSAGE = '你好！我是你的记账助手，可以帮你：\n• 记录收支流水\n• 查询账单记录\n• 分析消费习惯\n• 平账于账本去重\n• 重新分类流水数据\n• 提供省钱建议\n• 其他app功能\n\n试试对我说："记一笔午餐支出50元" 或 "查看本月消费统计"';
-
 interface AIChatScreenProps {
   navigation?: any;
 }
@@ -116,12 +113,19 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
 
+  // 助手名称状态
+  const [aiName, setAiName] = useState('AI助手');
+
+  // 生成默认欢迎消息
+  const getDefaultMessage = useCallback(() => {
+    return `你好！我是${aiName}，可以帮你：\n• 记录收支流水\n• 查询账单记录\n• 分析消费习惯\n• 平账于账本去重\n• 重新分类流水数据\n• 提供省钱建议\n• 其他app功能\n\n试试对我说："记一笔午餐支出50元" 或 "查看本月消费统计"`;
+  }, [aiName]);
+
   // 获取当前账本
   const { currentBook } = useBookkeeping();
-
   const [messages, setMessages] = useState<Message[]>([
     createTextMessage(
-      DEFAULT_MESSAGE,
+      getDefaultMessage(),
       false,
       {
         id: '1',
@@ -217,11 +221,11 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   }, []);
 
   // 加载指定账本的聊天记录
-  const loadChatForBook = useCallback(async (bookId: string): Promise<Message[]> => {
+  const loadChatForBook = useCallback(async (bookId: string, defaultMsg?: string): Promise<Message[]> => {
     if (!bookId) {
       return [
         createTextMessage(
-          DEFAULT_MESSAGE,
+          defaultMsg || getDefaultMessage(),
           false,
           {
             id: '1',
@@ -293,7 +297,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     // 如果没有保存的记录，返回默认消息
     return [
       createTextMessage(
-        DEFAULT_MESSAGE,
+        defaultMsg || getDefaultMessage(),
         false,
         {
           id: '1',
@@ -395,6 +399,11 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       const configured = await aiConfigService.isConfigured();
       const suggestionsEnabled = await aiConfigService.isAiSuggestionEnabled();
       setAiSuggestionEnabled(suggestionsEnabled);
+
+      // 加载全局设置中的助手名称
+      const globalSettings = await aiConfigService.getGlobalSettings();
+      setAiName(globalSettings.aiName || 'AI助手');
+
       setIsConfigured(configured);
       setCheckingConfig(false);
 
@@ -467,7 +476,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       }
 
       // 加载新账本的聊天记录
-      const newMessages = await loadChatForBook(newBookId);
+      const newMessages = await loadChatForBook(newBookId, getDefaultMessage());
 
       // 更新当前账本ID引用
       currentBookIdRef.current = newBookId;
@@ -510,7 +519,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       if (!currentBookIdRef.current) {
         currentBookIdRef.current = bookId;
         // 初始加载聊天记录
-        loadChatForBook(bookId).then(loadedMessages => {
+        loadChatForBook(bookId, getDefaultMessage()).then(loadedMessages => {
           setMessages(loadedMessages);
         });
       }
@@ -659,7 +668,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
     if ((!inputText.trim() && pendingImages.length === 0) || isProcessing || !isConfigured) {
       if (!isConfigured) {
-        Alert.alert('AI助手未配置', '请先配置AI助手以使用此功能', [
+        Alert.alert(`${aiName}未配置`, `请先配置${aiName}以使用此功能`, [
           { text: '取消', style: 'cancel' },
           {
             text: '去配置',
@@ -1000,7 +1009,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
             // 重置消息，只保留系统提示词
             const defaultMessages: Message[] = [
               createTextMessage(
-                DEFAULT_MESSAGE,
+                getDefaultMessage(),
                 false,
                 {
                   id: '1',
@@ -1126,7 +1135,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       <View style={messageStyle}>
         <View style={styles.messageHeader}>
           <Text style={[styles.messageRole, {color: colors.text}]}>
-            {isUser ? '你' : 'AI助手'}
+            {isUser ? '你' : aiName}
             {isToolCallMsg && ' 🔧'}
             {isThinkingMsg && ' 💭'}
             {isToolResultMsg && ' 📊'}

@@ -35,6 +35,7 @@ import BudgetScreen from '../screens/main/BudgetScreen.tsx';
 // 导入 AI 助手配置服务
 import AIAssistantConfigService from '../services/AIAssistantConfigService';
 import serverConfigManager from '../services/serverConfig.ts';
+import {aiConfigService} from '../services/AIConfigService.ts';
 
 export const eventBus = new NativeEventEmitter();
 // 创建导航器
@@ -46,6 +47,7 @@ const MainTabs = () => {
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
   const [aiAssistantEnabled, setAiAssistantEnabled] = useState<boolean>(false);
+  const [aiName, setAiName] = useState<string>('AI助手');
   const [loading, setLoading] = useState<boolean>(true);
 
   // 加载 AI 助手启用状态并监听变化
@@ -54,10 +56,14 @@ const MainTabs = () => {
       try {
         const enabled = await AIAssistantConfigService.isEnabled();
         setAiAssistantEnabled(enabled);
+
+        // 加载助手名称
+        const globalSettings = await aiConfigService.getGlobalSettings();
+        setAiName(globalSettings.aiName || 'AI助手');
       } catch (error) {
-        console.error('加载 AI 助手启用状态失败', error);
-        // 默认禁用
+        console.error('加载 AI 助手状态失败', error);
         setAiAssistantEnabled(false);
+        setAiName('AI助手');
       } finally {
         setLoading(false);
       }
@@ -93,7 +99,7 @@ const MainTabs = () => {
     );
   }
 
-  return (
+	return (
     <>
       <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
@@ -140,7 +146,7 @@ const MainTabs = () => {
             name="AIChat"
             component={AIChatScreen}
             options={{
-              tabBarLabel: 'AI助手',
+              tabBarLabel: aiName,
               tabBarIcon: ({ color, size }) => (
                 <AINavigationIcon color={color} size={size} />
               ),
