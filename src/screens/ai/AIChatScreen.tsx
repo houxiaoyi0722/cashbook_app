@@ -5,6 +5,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   StatusBar,
   StyleSheet,
   Text,
@@ -1722,6 +1723,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
+        onTouchStart={() => showFloatingMenu && setShowFloatingMenu(false)}
       >
         {/* 聊天消息列表 */}
         <FlatList
@@ -1854,16 +1856,22 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                   </TouchableOpacity>
 
                   {/* + 按钮弹出菜单 */}
-                  <TouchableOpacity
+                  <Pressable
                     style={[styles.addButton, {backgroundColor: colors.input, borderColor: colors.text}]}
-                    onPress={() => setShowFloatingMenu(!showFloatingMenu)}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                      setShowFloatingMenu(!showFloatingMenu);
+                    }}
                   >
                     <Text style={[styles.addButtonText, {color: colors.text}]}>+</Text>
-                  </TouchableOpacity>
+                  </Pressable>
 
                   {/* 弹出菜单 */}
                   {showFloatingMenu && (
-                    <View style={[styles.floatingMenu, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                    <View
+                      style={[styles.floatingMenu, {backgroundColor: colors.card, borderColor: colors.border}]}
+                      onTouchStart={(e) => e.stopPropagation()}
+                    >
                       <TouchableOpacity
                         style={[styles.floatingMenuItem, {borderBottomColor: colors.border}]}
                         onPress={() => {
