@@ -149,6 +149,13 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   // 悬浮菜单显示状态
   const [showFloatingMenu, setShowFloatingMenu] = useState(false);
 
+  // 复制按钮显示状态
+  const [showCopyMenu, setShowCopyMenu] = useState(false);
+  const [copyMenuPosition, setCopyMenuPosition] = useState({ x: 0, y: 0 });
+  const [copyMenuContent, setCopyMenuContent] = useState('');
+  // 复制成功提示显示状态
+  const [showCopySuccess, setShowCopySuccess] = useState(false);
+
   // 移除待发送图片
   const removePendingImage = useCallback((index: number) => {
     setPendingImages(prev => prev.filter((_, i) => i !== index));
@@ -612,22 +619,34 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
   }, [navigation, checkAIConfig]);
 
   // 处理复制消息到剪贴板
-  const handleCopyMessage = useCallback((content: string) => {
+  const handleCopyMessage = useCallback((content: string, event?: { pageX: number; pageY: number }) => {
     if (!content || content.trim() === '') {
       return;
     }
+    // 显示复制按钮菜单
+    if (event) {
+      setCopyMenuPosition({ x: event.pageX, y: event.pageY - 50 });
+    }
+    setCopyMenuContent(content);
+    setShowCopyMenu(true);
+  }, []);
 
-    // 复制到剪贴板
+  // 执行复制
+  const executeCopy = useCallback((content: string) => {
+    if (!content || content.trim() === '') {
+      return;
+    }
     if (Clipboard && Clipboard.setString) {
       try {
         Clipboard.setString(content.trim());
-        Alert.alert('已复制到剪贴板');
+        setShowCopyMenu(false);
+        setShowCopySuccess(true);
+        setTimeout(() => setShowCopySuccess(false), 2000);
       } catch (error) {
-        Alert.alert('复制失败');
+        console.error('复制失败:', error);
       }
-    } else {
-      Alert.alert('提示', '剪贴板功能不可用');
     }
+    setShowCopyMenu(false);
   }, []);
 
   // 处理发送消息
@@ -1131,7 +1150,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       return (
         <TouchableOpacity
           activeOpacity={0.7}
-          onLongPress={() => handleCopyMessage(caption || '')}
+          onLongPress={(e) => handleCopyMessage(caption || '', e.nativeEvent)}
           delayLongPress={500}
         >
           <>
@@ -1209,7 +1228,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
       return (
         <TouchableOpacity
           activeOpacity={0.7}
-          onLongPress={() => handleCopyMessage(item.content)}
+          onLongPress={(e) => handleCopyMessage(item.content, e.nativeEvent)}
           delayLongPress={500}
         >
           <>
@@ -1234,7 +1253,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
     return (
       <TouchableOpacity
         activeOpacity={0.7}
-        onLongPress={() => handleCopyMessage(item.content)}
+        onLongPress={(e) => handleCopyMessage(item.content, e.nativeEvent)}
         delayLongPress={500}
         style={styles.messageTouchable}
       >
@@ -1303,7 +1322,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                   {!isCollapsed && (
                     <TouchableOpacity
                       activeOpacity={0.7}
-                      onLongPress={() => handleCopyMessage(thinkingMsg.thinkingContent)}
+                      onLongPress={(e) => handleCopyMessage(thinkingMsg.thinkingContent, e.nativeEvent)}
                       delayLongPress={500}
                       style={styles.messageTouchable}
                     >
@@ -1413,11 +1432,11 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                       {toolCallMsg.arguments && (
                         <TouchableOpacity
                           activeOpacity={0.7}
-                          onLongPress={() => {
+                          onLongPress={(e) => {
                             const contentToCopy = typeof toolCallMsg.arguments === 'string'
                               ? toolCallMsg.arguments
                               : JSON.stringify(toolCallMsg.arguments, null, 2);
-                            handleCopyMessage(contentToCopy);
+                            handleCopyMessage(contentToCopy, e.nativeEvent)
                           }}
                           delayLongPress={500}
                           style={styles.toolCallSection}
@@ -1437,11 +1456,11 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                       {toolCallMsg.resultMessage?.result !== undefined && (
                         <TouchableOpacity
                           activeOpacity={0.7}
-                          onLongPress={() => {
+                          onLongPress={(e) => {
                             const contentToCopy = typeof toolCallMsg.resultMessage?.result === 'string'
                               ? toolCallMsg.resultMessage.result
                               : JSON.stringify(toolCallMsg.resultMessage?.result, null, 2);
-                            handleCopyMessage(contentToCopy);
+                            handleCopyMessage(contentToCopy, e.nativeEvent)
                           }}
                           delayLongPress={500}
                           style={styles.toolCallSection}
@@ -1461,7 +1480,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                       {toolCallMsg.resultMessage?.errorMessage && (
                         <TouchableOpacity
                           activeOpacity={0.7}
-                          onLongPress={() => handleCopyMessage(toolCallMsg.resultMessage?.errorMessage || '')}
+                          onLongPress={(e) => handleCopyMessage(toolCallMsg.resultMessage?.errorMessage || '', e.nativeEvent)}
                           delayLongPress={500}
                           style={styles.toolCallSection}
                         >
@@ -1489,7 +1508,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                 <TouchableOpacity
                   key={msg.id}
                   activeOpacity={0.7}
-                  onLongPress={() => handleCopyMessage(textMsg.content)}
+                  onLongPress={(e) => handleCopyMessage(textMsg.content, e.nativeEvent)}
                   delayLongPress={500}
                   style={styles.aiSectionTouchable}
                 >
@@ -1808,7 +1827,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
             </View>
           )}
 
-          <View style={styles.inputWrapper}>
+          <View style={[styles.inputWrapper, {backgroundColor: colors.card, borderColor: colors.card}]}>
             <TextInput
               style={[
                 styles.input,
@@ -1857,13 +1876,13 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
                   {/* + 按钮弹出菜单 */}
                   <Pressable
-                    style={[styles.addButton, {backgroundColor: colors.input, borderColor: colors.text}]}
+                    style={[styles.addButton, {backgroundColor: colors.input, borderColor: colors.secondaryText}]}
                     onTouchStart={(e) => {
                       e.stopPropagation();
                       setShowFloatingMenu(!showFloatingMenu);
                     }}
                   >
-                    <Text style={[styles.addButtonText, {color: colors.text}]}>+</Text>
+                    <Text style={[styles.addButtonText, {color: colors.secondaryText}]}>+</Text>
                   </Pressable>
 
                   {/* 弹出菜单 */}
@@ -1943,6 +1962,47 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
         >
           <Text style={styles.scrollToBottomButtonIcon}>↓</Text>
         </TouchableOpacity>
+      )}
+
+      {/* 复制菜单 - 点击其他位置关闭 */}
+      {showCopyMenu && (
+        <TouchableOpacity
+          activeOpacity={1}
+          style={[styles.copyMenuOverlay, { top: copyMenuPosition.y - 20, left: 0, right: 0, bottom: 0 }]}
+          onPress={() => {
+            setShowCopyMenu(false);
+            setCopyMenuContent('');
+          }}
+        >
+          <View
+            style={[
+              styles.copyMenu,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                left: copyMenuPosition.x - 60,
+              },
+            ]}
+            onTouchStart={(e) => e.stopPropagation()}
+          >
+            <TouchableOpacity
+              style={styles.copyMenuItem}
+              onPress={() => executeCopy(copyMenuContent)}
+            >
+              <Icon name="content-copy" type="material-community" size={18} color={colors.text} />
+              <Text style={[styles.copyMenuText, { color: colors.text, marginLeft: 8 }]}>复制</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* 复制成功提示 */}
+      {showCopySuccess && (
+        <View style={{ position: 'absolute', top: 200, left: -45, right: 0, alignItems: 'center', zIndex: 1002 }}>
+          <View style={[styles.copySuccessToast, { backgroundColor: colors.success }]}>
+            <Text style={styles.copySuccessText}>已复制到剪贴板</Text>
+          </View>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -2131,6 +2191,49 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#fff',
     marginTop: 2,
+  },
+  // 复制菜单样式
+  copyMenu: {
+    position: 'absolute',
+    borderRadius: 12,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 1000,
+    minWidth: 120,
+  },
+  copyMenuOverlay: {
+    position: 'absolute',
+    zIndex: 999,
+  },
+  copyMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+  },
+  copyMenuText: {
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  // 复制成功提示样式
+  copySuccessToast: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -50 }, { translateY: -50 }],
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    zIndex: 1001,
+  },
+  copySuccessText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
   },
   flatList: {
     flex: 1,
@@ -2375,9 +2478,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     padding: 8,
-    backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
   },
   pendingImagesContainer: {
     paddingHorizontal: 8,
@@ -2406,12 +2507,10 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: '#f5f5f5',
     borderRadius: 20,
     paddingHorizontal: 4,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
   },
   input: {
     flex: 1,
