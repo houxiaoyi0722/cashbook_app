@@ -4,7 +4,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {Icon} from '@rneui/themed';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {StatusBar, View, ActivityIndicator} from 'react-native';
+import {StatusBar, View, ActivityIndicator, Image} from 'react-native';
 import {useTheme, getColors} from '../context/ThemeContext';
 
 // 认证相关屏幕
@@ -250,7 +250,14 @@ const AppNavigator = () => {
   }, []);
 
   if (isLoading) {
-    return null; // 或者显示加载指示器
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <Image
+          source={require('../../logo/web_hi_res_512_1.png')}
+          style={{ width: 150, height: 150, resizeMode: 'contain' }}
+        />
+      </View>
+    );
   }
 
 	return (
