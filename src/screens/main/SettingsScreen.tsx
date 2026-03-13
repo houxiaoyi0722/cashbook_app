@@ -12,6 +12,9 @@ import {eventBus} from '../../navigation';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useTheme, getColors} from '../../context/ThemeContext';
 import AIConfigIcon from '../../components/icons/AIConfigIcon';
+import { exportAppConfig, importAppConfig } from '../../services/ExportImportService';
+import RNFS from 'react-native-fs';
+import { Platform } from 'react-native';
 // AIAssistantConfigService 是一个单例实例，直接调用其方法
 import AIAssistantConfigService from '../../services/AIAssistantConfigService';
 
@@ -40,6 +43,8 @@ const SettingsScreen: React.FC = () => {
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
 
   const [serverVersion, setServerVersion] = useState<string>('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [aiAssistantEnabled, setAiAssistantEnabled] = useState<boolean>(false);
   const [isAIAssistantSwitchProcessing, setIsAIAssistantSwitchProcessing] = useState<boolean>(false);
 
@@ -87,7 +92,7 @@ const SettingsScreen: React.FC = () => {
             onPress: () => {
               // 用户取消，重置处理状态，不更新aiAssistantEnabled
               setIsAIAssistantSwitchProcessing(false);
-            }
+            },
           },
           {
             text: '确定',
@@ -106,8 +111,8 @@ const SettingsScreen: React.FC = () => {
                 // 无论成功与否，都重置处理状态
                 setIsAIAssistantSwitchProcessing(false);
               }
-            }
-          }
+            },
+          },
         ],
         { cancelable: true }
       );
@@ -275,6 +280,87 @@ const SettingsScreen: React.FC = () => {
     }
   }, [isOfflineMode, enableOfflineMode, disableOfflineMode, navigation]);
 
+  // 处理导出配置
+  const handleExportConfig = useCallback(async () => {
+    Alert.alert(
+      '导出配置',
+      '确定要导出当前配置吗？导出的配置包含服务器列表、AI设置、当前账本等信息。',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '导出',
+          onPress: async () => {
+            try {
+              setIsExporting(true);
+              const jsonData = await exportAppConfig();
+
+              const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+              const fileName = `cashbook_config_${timestamp}.json`;
+              const filePath = Platform.OS === 'ios'
+                ? `${RNFS.DocumentDirectoryPath}/${fileName}`
+                : `${RNFS.DownloadDirectoryPath}/${fileName}`;
+
+              await RNFS.writeFile(filePath, jsonData, 'utf8');
+
+              Alert.alert('导出成功', `配置已导出到:\n${filePath}`);
+            } catch (error) {
+              console.error('导出配置失败:', error);
+              Alert.alert('导出失败', '导出配置时发生错误');
+            } finally {
+              setIsExporting(false);
+            }
+          },
+        },
+      ]
+    );
+  }, []);
+
+  // 处理导入配置
+  const handleImportConfig = useCallback(async () => {
+    Alert.alert(
+      '导入配置',
+      '导入配置将覆盖当前的服务器列表、AI设置等信息。导入前建议先导出当前配置以备份。\n\n是否继续？',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '选择文件',
+          onPress: async () => {
+            try {
+              // 提示用户输入JSON内容
+              Alert.prompt(
+                '导入配置',
+                '请粘贴导出的JSON配置内容：',
+                async (text) => {
+                  if (!text || text.trim() === '') {
+                    Alert.alert('错误', '请输入配置内容');
+                    return;
+                  }
+
+                  setIsImporting(true);
+                  const result = await importAppConfig(text.trim());
+
+                  if (result.success) {
+                    Alert.alert('导入成功', result.message);
+                  } else {
+                    Alert.alert('导入失败', result.message);
+                  }
+                  setIsImporting(false);
+                },
+                'plain-text',
+                '',
+                'plain-text'
+              );
+            } catch (error) {
+              console.error('导入配置失败:', error);
+              Alert.alert('导入失败', '导入配置时发生错误');
+              setIsImporting(false);
+            }
+          },
+        },
+      ]
+    );
+  }, []);
+
   // 渲染用户信息
   const renderUserInfo = () => (
     <Card containerStyle={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
@@ -439,6 +525,48 @@ const SettingsScreen: React.FC = () => {
     </Card>
   );
 
+  // 渲染数据管理设置
+  const renderDataManagement = () => (
+    <Card containerStyle={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+      <Card.Title style={{color: colors.text}}>数据管理</Card.Title>
+
+      <ListItem
+        onPress={handleExportConfig}
+        bottomDivider
+        key="export-config"
+        disabled={isExporting}
+        containerStyle={{backgroundColor: colors.card}}
+      >
+        <Icon name="file-upload" type="material" color={colors.primary} />
+        <ListItem.Content>
+          <ListItem.Title style={{color: colors.text}}>导出配置</ListItem.Title>
+          <ListItem.Subtitle style={{color: colors.secondaryText}}>
+            导出服务器、AI配置等到JSON文件
+          </ListItem.Subtitle>
+        </ListItem.Content>
+        {isExporting && <ActivityIndicator size="small" color={colors.primary} />}
+        <ListItem.Chevron color={colors.secondaryText} />
+      </ListItem>
+
+      <ListItem
+        onPress={handleImportConfig}
+        key="import-config"
+        disabled={isImporting}
+        containerStyle={{backgroundColor: colors.card}}
+      >
+        <Icon name="file-download" type="material" color={colors.primary} />
+        <ListItem.Content>
+          <ListItem.Title style={{color: colors.text}}>导入配置</ListItem.Title>
+          <ListItem.Subtitle style={{color: colors.secondaryText}}>
+            从JSON文件导入服务器、AI配置
+          </ListItem.Subtitle>
+        </ListItem.Content>
+        {isImporting && <ActivityIndicator size="small" color={colors.primary} />}
+        <ListItem.Chevron color={colors.secondaryText} />
+      </ListItem>
+    </Card>
+  );
+
   // 渲染关于信息
   const renderAboutInfo = () => (
     <Card containerStyle={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
@@ -586,6 +714,7 @@ const SettingsScreen: React.FC = () => {
         <ScrollView>
           {renderUserInfo()}
           {renderAccountSettings()}
+          {renderDataManagement()}
           {renderAboutInfo()}
         </ScrollView>
 

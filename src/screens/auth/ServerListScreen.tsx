@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { View, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator, Text as RNText } from 'react-native';
 import { Text, Icon, ListItem, Card } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ServerConfig } from '../../types';
 import serverConfigManager from '../../services/serverConfig.ts';
 import { useTheme, getColors } from '../../context/ThemeContext';
+import { importAppConfig } from '../../services/ExportImportService';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -15,8 +16,28 @@ const ServerListScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { serverConfig, serverConfigs, deleteServerConfig, switchServer, isLoading, isLoggedIn, isLogOut, enableOfflineMode, isOfflineMode, disableOfflineMode } = useAuth();
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
+
+  // 设置导航栏右上角按钮
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleImportConfig}
+          style={{ marginRight: 10 }}
+          disabled={isImporting}
+        >
+          {isImporting ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Icon name="file-upload" type="material" color="#fff" size={24} />
+          )}
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, isImporting]);
 
   // 初始化时设置当前选中的服务器
   useEffect(() => {
@@ -99,6 +120,57 @@ const ServerListScreen: React.FC = () => {
       );
     }
   }, [isOfflineMode, enableOfflineMode, disableOfflineMode, navigation]);
+
+  // 处理导入配置
+  const handleImportConfig = useCallback(async () => {
+    Alert.alert(
+      '导入服务器配置',
+      '导入配置将覆盖当前的服务器列表。导入前建议先备份当前配置。\n\n是否继续？',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '粘贴JSON',
+          onPress: async () => {
+            try {
+              // 提示用户输入JSON内容
+              Alert.prompt(
+                '导入服务器配置',
+                '请粘贴导出的JSON配置内容：',
+                async (text) => {
+                  if (!text || text.trim() === '') {
+                    Alert.alert('错误', '请输入配置内容');
+                    return;
+                  }
+                  
+                  setIsImporting(true);
+                  const result = await importAppConfig(text.trim());
+                  
+                  if (result.success) {
+                    Alert.alert('导入成功', result.message);
+                    // 刷新页面以显示新导入的服务器
+                    navigation.reset({
+                      index: 0,
+                      routes: [{ name: 'ServerList' }],
+                    });
+                  } else {
+                    Alert.alert('导入失败', result.message);
+                  }
+                  setIsImporting(false);
+                },
+                'plain-text',
+                '',
+                'plain-text'
+              );
+            } catch (error) {
+              console.error('导入配置失败:', error);
+              Alert.alert('导入失败', '导入配置时发生错误');
+              setIsImporting(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [navigation]);
 
   // 处理服务器删除
   const handleDeleteServer = useCallback((server: ServerConfig) => {
