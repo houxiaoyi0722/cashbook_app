@@ -110,7 +110,7 @@ const ServerListScreen: React.FC = () => {
       // 使用文档选择器选择.cashbookapp文件
       const [result] = await pick({
         mode: 'import',
-        type: ['application/cashbookapp', 'application/octet-stream'],
+        type: ['application/json', 'text/plain', '*/*'],
       });
 
       if (!result?.uri) {

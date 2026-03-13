@@ -415,19 +415,6 @@ const SettingsScreen: React.FC = () => {
         <ListItem.Chevron color={colors.secondaryText} />
       </ListItem>
 
-      <ListItem
-        onPress={() => navigation.navigate('Logs')}
-        bottomDivider
-        key="logs"
-        containerStyle={{backgroundColor: colors.card}}
-      >
-        <Icon name="description" type="material" color={colors.primary} />
-        <ListItem.Content>
-          <ListItem.Title style={{color: colors.text}}>日志管理</ListItem.Title>
-        </ListItem.Content>
-        <ListItem.Chevron color={colors.secondaryText} />
-      </ListItem>
-
       {/* 离线模式管理 */}
       <ListItem
         onPress={handleOfflineModeToggle}
@@ -458,6 +445,38 @@ const SettingsScreen: React.FC = () => {
         <Icon name="sync" type="material" color={colors.primary} />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>同步管理</ListItem.Title>
+        </ListItem.Content>
+        <ListItem.Chevron color={colors.secondaryText} />
+      </ListItem>
+
+      <ListItem
+        onPress={handleLogout}
+        key="logout"
+        containerStyle={{backgroundColor: colors.card}}
+      >
+        <Icon name="logout" type="material" color={colors.error} />
+        <ListItem.Content>
+          <ListItem.Title style={{ color: colors.error }}>退出登录</ListItem.Title>
+        </ListItem.Content>
+        <ListItem.Chevron color={colors.secondaryText} />
+      </ListItem>
+    </Card>
+  );
+
+  // 渲染数据管理设置
+  const renderDataManagement = () => (
+    <Card containerStyle={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+      <Card.Title style={{color: colors.text}}>配置管理</Card.Title>
+
+      <ListItem
+        onPress={() => navigation.navigate('Logs')}
+        bottomDivider
+        key="logs"
+        containerStyle={{backgroundColor: colors.card}}
+      >
+        <Icon name="description" type="material" color={colors.primary} />
+        <ListItem.Content>
+          <ListItem.Title style={{color: colors.text}}>日志管理</ListItem.Title>
         </ListItem.Content>
         <ListItem.Chevron color={colors.secondaryText} />
       </ListItem>
@@ -517,24 +536,6 @@ const SettingsScreen: React.FC = () => {
         />
       </ListItem>
 
-      <ListItem
-        onPress={handleLogout}
-        key="logout"
-        containerStyle={{backgroundColor: colors.card}}
-      >
-        <Icon name="logout" type="material" color={colors.error} />
-        <ListItem.Content>
-          <ListItem.Title style={{ color: colors.error }}>退出登录</ListItem.Title>
-        </ListItem.Content>
-        <ListItem.Chevron color={colors.secondaryText} />
-      </ListItem>
-    </Card>
-  );
-
-  // 渲染数据管理设置
-  const renderDataManagement = () => (
-    <Card containerStyle={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
-      <Card.Title style={{color: colors.text}}>数据管理</Card.Title>
 
       <ListItem
         onPress={handleExportConfig}
@@ -543,12 +544,12 @@ const SettingsScreen: React.FC = () => {
         disabled={isExporting}
         containerStyle={{backgroundColor: colors.card}}
       >
-        <Icon name="file-upload" type="material" color={colors.primary} />
+        <View style={styles.exportItemContainer}>
+          <Icon name="file-upload" type="material" color={colors.warning} />
+          <Icon name="alert" type="material" color={colors.warning} size={14} style={styles.warningIcon} />
+        </View>
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>导出配置</ListItem.Title>
-          <ListItem.Subtitle style={{color: colors.secondaryText}}>
-            导出服务器、AI配置等到JSON文件
-          </ListItem.Subtitle>
         </ListItem.Content>
         {isExporting && <ActivityIndicator size="small" color={colors.primary} />}
         <ListItem.Chevron color={colors.secondaryText} />
@@ -563,9 +564,6 @@ const SettingsScreen: React.FC = () => {
         <Icon name="file-download" type="material" color={colors.primary} />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>导入配置</ListItem.Title>
-          <ListItem.Subtitle style={{color: colors.secondaryText}}>
-            从JSON文件导入服务器、AI配置
-          </ListItem.Subtitle>
         </ListItem.Content>
         {isImporting && <ActivityIndicator size="small" color={colors.primary} />}
         <ListItem.Chevron color={colors.secondaryText} />
@@ -786,6 +784,14 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     marginBottom: 10,
+  },
+  exportItemContainer: {
+    position: 'relative',
+  },
+  warningIcon: {
+    position: 'absolute',
+    bottom: -2,
+    right: -6,
   },
   loadingOverlay: {
     width: 200,
