@@ -1,0 +1,37 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "node_modules/@react-native-vector-icons/material-icons/fonts/MaterialIcons.ttf",
+      "sha1": "7e02c3f005532ff4d24148567c84089756a7848a"
+    },
+    {
+      "path": "node_modules/@react-native-vector-icons/material-design-icons/fonts/MaterialDesignIcons.ttf",
+      "sha1": "4f51a4dc75a68d3e57321c448efddea23c8a9db0"
+    },
+    {
+      "path": "node_modules/@react-native-vector-icons/ionicons/fonts/Ionicons.ttf",
+      "sha1": "3a656ee69b64ccb1e57f1721f7659b50c1fb56ef"
+    },
+    {
+      "path": "node_modules/@react-native-vector-icons/fontawesome/fonts/FontAwesome.ttf",
+      "sha1": "13b1eab65a983c7a73bc7997c479d66943f7c6cb"
+    },
+    {
+      "path": "node_modules/@react-native-vector-icons/feather/fonts/Feather.ttf",
+      "sha1": "a6ca45c336a9357768eac614913416003e70bf12"
+    },
+    {
+      "path": "node_modules/@react-native-vector-icons/entypo/fonts/Entypo.ttf",
+      "sha1": "8749fb79a6011705fbb1583fcdf300b52cab9adf"
+    },
+    {
+      "path": "node_modules/@react-native-vector-icons/simple-line-icons/fonts/SimpleLineIcons.ttf",
+      "sha1": "9ffb81a5a11112e292f2cc323e98486bad597599"
+    },
+    {
+      "path": "node_modules/@react-native-vector-icons/ant-design/fonts/AntDesign.ttf",
+      "sha1": "850767cc9afac4325bce220bca29cdb6872379f5"
+    }
+  ]
+}
