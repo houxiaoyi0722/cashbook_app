@@ -646,7 +646,7 @@ const FlowFormScreen: React.FC = () => {
             onPress={handleInvoiceUpload}
             disabled={isLoading || uploadingImage}
           >
-            <Icon name="add-a-photo" type="material" color={colors.primary} size={24} />
+            <Icon {...({ iconProps: { name: 'add-a-photo', type: 'material', color: colors.primary, size: 24 } } as any)} />
             <Text style={[styles.addButtonText, { color: colors.primary }]}>上传小票</Text>
           </TouchableOpacity>
 
@@ -730,12 +730,12 @@ const FlowFormScreen: React.FC = () => {
         )}
         <View style={styles.imageViewerButtons}>
           <Button
-            icon={<Icon name="close" type="material" color="white" size={24} />}
+            icon={<Icon iconProps={{ name: 'close', type: 'material', color: 'white', size: 24 }} />}
             buttonStyle={styles.closeButton}
             onPress={() => setShowImageViewer(false)}
           />
           <Button
-            icon={<Icon name="delete" type="material" color="white" size={24} />}
+            icon={<Icon iconProps={{ name: 'delete', type: 'material', color: 'white', size: 24 }} />}
             buttonStyle={[styles.deleteButton, { backgroundColor: colors.error }]}
             onPress={deleteInvoiceImage}
           />
@@ -882,7 +882,7 @@ const FlowFormScreen: React.FC = () => {
                 inputStyle={[{ fontSize: 14, lineHeight: 18, paddingVertical: 4, color: colors.text }, { paddingVertical: 0 }]}
                 onChangeText={setName}
                 disabled={isLoading}
-                leftIcon={{ type: 'material', name: 'shopping-cart', color: '#1976d2' }}
+                leftIcon={<Icon {...({ iconProps: { type: 'material', name: 'shopping-cart', color: '#1976d2' } } as any)} />}
                 errorMessage={name.trim() ? '' : '交易方名称不能为空'}
               />
 
@@ -893,7 +893,7 @@ const FlowFormScreen: React.FC = () => {
                 onChangeText={setMoney}
                 keyboardType="numeric"
                 disabled={isLoading}
-                leftIcon={{ type: 'material', name: 'account-balance-wallet', color: '#1976d2' }}
+                leftIcon={<Icon {...({ iconProps: { type: 'material', name: 'account-balance-wallet', color: '#1976d2', size: 24 } } as any)} />}
                 errorMessage={money && !isNaN(Number(money)) && Number(money) > 0 ? '' : '请输入有效的金额'}
                 labelStyle={{ color: colors.text }}
                 inputStyle={[{ fontSize: 14, lineHeight: 18, paddingVertical: 4, color: colors.text }, { paddingVertical: 0 }]}
@@ -1019,7 +1019,7 @@ const FlowFormScreen: React.FC = () => {
                 value={description}
                 onChangeText={setDescription}
                 disabled={isLoading}
-                leftIcon={{ type: 'material', name: 'description', color: '#1976d2' }}
+                leftIcon={<Icon {...({ iconProps: { type: 'material', name: 'description', color: '#1976d2', size: 24 } } as any)} />}
                 multiline
                 numberOfLines={3}
                 labelStyle={{ color: colors.text }}

@@ -395,11 +395,11 @@ const SettingsScreen: React.FC = () => {
         key="change-password"
         containerStyle={{backgroundColor: colors.card}}
       >
-        <Icon name="lock" type="material" color={colors.primary} />
+        <Icon {...({ iconProps: { name: 'lock', type: 'material', color: colors.primary, size: 24 } } as any)} />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>修改密码</ListItem.Title>
         </ListItem.Content>
-        <ListItem.Chevron color={colors.secondaryText} />
+        <ListItem.Chevron />
       </ListItem>
 
       <ListItem
@@ -408,11 +408,11 @@ const SettingsScreen: React.FC = () => {
         key="switch-server"
         containerStyle={{backgroundColor: colors.card}}
       >
-        <Icon name="swap-horiz" type="material" color={colors.primary} />
+        <Icon {...({ iconProps: { name: 'swap-horiz', type: 'material', color: colors.primary, size: 24 } } as any)} />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>切换服务器</ListItem.Title>
         </ListItem.Content>
-        <ListItem.Chevron color={colors.secondaryText} />
+        <ListItem.Chevron />
       </ListItem>
 
       {/* 离线模式管理 */}
@@ -423,16 +423,14 @@ const SettingsScreen: React.FC = () => {
         containerStyle={{backgroundColor: colors.card}}
       >
         <Icon
-          name={isOfflineMode ? 'cloud-off' : 'offline-bolt'}
-          type="material"
-          color={isOfflineMode ? colors.warning : colors.primary}
+          {...({ iconProps: { name: isOfflineMode ? 'cloud-off' : 'offline-bolt', type: 'material', color: isOfflineMode ? colors.warning : colors.primary, size: 24 } } as any)}
         />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>
             {isOfflineMode ? '退出离线模式' : '启用离线模式'}
           </ListItem.Title>
         </ListItem.Content>
-        <ListItem.Chevron color={colors.secondaryText} />
+        <ListItem.Chevron />
       </ListItem>
 
       {/* 同步管理 - 始终显示 */}
@@ -442,11 +440,11 @@ const SettingsScreen: React.FC = () => {
         key="sync-management"
         containerStyle={{backgroundColor: colors.card}}
       >
-        <Icon name="sync" type="material" color={colors.primary} />
+        <Icon {...({ iconProps: { name: 'sync', type: 'material', color: colors.primary, size: 24 } } as any)} />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>同步管理</ListItem.Title>
         </ListItem.Content>
-        <ListItem.Chevron color={colors.secondaryText} />
+        <ListItem.Chevron />
       </ListItem>
 
       <ListItem
@@ -454,11 +452,11 @@ const SettingsScreen: React.FC = () => {
         key="logout"
         containerStyle={{backgroundColor: colors.card}}
       >
-        <Icon name="logout" type="material" color={colors.error} />
+        <Icon {...({ iconProps: { name: 'logout', type: 'material', color: colors.error, size: 24 } } as any)} />
         <ListItem.Content>
           <ListItem.Title style={{ color: colors.error }}>退出登录</ListItem.Title>
         </ListItem.Content>
-        <ListItem.Chevron color={colors.secondaryText} />
+        <ListItem.Chevron />
       </ListItem>
     </Card>
   );
@@ -474,11 +472,11 @@ const SettingsScreen: React.FC = () => {
         key="logs"
         containerStyle={{backgroundColor: colors.card}}
       >
-        <Icon name="description" type="material" color={colors.primary} />
+        <Icon {...({ iconProps: { name: 'description', type: 'material', color: colors.primary, size: 24 } } as any)} />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>日志管理</ListItem.Title>
         </ListItem.Content>
-        <ListItem.Chevron color={colors.secondaryText} />
+        <ListItem.Chevron />
       </ListItem>
 
       <ListItem
@@ -486,7 +484,7 @@ const SettingsScreen: React.FC = () => {
         key="ai-assistant-feature"
         containerStyle={{backgroundColor: colors.card}}
       >
-        <Icon name="smart-toy" type="material" color={colors.primary} />
+        <Icon {...({ iconProps: { name: 'smart-toy', type: 'material', color: colors.primary, size: 24 } } as any)} />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>AI助手功能</ListItem.Title>
           <ListItem.Subtitle style={{color: colors.secondaryText}}>
@@ -516,7 +514,7 @@ const SettingsScreen: React.FC = () => {
               配置API密钥、模型等参数
             </ListItem.Subtitle>
           </ListItem.Content>
-          <ListItem.Chevron color={colors.secondaryText} />
+          <ListItem.Chevron />
         </ListItem>
       )}
 
@@ -525,7 +523,7 @@ const SettingsScreen: React.FC = () => {
         key="dark-mode"
         containerStyle={{backgroundColor: colors.card}}
       >
-        <Icon name={isDarkMode ? 'nightlight' : 'wb-sunny'} type="material" color={colors.primary} />
+        <Icon {...({ iconProps: { name: isDarkMode ? 'nightlight' : 'wb-sunny', type: 'material', color: colors.primary, size: 24 } } as any)} />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>深色模式</ListItem.Title>
         </ListItem.Content>
@@ -545,14 +543,14 @@ const SettingsScreen: React.FC = () => {
         containerStyle={{backgroundColor: colors.card}}
       >
         <View style={styles.exportItemContainer}>
-          <Icon name="file-upload" type="material" color={colors.warning} />
-          <Icon name="alert" type="material" color={colors.warning} size={14} style={styles.warningIcon} />
+          <Icon {...({ iconProps: { name: 'file-upload', type: 'material', color: colors.warning, size: 24 } } as any)} />
+          <Icon {...({ iconProps: { name: 'alert', type: 'material', color: colors.warning, size: 14, style: styles.warningIcon } } as any)} />
         </View>
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>导出配置</ListItem.Title>
         </ListItem.Content>
         {isExporting && <ActivityIndicator size="small" color={colors.primary} />}
-        <ListItem.Chevron color={colors.secondaryText} />
+        <ListItem.Chevron />
       </ListItem>
 
       <ListItem
@@ -561,12 +559,12 @@ const SettingsScreen: React.FC = () => {
         disabled={isImporting}
         containerStyle={{backgroundColor: colors.card}}
       >
-        <Icon name="file-download" type="material" color={colors.primary} />
+        <Icon {...({ iconProps: { name: 'file-download', type: 'material', color: colors.primary, size: 24 } } as any)} />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>导入配置</ListItem.Title>
         </ListItem.Content>
         {isImporting && <ActivityIndicator size="small" color={colors.primary} />}
-        <ListItem.Chevron color={colors.secondaryText} />
+        <ListItem.Chevron />
       </ListItem>
     </Card>
   );
@@ -581,7 +579,7 @@ const SettingsScreen: React.FC = () => {
         key="version"
         containerStyle={{backgroundColor: colors.card}}
       >
-        <Icon name="info" type="material" color={colors.primary} />
+        <Icon {...({ iconProps: { name: 'info', type: 'material', color: colors.primary, size: 24 } } as any)} />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>版本</ListItem.Title>
           <ListItem.Subtitle style={{color: colors.secondaryText}}>{version || '1.0.0'}</ListItem.Subtitle>
@@ -593,7 +591,7 @@ const SettingsScreen: React.FC = () => {
         containerStyle={{backgroundColor: colors.card}}
         bottomDivider
       >
-        <Icon name="code" type="material" color={colors.primary} />
+        <Icon {...({ iconProps: { name: 'code', type: 'material', color: colors.primary, size: 24 } } as any)} />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>开发者</ListItem.Title>
           <ListItem.Subtitle style={{color: colors.secondaryText}}>sang</ListItem.Subtitle>
@@ -605,7 +603,7 @@ const SettingsScreen: React.FC = () => {
         containerStyle={{backgroundColor: colors.card}}
         bottomDivider
       >
-        <Icon name="dns" type="material" color={colors.primary} />
+        <Icon {...({ iconProps: { name: 'dns', type: 'material', color: colors.primary, size: 24 } } as any)} />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>服务器版本</ListItem.Title>
           <ListItem.Subtitle style={{color: colors.secondaryText}}>{serverVersion || '未知'}</ListItem.Subtitle>
@@ -616,7 +614,7 @@ const SettingsScreen: React.FC = () => {
         onPress={() => updateService.checkForUpdates()}
         containerStyle={{backgroundColor: colors.card}}
       >
-        <Icon name="system-update" type="material" color={colors.primary} />
+        <Icon {...({ iconProps: { name: 'system-update', type: 'material', color: colors.primary, size: 24 } } as any)} />
         <ListItem.Content>
           <ListItem.Title style={{color: colors.text}}>检查更新</ListItem.Title>
         </ListItem.Content>
@@ -636,13 +634,8 @@ const SettingsScreen: React.FC = () => {
       <Input
         placeholder="原密码"
         secureTextEntry={!oldPasswordVisible}
-        leftIcon={{ type: 'material', name: 'lock', color: colors.icon }}
-        rightIcon={{
-          type: 'material',
-          name: oldPasswordVisible ? 'visibility' : 'visibility-off',
-          onPress: () => setOldPasswordVisible(!oldPasswordVisible),
-          color: colors.hint,
-        }}
+        leftIcon={{ iconProps: { type: 'material', name: 'lock', color: colors.icon } }}
+        rightIcon={<Icon iconProps={{ type: 'material', name: oldPasswordVisible ? 'visibility' : 'visibility-off', color: colors.hint }} onPress={() => setOldPasswordVisible(!oldPasswordVisible)} />}
         value={oldPassword}
         onChangeText={setOldPassword}
         disabled={isLoading}
@@ -653,13 +646,8 @@ const SettingsScreen: React.FC = () => {
       <Input
         placeholder="新密码"
         secureTextEntry={!newPasswordVisible}
-        leftIcon={{ type: 'material', name: 'lock-outline', color: colors.icon }}
-        rightIcon={{
-          type: 'material',
-          name: newPasswordVisible ? 'visibility' : 'visibility-off',
-          onPress: () => setNewPasswordVisible(!newPasswordVisible),
-          color: colors.hint,
-        }}
+        leftIcon={{ iconProps: { type: 'material', name: 'lock-outline', color: colors.icon } }}
+        rightIcon={<Icon iconProps={{ type: 'material', name: newPasswordVisible ? 'visibility' : 'visibility-off', color: colors.hint }} onPress={() => setNewPasswordVisible(!newPasswordVisible)} />}
         value={newPassword}
         onChangeText={setNewPassword}
         disabled={isLoading}
@@ -670,13 +658,8 @@ const SettingsScreen: React.FC = () => {
       <Input
         placeholder="确认新密码"
         secureTextEntry={!confirmPasswordVisible}
-        leftIcon={{ type: 'material', name: 'lock-outline', color: colors.icon }}
-        rightIcon={{
-          type: 'material',
-          name: confirmPasswordVisible ? 'visibility' : 'visibility-off',
-          onPress: () => setConfirmPasswordVisible(!confirmPasswordVisible),
-          color: colors.hint,
-        }}
+        leftIcon={{ iconProps: { type: 'material', name: 'lock-outline', color: colors.icon } }}
+        rightIcon={<Icon iconProps={{ type: 'material', name: confirmPasswordVisible ? 'visibility' : 'visibility-off', color: colors.hint }} onPress={() => setConfirmPasswordVisible(!confirmPasswordVisible)} />}
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         disabled={isLoading}

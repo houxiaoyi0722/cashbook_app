@@ -730,12 +730,12 @@ const AIConfigEditScreen: React.FC = () => {
             )}
             {validationState === 'success' && !validating && (
               <View style={styles.inputSuccess}>
-                <Icon name="check-circle" type="material" color={colors.success} size={20} />
+                <Icon iconProps={{ name: 'check-circle', type: 'material', color: colors.success }} />
               </View>
             )}
             {validationState === 'error' && !validating && (
               <View style={styles.inputError}>
-                <Icon name="error" type="material" color={colors.error} size={20} />
+                <Icon iconProps={{ name: 'error', type: 'material', color: colors.error }} />
               </View>
             )}
           </View>
@@ -754,7 +754,7 @@ const AIConfigEditScreen: React.FC = () => {
           )}
           {validationState === 'error' && (
             <View style={[styles.validationDetailContainer, {backgroundColor: colors.error + '10'}]}>
-              <Icon name="error-outline" type="material" color={colors.error} size={16} style={styles.validationDetailIcon} />
+              <Icon iconProps={{ name: 'error-outline', type: 'material', color: colors.error, style: styles.validationDetailIcon }}  />
               <Text style={[styles.validationDetailText, {color: colors.error}]}>
                 API Key验证失败，请检查：
                 1. API Key是否正确
@@ -865,10 +865,11 @@ const AIConfigEditScreen: React.FC = () => {
               {showAdvanced ? '隐藏高级设置' : '显示高级设置'}
             </Text>
             <Icon
-              name={showAdvanced ? 'expand-less' : 'expand-more'}
-              type="material"
-              color={colors.primary}
-              size={20}
+              iconProps={{
+                name: showAdvanced ? 'expand-less' : 'expand-more',
+                type: 'material',
+                color: colors.primary,
+              }}
             />
           </TouchableOpacity>
         </View>

@@ -280,7 +280,7 @@ const LogsScreen: React.FC = () => {
     <TouchableOpacity onPress={() => handleViewLogFile(item.path, item.name)}>
       <Card containerStyle={[styles.fileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.fileHeader}>
-          <Icon name="description" type="material" size={20} color={colors.primary} />
+          <Icon iconProps={{ name: 'description', type: 'material', size: 20, color: colors.primary }} />
           <Text style={[styles.fileName, { color: colors.text }]} numberOfLines={1}>
             {item.name}
           </Text>
@@ -307,13 +307,13 @@ const LogsScreen: React.FC = () => {
             style={styles.deleteButton}
             onPress={handleClearLogs}
           >
-            <Icon name="delete" type="material" size={24} color={colors.primary} />
+            <Icon iconProps={{ name: 'delete', type: 'material', size: 24, color: colors.primary }} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.debugButton}
             onPress={handleShowDebugInfo}
           >
-            <Icon name="bug-report" type="material" size={24} color={colors.primary} />
+            <Icon iconProps={{ name: 'bug-report', type: 'material', size: 24, color: colors.primary }} />
           </TouchableOpacity>
         </View>
 
@@ -363,7 +363,7 @@ const LogsScreen: React.FC = () => {
           </View>
         ) : errorMessage ? (
           <View style={styles.errorContainer}>
-            <Icon name="error" type="material" size={48} color={colors.error} />
+            <Icon iconProps={{ name: 'error', type: 'material', size: 48, color: colors.error }} />
             <Text style={[styles.errorText, { color: colors.error }]}>{errorMessage}</Text>
             <Button
               title="重试"
@@ -373,7 +373,7 @@ const LogsScreen: React.FC = () => {
           </View>
         ) : logFiles.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Icon name="description" type="material" size={48} color={colors.divider} />
+            <Icon iconProps={{ name: 'description', type: 'material', size: 48, color: colors.divider }} />
             <Text style={[styles.emptyText, { color: colors.secondaryText }]}>暂无日志文件</Text>
           </View>
         ) : (
@@ -408,7 +408,7 @@ const LogsScreen: React.FC = () => {
                 style={styles.closeButton}
                 onPress={() => setLogModalVisible(false)}
               >
-                <Icon name="close" type="material" size={24} color={colors.text} />
+                <Icon iconProps={{ name: 'close', type: 'material', size: 24, color: colors.text }} />
               </TouchableOpacity>
             </View>
             <ScrollView style={[styles.logContentContainer, { backgroundColor: colors.card }]}>

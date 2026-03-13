@@ -168,7 +168,7 @@ const SyncManagementScreen: React.FC = () => {
             try {
               setIsLoading(true);
               const cleanedCount = await LocalDataService.cleanupSyncedFlows();
-              
+
               if (cleanedCount > 0) {
                 Alert.alert('清理完成', `已清理 ${cleanedCount} 条已同步的流水记录`);
                 await loadUnsyncedFlows(); // 重新加载数据
@@ -181,8 +181,8 @@ const SyncManagementScreen: React.FC = () => {
             } finally {
               setIsLoading(false);
             }
-          }
-        }
+          },
+        },
       ]
     );
   }, [loadUnsyncedFlows]);
@@ -195,10 +195,7 @@ const SyncManagementScreen: React.FC = () => {
       onPress={() => handleSync(item)}
     >
       <Icon
-        name={item.data.flowType === '收入' ? 'trending-up' : 'trending-down'}
-        type="material"
-        color={item.data.flowType === '收入' ? '#4caf50' : '#f44336'}
-        size={20}
+        iconProps={{ name: item.data.flowType === '收入' ? 'trending-up' : 'trending-down', type: 'material', color: item.data.flowType === '收入' ? '#4caf50' : '#f44336', size: 20 }}
       />
       <ListItem.Content>
         <ListItem.Title style={[styles.listTitle, { color: colors.text }]}>
@@ -211,7 +208,7 @@ const SyncManagementScreen: React.FC = () => {
           {item.data.industryType} • {item.data.payType}
         </Text>
       </ListItem.Content>
-      <Icon name="sync" type="material" color={colors.primary} size={18} />
+      <Icon iconProps={{ name: 'sync', type: 'material', color: colors.primary, size: 18 }} />
     </ListItem>
   );
 
@@ -254,7 +251,7 @@ const SyncManagementScreen: React.FC = () => {
 
             <Button
               title={`批量同步 (${unsyncedFlows.length})`}
-              icon={<Icon name="sync" type="material" color="white" size={18} />}
+              icon={<Icon iconProps={{ name: 'sync', type: 'material', color: 'white', size: 18 }} />}
               buttonStyle={[styles.batchSyncButton, { backgroundColor: colors.primary }]}
               titleStyle={{ fontSize: 14 }}
               onPress={handleBatchSync}
@@ -263,7 +260,7 @@ const SyncManagementScreen: React.FC = () => {
 
             <Button
               title={`清理已同步数据 (${syncStats.synced})`}
-              icon={<Icon name="delete-sweep" type="material" color="white" size={18} />}
+              icon={<Icon iconProps={{ name: 'delete-sweep', type: 'material', color: 'white', size: 18 }} />}
               buttonStyle={[styles.cleanupButton, { backgroundColor: colors.warning }]}
               titleStyle={{ color: 'white', fontSize: 14 }}
               onPress={handleCleanupSyncedData}

@@ -37,7 +37,7 @@ const ImageSourceSelector: React.FC<ImageSourceSelectorProps> = ({
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
           <TouchableOpacity onPress={onClose}>
-            <Icon name="close" type="material" size={24} color={colors.text} />
+            <Icon iconProps={{ name: "close", type: "material", size: 24, color: colors.text }} />
           </TouchableOpacity>
         </View>
 
@@ -47,7 +47,7 @@ const ImageSourceSelector: React.FC<ImageSourceSelectorProps> = ({
             style={[styles.button, { backgroundColor: colors.card }]}
             onPress={onTakePhoto}
           >
-            <Icon name="camera-alt" type="material" size={32} color={colors.primary} />
+            <Icon iconProps={{ name: "camera-alt", type: "material", size: 32, color: colors.primary }} />
             <Text style={[styles.buttonText, { color: colors.text }]}>拍照</Text>
           </TouchableOpacity>
 
@@ -56,7 +56,7 @@ const ImageSourceSelector: React.FC<ImageSourceSelectorProps> = ({
             style={[styles.button, { backgroundColor: colors.card }]}
             onPress={onSelectFromLibrary}
           >
-            <Icon name="photo-library" type="material" size={32} color={colors.primary} />
+            <Icon iconProps={{ name: "photo-library", type: "material", size: 32, color: colors.primary }} />
             <Text style={[styles.buttonText, { color: colors.text }]}>从相册选择</Text>
           </TouchableOpacity>
         </View>

@@ -126,7 +126,7 @@ const MainTabs = () => {
           options={{
             tabBarLabel: '流水日历',
             tabBarIcon: ({ color, size }) => (
-              <Icon name="calendar-today" type="material" color={color} size={size} />
+              <Icon iconProps={{ name: 'calendar-today', type: 'material', color, size }} />
             ),
           }}
         />
@@ -136,7 +136,7 @@ const MainTabs = () => {
           options={{
             tabBarLabel: '统计',
             tabBarIcon: ({ color, size }) => (
-              <Icon name="bar-chart" type="material" color={color} size={size} />
+              <Icon iconProps={{ name: 'bar-chart', type: 'material', color, size }} />
             ),
           }}
         />
@@ -159,7 +159,7 @@ const MainTabs = () => {
           options={{
             tabBarLabel: '预算',
             tabBarIcon: ({ color, size }) => (
-              <Icon name="account-balance-wallet" type="material" color={color} size={size} />
+              <Icon iconProps={{ name: 'account-balance-wallet', type: 'material', color, size }} />
             ),
           }}
         />
@@ -169,7 +169,7 @@ const MainTabs = () => {
           options={{
             tabBarLabel: '设置',
             tabBarIcon: ({ color, size }) => (
-              <Icon name="settings" type="material" color={color} size={size} />
+              <Icon iconProps={{ name: 'settings', type: 'material', color, size }} />
             ),
           }}
         />

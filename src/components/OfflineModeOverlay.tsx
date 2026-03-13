@@ -22,10 +22,7 @@ const OfflineModeOverlay: React.FC<OfflineModeOverlayProps> = ({ title, descript
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.content, { backgroundColor: colors.card }]}>
         <Icon
-          name="offline-bolt"
-          type="material"
-          color={colors.primary}
-          size={48}
+          iconProps={{ name: "offline-bolt", type: "material", color: colors.primary, size: 48 }}
           containerStyle={styles.icon}
         />
         <Text style={[styles.title, { color: colors.text }]}>
@@ -39,7 +36,7 @@ const OfflineModeOverlay: React.FC<OfflineModeOverlayProps> = ({ title, descript
         </Text>
         <Button
           title="去添加流水"
-          icon={<Icon name="add" type="material" color="white" size={20} />}
+          icon={<Icon iconProps={{ name: "add", type: "material", color: "white", size: 20 }} />}
           buttonStyle={[styles.button, { backgroundColor: colors.primary }]}
           onPress={() => navigation.navigate('FlowForm', {})}
         />

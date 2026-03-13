@@ -329,7 +329,7 @@ const BudgetScreen = () => {
 						onPress={() => setCurrentMonth(dayjs(currentMonth).subtract(1, 'month').format('YYYY-MM'))}
 						style={styles.monthButton}
 					>
-						<Icon name="chevron-left" type="material" color="#1976d2"/>
+						<Icon iconProps={{ name: 'chevron-left', type: 'material', color: '#1976d2' }} />
 					</TouchableOpacity>
 
 					<TouchableOpacity onPress={() => setShowMonthPicker(true)}>
@@ -340,7 +340,7 @@ const BudgetScreen = () => {
 						onPress={() => setCurrentMonth(dayjs(currentMonth).add(1, 'month').format('YYYY-MM'))}
 						style={styles.monthButton}
 					>
-						<Icon name="chevron-right" type="material" color="#1976d2"/>
+						<Icon iconProps={{ name: 'chevron-right', type: 'material', color: '#1976d2' }} />
 					</TouchableOpacity>
 				</View>
 
@@ -348,14 +348,14 @@ const BudgetScreen = () => {
 				<Card containerStyle={[styles.card,{backgroundColor: colors.card, borderColor: colors.border}]}>
 					<View style={styles.cardTitleContainer}>
 						<Card.Title style={styles.cardTitle}>
-							<Icon name="account-balance-wallet" type="material" color="#1976d2" size={20}/>
+							<Icon iconProps={{ name: 'account-balance-wallet', type: 'material', color: '#1976d2', size: 20, iconProps: undefined }} />
 							<Text style={styles.titleText}> 预算管理</Text>
 						</Card.Title>
 						<TouchableOpacity onPress={openBudgetModal} style={styles.budgetEdit}>
-							<Icon name="edit" type="material" color="#1976d2" size={24}/>
+							<Icon iconProps={{ name: 'edit', type: 'material', color: '#1976d2', size: 24, iconProps: undefined }} />
 						</TouchableOpacity>
 						<TouchableOpacity onPress={refreshUsedAmount} style={styles.budgetRefresh}>
-							<Icon name="refresh" type="material" color="#1976d2" size={24}/>
+							<Icon iconProps={{ name: 'refresh', type: 'material', color: '#1976d2', size: 24, iconProps: undefined }} />
 						</TouchableOpacity>
 					</View>
 
@@ -397,11 +397,11 @@ const BudgetScreen = () => {
 				<Card containerStyle={[styles.card,{backgroundColor: colors.card, borderColor: colors.border}]}>
 					<View style={styles.cardTitleContainer}>
 						<Card.Title style={styles.cardTitle}>
-							<Icon name="repeat" type="material" color="#1976d2" size={20}/>
+							<Icon iconProps={{ name: 'repeat', type: 'material', color: '#1976d2', size: 20, iconProps: undefined }} />
 							<Text style={styles.titleText}> 固定支出管理</Text>
 						</Card.Title>
 						<TouchableOpacity onPress={openAddFixedFlowModal} style={styles.budgetRefresh}>
-							<Icon name="add" type="material" color="#1976d2" size={24}/>
+							<Icon iconProps={{ name: 'add', type: 'material', color: '#1976d2', size: 24, iconProps: undefined }} />
 						</TouchableOpacity>
 					</View>
 
@@ -424,10 +424,10 @@ const BudgetScreen = () => {
 									<Text style={styles.fixedFlowAmount}>{item.money.toFixed(2)}</Text>
 									<View style={styles.fixedFlowActions}>
 										<TouchableOpacity onPress={() => openEditFixedFlowModal(item)} style={styles.actionButton}>
-											<Icon name="edit" type="material" size={20} color="#1976d2"/>
+											<Icon iconProps={{ name: 'edit', type: 'material', size: 20, color: '#1976d2', iconProps: undefined }} />
 										</TouchableOpacity>
 										<TouchableOpacity onPress={() => handleDeleteFixedFlow(item)} style={styles.actionButton}>
-											<Icon name="delete" type="material" size={20} color="#f44336"/>
+											<Icon iconProps={{ name: 'delete', type: 'material', size: 20, color: '#f44336', iconProps: undefined }} />
 										</TouchableOpacity>
 									</View>
 								</ListItem>
@@ -459,10 +459,7 @@ const BudgetScreen = () => {
 							keyboardType="numeric"
 							leftIcon={
 								<Icon
-									type="material"
-									name="attach-money"
-									size={24}
-									color="#1976d2"
+									iconProps={{ type: 'material', name: 'attach-money', size: 24, color: '#1976d2' }}
 								/>
 							}
 						/>
@@ -504,10 +501,7 @@ const BudgetScreen = () => {
 							onChangeText={setFfName}
 							leftIcon={
 								<Icon
-									type="material"
-									name="label"
-									size={24}
-									color="#1976d2"
+									iconProps={{ type: 'material', name: 'label', size: 24, color: '#1976d2' }}
 								/>
 							}
 						/>
@@ -522,10 +516,7 @@ const BudgetScreen = () => {
 							keyboardType="numeric"
 							leftIcon={
 								<Icon
-									type="material"
-									name="attach-money"
-									size={24}
-									color="#1976d2"
+									iconProps={{ type: 'material', name: 'attach-money', size: 24, color: '#1976d2' }}
 								/>
 							}
 						/>
@@ -539,10 +530,7 @@ const BudgetScreen = () => {
 							onChangeText={setFfAttribution}
 							leftIcon={
 								<Icon
-									type="material"
-									name="person"
-									size={24}
-									color="#1976d2"
+									iconProps={{ type: 'material', name: 'person', size: 24, color: '#1976d2' }}
 								/>
 							}
 						/>
@@ -558,10 +546,7 @@ const BudgetScreen = () => {
 										inputStyle={[{ color: colors.text }, styles.inputTextStyle]}
 										leftIcon={
 											<Icon
-												type="material"
-												name="date-range"
-												size={24}
-												color="#1976d2"
+												iconProps={{ type: 'material', name: 'date-range', size: 24, color: '#1976d2' }}
 											/>
 										}
 									/>
@@ -578,10 +563,7 @@ const BudgetScreen = () => {
 										inputStyle={[{ color: colors.text }, styles.inputTextStyle]}
 										leftIcon={
 											<Icon
-												type="material"
-												name="date-range"
-												size={24}
-												color="#1976d2"
+												iconProps={{ type: 'material', name: 'date-range', size: 24, color: '#1976d2' }}
 											/>
 										}
 									/>

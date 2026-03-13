@@ -1445,7 +1445,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                             const contentToCopy = typeof toolCallMsg.arguments === 'string'
                               ? toolCallMsg.arguments
                               : JSON.stringify(toolCallMsg.arguments, null, 2);
-                            handleCopyMessage(contentToCopy, e.nativeEvent)
+                            handleCopyMessage(contentToCopy, e.nativeEvent);
                           }}
                           delayLongPress={500}
                           style={styles.toolCallSection}
@@ -1469,7 +1469,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                             const contentToCopy = typeof toolCallMsg.resultMessage?.result === 'string'
                               ? toolCallMsg.resultMessage.result
                               : JSON.stringify(toolCallMsg.resultMessage?.result, null, 2);
-                            handleCopyMessage(contentToCopy, e.nativeEvent)
+                            handleCopyMessage(contentToCopy, e.nativeEvent);
                           }}
                           delayLongPress={500}
                           style={styles.toolCallSection}
@@ -1828,7 +1828,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
                       style={styles.removePendingImageButton}
                       onPress={() => removePendingImage(index)}
                     >
-                      <Icon name="close" type="material" size={16} color="#fff" />
+                      <Icon iconProps={{ name: 'close', type: 'material', size: 16, color: '#fff' }} />
                     </TouchableOpacity>
                   </View>
                 )}
@@ -1998,7 +1998,7 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
               style={styles.copyMenuItem}
               onPress={() => executeCopy(copyMenuContent)}
             >
-              <Icon name="content-copy" type="material-community" size={18} color={colors.text} />
+              <Icon iconProps={{ name: 'content-copy', type: 'material-design', size: 18, color: colors.text }} />
               <Text style={[styles.copyMenuText, { color: colors.text, marginLeft: 8 }]}>复制</Text>
             </TouchableOpacity>
           </View>

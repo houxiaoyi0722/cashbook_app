@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {View, StyleSheet, FlatList, Alert, ActivityIndicator, TouchableOpacity, Text as RNText} from 'react-native';
-import { Text, Card, Button, Icon, ListItem, FAB, Input } from '@rneui/themed';
+import { Text, Card, Button, Icon, ListItem, Input } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useBook } from '../../context/BookContext';
@@ -125,9 +125,7 @@ const BookListScreen: React.FC = () => {
         onPress={() => handleSelectBook(item)}
       >
         <Icon
-          name="book"
-          type="material"
-          color={isSelected ? colors.primary : colors.secondaryText}
+          iconProps={{ name: 'book', type: 'material', color: isSelected ? colors.primary : colors.secondaryText, size: 24 }}
         />
         <ListItem.Content>
           <ListItem.Title style={[
@@ -150,24 +148,14 @@ const BookListScreen: React.FC = () => {
           <Button
             type="clear"
             icon={
-              <Icon
-                name="edit"
-                type="material"
-                color={colors.primary}
-                size={20}
-              />
+              <Icon iconProps={{ name: 'edit', type: 'material', color: colors.primary, size: 20 }} />
             }
             onPress={() => handleEditBook(item.bookId)}
           />
           <Button
             type="clear"
             icon={
-              <Icon
-                name="delete"
-                type="material"
-                color={colors.error}
-                size={20}
-              />
+              <Icon iconProps={{ name: 'delete', type: 'material', color: colors.error, size: 20 }} />
             }
             onPress={() => handleDeleteBook(item)}
           />
@@ -187,10 +175,7 @@ const BookListScreen: React.FC = () => {
         title="创建账本"
         icon={
           <Icon
-            name="add"
-            type="material"
-            color="white"
-            size={20}
+            iconProps={{ name: 'add', type: 'material', color: 'white', size: 20 }}
           />
         }
         buttonStyle={[styles.createButton, { backgroundColor: colors.primary }]}
@@ -244,12 +229,7 @@ const BookListScreen: React.FC = () => {
             inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
             placeholderTextColor={colors.secondaryText}
             rightIcon={
-              <Icon
-                name="arrow-forward"
-                type="material"
-                color={colors.primary}
-                onPress={handleImportSharedBook}
-              />
+              <Icon iconProps={{ name: 'arrow-forward', type: 'material', color: colors.primary, size: 24 }} onPress={handleImportSharedBook} />
             }
           />
         </View>

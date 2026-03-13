@@ -29,10 +29,7 @@ const BookSelector: React.FC = () => {
           {currentBook ? currentBook.bookName : '选择账本'}
         </Text>
         <Icon
-          name="keyboard-arrow-down"
-          type="material"
-          size={24}
-          color={colors.primary}
+          iconProps={{ name: "keyboard-arrow-down", type: "material", color: colors.primary, size: 24 }}
         />
       </TouchableOpacity>
     </View>

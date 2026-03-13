@@ -417,10 +417,11 @@ const AIConfigScreen: React.FC = () => {
             >
               <Text style={[styles.rowLabel, { color: colors.text }]}>工具管理(初次使用需开启工具)</Text>
               <Icon
-                name={showToolsSection ? 'expand-less' : 'expand-more'}
-                type="material"
-                color={colors.primary}
-                size={24}
+                iconProps={{
+                  name: showToolsSection ? 'expand-less' : 'expand-more',
+                  type: 'material',
+                  color: colors.primary,
+                }}
               />
             </TouchableOpacity>
 
@@ -464,10 +465,7 @@ const AIConfigScreen: React.FC = () => {
                           style={styles.infoButton}
                         >
                           <Icon
-                            name="info-outline"
-                            type="material"
-                            color={colors.primary}
-                            size={16}
+                            iconProps={{ name: 'info-outline', type: 'material', color: colors.primary }}
                           />
                         </TouchableOpacity>
                       </View>
@@ -507,7 +505,7 @@ const AIConfigScreen: React.FC = () => {
               style={[styles.newConfigButton, {backgroundColor: colors.primary}]}
               onPress={handleNewConfig}
             >
-              <Icon name="add" type="material" color="#fff" size={20}/>
+              <Icon iconProps={{ name: 'add', type: 'material', color: '#fff' }} />
               <Text style={styles.newConfigButtonText}>新建配置</Text>
             </TouchableOpacity>
           </View>
@@ -557,7 +555,7 @@ const AIConfigScreen: React.FC = () => {
                                 style={[styles.nameEditButton, {backgroundColor: colors.success}]}
                                 onPress={() => handleRenameConfig(config.id, editingConfigName)}
                               >
-                                <Icon name="check" type="material" color="#fff" size={16}/>
+                                <Icon iconProps={{ name: 'check', type: 'material', color: '#fff' }} />
                               </TouchableOpacity>
                               <TouchableOpacity
                                 style={[styles.nameEditButton, {backgroundColor: colors.error}]}
@@ -566,7 +564,7 @@ const AIConfigScreen: React.FC = () => {
                                   setEditingConfigId(null);
                                 }}
                               >
-                                <Icon name="close" type="material" color="#fff" size={16}/>
+                                <Icon iconProps={{ name: 'close', type: 'material', color: '#fff' }} />
                               </TouchableOpacity>
                             </View>
                           ) : (
@@ -587,7 +585,7 @@ const AIConfigScreen: React.FC = () => {
                         {/* 时间信息 */}
                         <View style={styles.timeInfoContainer}>
                           <View style={styles.timeInfoItem}>
-                            <Icon name="access-time" type="material" color={colors.hint} size={10}/>
+                            <Icon iconProps={{ name: 'access-time', type: 'material', color: colors.hint }} />
                             <Text
                               style={[styles.timeInfoText, {color: colors.hint}]}
                               numberOfLines={1}
@@ -597,7 +595,7 @@ const AIConfigScreen: React.FC = () => {
                             </Text>
                           </View>
                           <View style={styles.timeInfoItem}>
-                            <Icon name="update" type="material" color={colors.hint} size={10}/>
+                            <Icon iconProps={{ name: 'update', type: 'material', color: colors.hint }} />
                             <Text
                               style={[styles.timeInfoText, {color: colors.hint}]}
                               numberOfLines={1}
@@ -615,7 +613,7 @@ const AIConfigScreen: React.FC = () => {
                           onPress={() => setShowActionMenu(showActionMenu === config.id ? null : config.id)}
                           style={styles.moreActionButton}
                         >
-                          <Icon name="more-vert" type="material" color={colors.secondaryText} size={20}/>
+                          <Icon iconProps={{ name: 'more-vert', type: 'material', color: colors.secondaryText }} />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -624,14 +622,14 @@ const AIConfigScreen: React.FC = () => {
                     <View style={styles.configStatusRow}>
                       {config.apiKey ? (
                         <View style={[styles.statusBadge, {backgroundColor: colors.success + '20'}]}>
-                          <Icon name="key" type="material" color={colors.success} size={12}/>
+                          <Icon iconProps={{ name: 'key', type: 'material', color: colors.success }} />
                           <Text style={[styles.statusBadgeText, {color: colors.success}]}>
                             API Key已配置
                           </Text>
                         </View>
                       ) : (
                         <View style={[styles.statusBadge, {backgroundColor: colors.warning + '20'}]}>
-                          <Icon name="warning" type="material" color={colors.warning} size={12}/>
+                          <Icon iconProps={{ name: 'warning', type: 'material', color: colors.warning }} />
                           <Text style={[styles.statusBadgeText, {color: colors.warning}]}>
                             未配置API Key
                           </Text>
@@ -655,7 +653,7 @@ const AIConfigScreen: React.FC = () => {
                             setShowActionMenu(null);
                           }}
                         >
-                          <Icon name="edit" type="material" color={colors.primary} size={14}/>
+                          <Icon iconProps={{ name: 'edit', type: 'material', color: colors.primary }} />
                           <Text style={[styles.actionMenuText, {color: colors.text}]}>重命名</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -669,7 +667,7 @@ const AIConfigScreen: React.FC = () => {
                             await handleCopyConfig(config);
                           }}
                         >
-                          <Icon name="content-copy" type="material" color={colors.success} size={14}/>
+                          <Icon iconProps={{ name: 'content-copy', type: 'material-design', color: colors.success }} />
                           <Text style={[styles.actionMenuText, {color: colors.text}]}>复制</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -680,7 +678,7 @@ const AIConfigScreen: React.FC = () => {
                             handleDeleteConfig(config.id, config.name);
                           }}
                         >
-                          <Icon name="delete" type="material" color={colors.error} size={14}/>
+                          <Icon iconProps={{ name: 'delete', type: 'material', color: colors.error }} />
                           <Text style={[styles.actionMenuText, {color: colors.text}]}>删除</Text>
                         </TouchableOpacity>
                       </View>

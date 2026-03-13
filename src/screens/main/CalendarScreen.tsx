@@ -693,10 +693,7 @@ const CalendarScreen: React.FC = () => {
                   type="clear"
                   icon={
                     <Icon
-                      name="receipt"
-                      type="material"
-                      color="#4caf50"
-                      size={20}
+                      iconProps={{ name: 'receipt', type: 'material', color: '#4caf50', size: 20, iconProps: undefined }}
                     />
                   }
                   onPress={() => {
@@ -709,10 +706,7 @@ const CalendarScreen: React.FC = () => {
                 type="clear"
                 icon={
                   <Icon
-                    name="add"
-                    type="material"
-                    color="#1976d2"
-                    size={20}
+                    iconProps={{ name: 'add', type: 'material', color: '#1976d2', size: 20, iconProps: undefined }}
                   />
                 }
                 onPress={() => {
@@ -754,7 +748,7 @@ const CalendarScreen: React.FC = () => {
                             style={styles.photoIcon}
                             onPress={() => viewInvoiceImages(item)}
                         >
-                          <Icon name="photo" type="material" color="#4caf50" size={20} />
+                          <Icon iconProps={{ name: 'photo', type: 'material', color: '#4caf50', size: 20 }} />
                         </TouchableOpacity>
                     ) : ''}
                   </View>
@@ -767,7 +761,7 @@ const CalendarScreen: React.FC = () => {
                       style={[styles.backRightBtn, styles.backCameraBtnLeft]}
                       onPress={() => handleInvoiceUpload(item)}
                   >
-                    <Icon name="camera" type="material" color="white" size={20} />
+                    <Icon iconProps={{ name: 'camera', type: 'material', color: 'white', size: 20 }} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.backRightBtn, styles.backRightBtnLeft]}
@@ -775,7 +769,7 @@ const CalendarScreen: React.FC = () => {
                       navigation.navigate('FlowForm', { currentFlow: item });
                     }}
                   >
-                    <Icon name="edit" type="material" color="white" size={20} />
+                    <Icon iconProps={{ name: 'edit', type: 'material', color: 'white', size: 20 }} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.backRightBtn, styles.backRightBtnRight]}
@@ -804,7 +798,7 @@ const CalendarScreen: React.FC = () => {
                       );
                     }}
                   >
-                    <Icon name="delete" type="material" color={colors.write} size={18} />
+                    <Icon iconProps={{ name: 'delete', type: 'material', color: colors.write, size: 18 }} />
                   </TouchableOpacity>
                 </View>
               )}
@@ -857,7 +851,7 @@ const CalendarScreen: React.FC = () => {
       <View style={styles.yearMonthHeader}>
         <Text style={[styles.yearMonthTitle,{color: colors.text}]}>选择年月</Text>
         <TouchableOpacity onPress={() => setShowYearMonthSelector(false)}>
-          <Icon name="close" type="material" size={24} />
+          <Icon iconProps={{ name: 'close', type: 'material', size: 24, color: colors.text, iconProps: undefined }} />
         </TouchableOpacity>
       </View>
 
@@ -977,7 +971,7 @@ const CalendarScreen: React.FC = () => {
             <Text style={[styles.duplicateTitle, {color: colors.text}]}>重复数据查询</Text>
             <Text style={[styles.duplicateTitleComment, {color: colors.secondaryText}]}>日期和金额为默认条件</Text>
             <TouchableOpacity onPress={() => setShowDuplicateModal(false)}>
-              <Icon name="close" type="material" size={24} color={colors.text} />
+              <Icon iconProps={{ name: 'close', type: 'material', size: 24, color: colors.text }} />
             </TouchableOpacity>
           </View>
 
@@ -1081,7 +1075,7 @@ const CalendarScreen: React.FC = () => {
                           style={styles.duplicateItemDelete}
                           onPress={() => handleDeleteDuplicateFlow(flow)}
                         >
-                          <Icon name="delete" type="material" color={colors.error} size={18} />
+                          <Icon iconProps={{ name: 'delete', type: 'material', color: colors.error, size: 18 }} />
                         </TouchableOpacity>
                       </View>
 
@@ -1445,7 +1439,7 @@ const CalendarScreen: React.FC = () => {
                           style={[styles.undoButton, {backgroundColor: colors.input}]}
                           onPress={undoLastOperation}
                         >
-                          <Icon name="undo" type="material" size={16} color={colors.text} />
+                          <Icon iconProps={{ name: 'undo', type: 'material', size: 16, color: colors.text }} />
                           <Text style={[styles.undoButtonText, {color: colors.text}]}>撤销</Text>
                         </TouchableOpacity>
                       )}
@@ -1468,7 +1462,7 @@ const CalendarScreen: React.FC = () => {
                 </>
               )}
               <TouchableOpacity onPress={() => setShowBalanceModal(false)} disabled={balanceLoading}>
-                <Icon name="close" type="material" size={24} color={colors.text} />
+                <Icon iconProps={{ name: 'close', type: 'material', size: 24, color: colors.text }} />
               </TouchableOpacity>
             </View>
           </View>
@@ -1760,7 +1754,7 @@ const CalendarScreen: React.FC = () => {
             <Text style={[styles.ocrTitle, { color: colors.text }]}>小票识别中</Text>
             {!isOCRProcessing && (
               <TouchableOpacity onPress={() => setShowOCRModal(false)}>
-                <Icon name="close" type="material" size={24} color={colors.text} />
+                <Icon iconProps={{ name: 'close', type: 'material', size: 24, color: colors.text }} />
               </TouchableOpacity>
             )}
           </View>
@@ -1786,7 +1780,7 @@ const CalendarScreen: React.FC = () => {
               </View>
             ) : (
               <View style={[styles.ocrImagePlaceholder, { backgroundColor: colors.input }]}>
-                <Icon name="receipt" type="material" size={40} color={colors.secondaryText} />
+                <Icon iconProps={{ name: 'receipt', type: 'material', size: 40, color: colors.secondaryText }} />
                 <Text style={[styles.ocrImagePlaceholderText, { color: colors.secondaryText }]}>
                   图片预览
                 </Text>
@@ -2164,7 +2158,7 @@ const CalendarScreen: React.FC = () => {
           }}
           onPress={() => setShowInvoiceViewer(false)}
         >
-          <Icon name="close" type="material" color="white" size={24} />
+          <Icon iconProps={{ name: 'close', type: 'material', color: 'white', size: 24, iconProps: undefined }} />
         </TouchableOpacity>
         {uplaoding && (
           <View style={styles.uploadingOverlay}>
@@ -2217,7 +2211,7 @@ const CalendarScreen: React.FC = () => {
               fetchBalanceCandidates();
             }}
           >
-            <Icon name="account-balance" type="material" color="#1976d2" size={16} />
+            <Icon iconProps={{ name: 'account-balance', type: 'material', color: '#1976d2', size: 16 }} />
             <Text style={styles.actionButtonText}>平账</Text>
           </TouchableOpacity>
 
@@ -2228,7 +2222,7 @@ const CalendarScreen: React.FC = () => {
               fetchDuplicateFlows();
             }}
           >
-            <Icon name="filter-alt" type="material" color="#1976d2" size={16} />
+            <Icon iconProps={{ name: 'filter-alt', type: 'material', color: '#1976d2', size: 16 }} />
             <Text style={styles.actionButtonText}>去重</Text>
           </TouchableOpacity>
         </View>
@@ -2261,7 +2255,7 @@ const CalendarScreen: React.FC = () => {
                       <Text style={styles.calendarHeaderText}>
                         {currentMonth ? `${currentMonth.split('-')[0]}年${currentMonth.split('-')[1]}月` : dayjs(date).format('YYYY年 MM月')}
                       </Text>
-                      <Icon name="arrow-drop-down" type="material" size={24} color="#1976d2" />
+                      <Icon iconProps={{ name: 'arrow-drop-down', type: 'material', size: 24, color: '#1976d2' }} />
                     </TouchableOpacity>
                 )}
                 dayComponent={({ date, state }) => (

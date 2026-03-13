@@ -497,7 +497,7 @@ const StatisticsScreen: React.FC = () => {
           style={[styles.monthSelector, { borderColor: colors.border }]}
           onPress={() => setShowMonthPicker(true)}
         >
-          <Icon name="calendar-today" type="material" size={20} color={colors.primary} />
+          <Icon iconProps={{ name: 'calendar-today', type: 'material', size: 20, color: colors.primary }} />
           <Text style={[styles.monthSelectorText, { color: colors.primary }]}>{currentMonth}</Text>
         </TouchableOpacity>
         <Overlay
@@ -508,7 +508,7 @@ const StatisticsScreen: React.FC = () => {
           <View style={styles.monthPickerHeader}>
             <Text style={[styles.monthPickerTitle, { color: colors.text }]}>选择月份</Text>
             <TouchableOpacity onPress={() => setShowMonthPicker(false)}>
-              <Icon name="close" type="material" size={24} color={colors.secondaryText} />
+              <Icon iconProps={{ name: 'close', type: 'material', size: 24, color: colors.secondaryText }} />
             </TouchableOpacity>
           </View>
 
@@ -778,7 +778,7 @@ const StatisticsScreen: React.FC = () => {
       <Text style={[styles.detailItemAmount, {
         color: item.flowType === '支出' ? colors.error :
               item.flowType === '收入' ? colors.success :
-              colors.text
+              colors.text,
       }]}>
         {item.flowType === '支出' ? '-' : item.flowType === '收入' ? '+' : ''}{item.money.toFixed(2)}
       </Text>
@@ -810,7 +810,7 @@ const StatisticsScreen: React.FC = () => {
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>{detailsTitle}</Text>
             <TouchableOpacity onPress={handleCloseDetails} style={styles.closeButton}>
-              <Icon name="close" type="material" size={24} color={colors.secondaryText} />
+              <Icon iconProps={{ name: 'close', type: 'material', size: 24, color: colors.secondaryText }} />
             </TouchableOpacity>
           </View>
 
@@ -822,7 +822,7 @@ const StatisticsScreen: React.FC = () => {
             <>
               {detailsData.length === 0 ? (
                 <View style={styles.emptyDetails}>
-                  <Icon name="receipt-long" type="material" size={48} color={colors.divider} />
+                  <Icon iconProps={{ name: 'receipt-long', type: 'material', size: 48, color: colors.divider }} />
                   <Text style={[styles.emptyDetailsText, { color: colors.secondaryText }]}>暂无流水记录</Text>
                 </View>
               ) : (
@@ -975,11 +975,7 @@ const StatisticsScreen: React.FC = () => {
                 {monthBalanceValue >= 0 ? '+' : ''}{formatMoney(monthBalance)}
               </Text>
               <Icon
-                name={monthBalanceValue >= 0 ? 'trending-up' : 'trending-down'}
-                type="material"
-                size={16}
-                color={monthBalanceValue >= 0 ? colors.success : colors.error}
-                style={styles.balanceIcon}
+                iconProps={{ name: monthBalanceValue >= 0 ? 'trending-up' : 'trending-down', type: 'material', size: 16, color: monthBalanceValue >= 0 ? colors.success : colors.error, styles: styles.balanceIcon }}
               />
             </View>
           </View>
@@ -998,11 +994,7 @@ const StatisticsScreen: React.FC = () => {
                 {yearBalanceValue >= 0 ? '+' : ''}{formatMoney(yearBalance)}
               </Text>
               <Icon
-                name={yearBalanceValue >= 0 ? 'trending-up' : 'trending-down'}
-                type="material"
-                size={16}
-                color={yearBalanceValue >= 0 ? colors.success : colors.error}
-                style={styles.balanceIcon}
+                iconProps={{ name: yearBalanceValue >= 0 ? 'trending-up' : 'trending-down', type: 'material', size: 16, color: yearBalanceValue >= 0 ? colors.success : colors.error, style: styles.balanceIcon }}
               />
             </View>
           </View>
@@ -1043,7 +1035,7 @@ const StatisticsScreen: React.FC = () => {
 
           <View style={styles.yearBalanceDetails}>
             <View style={[styles.yearBalanceRow, { borderBottomColor: colors.divider }]}>
-              <Icon name="trending-up" type="material" size={16} color={colors.success} />
+              <Icon iconProps={{ name: 'trending-up', type: 'material', size: 16, color: colors.success }} />
               <Text style={[styles.yearBalanceLabel, { color: colors.secondaryText }]}>年度总收入</Text>
               <Text style={[styles.yearBalanceValue, { color: colors.success }]}>
                 {formatMoney(yearIncomeTotal)}
@@ -1051,7 +1043,7 @@ const StatisticsScreen: React.FC = () => {
             </View>
 
             <View style={[styles.yearBalanceRow, { borderBottomColor: colors.divider }]}>
-              <Icon name="trending-down" type="material" size={16} color={colors.error} />
+              <Icon iconProps={{ name: 'trending-down', type: 'material', size: 16, color: colors.error }} />
               <Text style={[styles.yearBalanceLabel, { color: colors.secondaryText }]}>年度总支出</Text>
               <Text style={[styles.yearBalanceValue, { color: colors.error }]}>
                 {formatMoney(yearExpenseTotal)}
@@ -1060,10 +1052,7 @@ const StatisticsScreen: React.FC = () => {
 
             <View style={[styles.yearBalanceRow, {borderBottomWidth: 0, paddingBottom: 0}]}>
               <Icon
-                name={yearBalanceValue >= 0 ? 'account-balance' : 'warning'}
-                type="material"
-                size={16}
-                color={yearBalanceValue >= 0 ? colors.success : colors.error}
+                iconProps={{ name: yearBalanceValue >= 0 ? 'account-balance' : 'warning', type: 'material', size: 16, color: yearBalanceValue >= 0 ? colors.success : colors.error }}
               />
               <Text style={[styles.yearBalanceLabel, { color: colors.secondaryText }]}>年度结余</Text>
               <Text
@@ -1183,7 +1172,7 @@ const StatisticsScreen: React.FC = () => {
                 style={[styles.viewDetailsButton, { backgroundColor: industryTypeData.find(item => item.name === selectedIndustryItem)?.color || '#1976d2' }]}
                 onPress={handleViewIndustryDetails}
               >
-                <Icon name="visibility" type="material" size={16} color="#fff" />
+                <Icon iconProps={{ name: 'visibility', type: 'material', size: 16, color: '#fff' }} />
                 <Text style={[styles.viewDetailsText]}>查看详情</Text>
               </TouchableOpacity>
             </View>
@@ -1286,7 +1275,7 @@ const StatisticsScreen: React.FC = () => {
                 style={[styles.viewDetailsButton, { backgroundColor: payTypeData.find(item => item.name === selectedPayTypeItem)?.color || '#1976d2' }]}
                 onPress={handleViewPayTypeDetails}
               >
-                <Icon name="visibility" type="material" size={16} color="#fff" />
+                <Icon iconProps={{ name: 'visibility', type: 'material', size: 16, color: '#fff' }} />
                 <Text style={styles.viewDetailsText}>查看详情</Text>
               </TouchableOpacity>
             </View>
@@ -1488,7 +1477,7 @@ const StatisticsScreen: React.FC = () => {
                 style={[styles.viewDetailsButton, { backgroundColor: attributionData.find(item => item.name === selectedAttributionItem)?.color || '#1976d2' }]}
                 onPress={handleViewAttributionDetails}
               >
-                <Icon name="visibility" type="material" size={14} color="#fff" />
+                <Icon iconProps={{ name: 'visibility', type: 'material', size: 14, color: '#fff' }} />
                 <Text style={styles.viewDetailsText}>查看详情</Text>
               </TouchableOpacity>
             </View>
@@ -1526,11 +1515,7 @@ const StatisticsScreen: React.FC = () => {
           onPress={() => handleFlowTypeChange('支出')}
         >
           <Icon
-            name="trending-down"
-            type="material"
-            size={16}
-            color={selectedFlowType === '支出' ? 'white' : colors.secondaryText}
-            style={styles.flowTypeIcon}
+            iconProps={{ name: 'trending-down', type: 'material', size: 16, color: selectedFlowType === '支出' ? 'white' : colors.secondaryText, style: styles.flowTypeIcon }}
           />
           <Text style={[
             styles.flowTypeText,
@@ -1548,11 +1533,7 @@ const StatisticsScreen: React.FC = () => {
           onPress={() => handleFlowTypeChange('收入')}
         >
           <Icon
-            name="trending-up"
-            type="material"
-            size={16}
-            color={selectedFlowType === '收入' ? 'white' : colors.secondaryText}
-            style={styles.flowTypeIcon}
+            iconProps={{ name: 'trending-up', type: 'material', size: 16, color: selectedFlowType === '收入' ? 'white' : colors.secondaryText, style: styles.flowTypeIcon }}
           />
           <Text style={[
             styles.flowTypeText,
@@ -1571,11 +1552,7 @@ const StatisticsScreen: React.FC = () => {
           onPress={() => handleFlowTypeChange('不计收支')}
         >
           <Icon
-            name="remove"
-            type="material"
-            size={16}
-            color={selectedFlowType === '不计收支' ? 'white' : colors.secondaryText}
-            style={styles.flowTypeIcon}
+            iconProps={{ name: 'remove', type: 'material', size: 16, color: selectedFlowType === '不计收支' ? 'white' : colors.secondaryText, style: styles.flowTypeIcon }}
           />
           <Text style={[
             styles.flowTypeText,

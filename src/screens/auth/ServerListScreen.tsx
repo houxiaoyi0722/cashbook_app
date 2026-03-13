@@ -214,10 +214,7 @@ const ServerListScreen: React.FC = () => {
         <View style={styles.serverActions}>
           {isSelected && (
             <Icon
-              name="check-circle"
-              type="material"
-              color={colors.success}
-              size={24}
+              iconProps={{ name: 'check-circle', type: 'material', color: colors.success }}
               containerStyle={styles.selectedIcon}
             />
           )}
@@ -229,7 +226,7 @@ const ServerListScreen: React.FC = () => {
             }}
             style={styles.actionButton}
           >
-            <Icon name="edit" type="material" color={colors.primary} size={20} />
+            <Icon iconProps={{ name: 'edit', type: 'material', color: colors.primary }} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -239,7 +236,7 @@ const ServerListScreen: React.FC = () => {
             }}
             style={styles.actionButton}
           >
-            <Icon name="delete" type="material" color={colors.error} size={20} />
+            <Icon iconProps={{ name: 'delete', type: 'material', color: colors.error }} />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -260,10 +257,7 @@ const ServerListScreen: React.FC = () => {
               containerStyle={{backgroundColor: 'transparent'}}
             >
               <Icon
-                name={isOfflineMode ? 'cloud-off' : 'offline-bolt'}
-                type="material"
-                color={isOfflineMode ? colors.warning : colors.primary}
-                size={24}
+                iconProps={{ name: isOfflineMode ? 'cloud-off' : 'offline-bolt', type: 'material', color: isOfflineMode ? colors.warning : colors.primary }}
               />
               <ListItem.Content>
                 <ListItem.Title style={[styles.offlineModeTitle, { color: colors.text }]}>
@@ -276,7 +270,7 @@ const ServerListScreen: React.FC = () => {
                   }
                 </ListItem.Subtitle>
               </ListItem.Content>
-              <ListItem.Chevron color={colors.secondaryText} />
+              <ListItem.Chevron />
             </ListItem>
           </Card>
 
@@ -302,7 +296,7 @@ const ServerListScreen: React.FC = () => {
             style={[styles.customFabUpload, { backgroundColor: colors.primary }]}
             disabled={isImporting}
           >
-            <Icon name="file-upload" type="material" color="#fff" size={24} />
+            <Icon iconProps={{ name: 'file-upload', type: 'material', color: '#fff' }} />
           </TouchableOpacity>
 
           <TouchableOpacity

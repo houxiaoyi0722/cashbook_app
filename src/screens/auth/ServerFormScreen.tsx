@@ -139,7 +139,7 @@ const ServerFormScreen: React.FC = () => {
             labelStyle={{ color: colors.text }}
             inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
             placeholderTextColor={colors.secondaryText}
-            leftIcon={{ type: 'material', name: 'label', color: colors.primary }}
+            leftIcon={{ iconProps: { type: 'material', name: 'label', color: colors.primary, size: 24 } }}
             errorMessage={name.trim() ? '' : '服务器名称不能为空'}
             errorStyle={{ color: colors.error }}
           />
@@ -153,7 +153,7 @@ const ServerFormScreen: React.FC = () => {
             labelStyle={{ color: colors.text }}
             inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
             placeholderTextColor={colors.secondaryText}
-            leftIcon={{ type: 'material', name: 'link', color: colors.primary }}
+            leftIcon={{ iconProps: { type: 'material', name: 'link', color: colors.primary, size: 24 } }}
             errorMessage={baseUrl.trim() ? '' : '服务器地址不能为空'}
             errorStyle={{ color: colors.error }}
             autoCapitalize="none"
@@ -169,7 +169,7 @@ const ServerFormScreen: React.FC = () => {
             labelStyle={{ color: colors.text }}
             inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
             placeholderTextColor={colors.secondaryText}
-            leftIcon={{ type: 'material', name: 'person', color: colors.primary }}
+            leftIcon={{ iconProps: { type: 'material', name: 'person', color: colors.primary, size: 24 } }}
             errorMessage={username.trim() ? '' : '用户名不能为空'}
             errorStyle={{ color: colors.error }}
             autoCapitalize="none"
@@ -184,11 +184,14 @@ const ServerFormScreen: React.FC = () => {
             labelStyle={{ color: colors.text }}
             inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
             placeholderTextColor={colors.secondaryText}
-            leftIcon={{ type: 'material', name: 'lock', color: colors.primary }}
+            leftIcon={{ iconProps: { type: 'material', name: 'lock', color: colors.primary, size: 24 } }}
             rightIcon={{
-              type: 'material',
-              name: showPassword ? 'visibility-off' : 'visibility',
-              color: colors.primary,
+              iconProps: {
+                type: 'material',
+                name: showPassword ? 'visibility-off' : 'visibility',
+                color: colors.primary,
+                size: 24,
+              },
               onPress: () => setShowPassword(!showPassword),
             }}
             errorMessage={password.trim() ? '' : '密码不能为空'}

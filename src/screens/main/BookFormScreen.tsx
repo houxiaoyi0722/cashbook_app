@@ -140,7 +140,7 @@ const BookFormScreen: React.FC = () => {
             labelStyle={{ color: colors.text }}
             inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
             placeholderTextColor={colors.secondaryText}
-            leftIcon={{ type: 'material', name: 'book', color: colors.primary }}
+            leftIcon={{ iconProps: { type: 'material', name: 'book', color: colors.primary } }}
             errorMessage={name.trim() ? '' : '账本名称不能为空'}
             errorStyle={{ color: colors.error }}
           />
@@ -154,11 +154,9 @@ const BookFormScreen: React.FC = () => {
               disabled
               labelStyle={{ color: colors.text }}
               inputStyle={[{ color: colors.text }, { paddingVertical: 0 }]}
-              leftIcon={{ type: 'material', name: 'share', color: colors.primary }}
+              leftIcon={{ iconProps: { type: 'material', name: 'share', color: colors.primary } }}
               rightIcon={{
-                type: 'material',
-                name: 'content-copy', // 复制图标
-                color: colors.primary,
+                iconProps: { type: 'material', name: 'content-copy', color: colors.primary },
                 onPress: () => handleCopyShareKey(),
               }}
             />
@@ -168,7 +166,7 @@ const BookFormScreen: React.FC = () => {
             <Button
               title="生成共享码"
               type="outline"
-              icon={{ type: 'material', name: 'share', color: colors.primary, size: 20 }}
+              icon={{ iconProps: { type: 'material', name: 'share', color: colors.primary, size: 20 } }}
               onPress={handleShareBook}
               containerStyle={styles.shareButton}
               disabled={isLoading}
