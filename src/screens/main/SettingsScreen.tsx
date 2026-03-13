@@ -15,6 +15,7 @@ import AIConfigIcon from '../../components/icons/AIConfigIcon';
 import { exportAppConfig, importAppConfig } from '../../services/ExportImportService';
 import RNFS from 'react-native-fs';
 import { Platform } from 'react-native';
+import { pick, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
 // AIAssistantConfigService 是一个单例实例，直接调用其方法
 import AIAssistantConfigService from '../../services/AIAssistantConfigService';
 
@@ -317,48 +318,44 @@ const SettingsScreen: React.FC = () => {
 
   // 处理导入配置
   const handleImportConfig = useCallback(async () => {
-    Alert.alert(
-      '导入配置',
-      '导入配置将覆盖当前的服务器列表、AI设置等信息。导入前建议先导出当前配置以备份。\n\n是否继续？',
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '选择文件',
-          onPress: async () => {
-            try {
-              // 提示用户输入JSON内容
-              Alert.prompt(
-                '导入配置',
-                '请粘贴导出的JSON配置内容：',
-                async (text) => {
-                  if (!text || text.trim() === '') {
-                    Alert.alert('错误', '请输入配置内容');
-                    return;
-                  }
+    try {
+      // 使用文档选择器选择JSON文件
+      const [result] = await pick({
+        mode: 'import',
+        type: ['application/json', 'text/plain', '*/*'],
+      });
 
-                  setIsImporting(true);
-                  const result = await importAppConfig(text.trim());
+      if (!result?.uri) {
+        Alert.alert('错误', '无法读取文件');
+        return;
+      }
 
-                  if (result.success) {
-                    Alert.alert('导入成功', result.message);
-                  } else {
-                    Alert.alert('导入失败', result.message);
-                  }
-                  setIsImporting(false);
-                },
-                'plain-text',
-                '',
-                'plain-text'
-              );
-            } catch (error) {
-              console.error('导入配置失败:', error);
-              Alert.alert('导入失败', '导入配置时发生错误');
-              setIsImporting(false);
-            }
-          },
-        },
-      ]
-    );
+      // 读取文件内容
+      const content = await RNFS.readFile(result.uri, 'utf8');
+
+      if (!content || content.trim() === '') {
+        Alert.alert('错误', '文件内容为空');
+        return;
+      }
+
+      setIsImporting(true);
+      const importResult = await importAppConfig(content.trim());
+
+      if (importResult.success) {
+        Alert.alert('导入成功', importResult.message);
+      } else {
+        Alert.alert('导入失败', importResult.message);
+      }
+    } catch (error) {
+      // 用户取消选择不报错
+      if (isErrorWithCode(error) && error.code === errorCodes.OPERATION_CANCELED) {
+        return;
+      }
+      console.error('导入配置失败:', error);
+      Alert.alert('导入失败', '导入配置时发生错误');
+    } finally {
+      setIsImporting(false);
+    }
   }, []);
 
   // 渲染用户信息

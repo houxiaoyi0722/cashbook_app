@@ -9,6 +9,8 @@ import { ServerConfig } from '../../types';
 import serverConfigManager from '../../services/serverConfig.ts';
 import { useTheme, getColors } from '../../context/ThemeContext';
 import { importAppConfig } from '../../services/ExportImportService';
+import { pick, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
+import RNFS from 'react-native-fs';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -123,53 +125,49 @@ const ServerListScreen: React.FC = () => {
 
   // 处理导入配置
   const handleImportConfig = useCallback(async () => {
-    Alert.alert(
-      '导入服务器配置',
-      '导入配置将覆盖当前的服务器列表。导入前建议先备份当前配置。\n\n是否继续？',
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '粘贴JSON',
-          onPress: async () => {
-            try {
-              // 提示用户输入JSON内容
-              Alert.prompt(
-                '导入服务器配置',
-                '请粘贴导出的JSON配置内容：',
-                async (text) => {
-                  if (!text || text.trim() === '') {
-                    Alert.alert('错误', '请输入配置内容');
-                    return;
-                  }
-                  
-                  setIsImporting(true);
-                  const result = await importAppConfig(text.trim());
-                  
-                  if (result.success) {
-                    Alert.alert('导入成功', result.message);
-                    // 刷新页面以显示新导入的服务器
-                    navigation.reset({
-                      index: 0,
-                      routes: [{ name: 'ServerList' }],
-                    });
-                  } else {
-                    Alert.alert('导入失败', result.message);
-                  }
-                  setIsImporting(false);
-                },
-                'plain-text',
-                '',
-                'plain-text'
-              );
-            } catch (error) {
-              console.error('导入配置失败:', error);
-              Alert.alert('导入失败', '导入配置时发生错误');
-              setIsImporting(false);
-            }
-          },
-        },
-      ]
-    );
+    try {
+      // 使用文档选择器选择JSON文件
+      const [result] = await pick({
+        mode: 'import',
+        type: ['application/json', 'text/plain', '*/*'],
+      });
+
+      if (!result?.uri) {
+        Alert.alert('错误', '无法读取文件');
+        return;
+      }
+
+      // 读取文件内容
+      const content = await RNFS.readFile(result.uri, 'utf8');
+
+      if (!content || content.trim() === '') {
+        Alert.alert('错误', '文件内容为空');
+        return;
+      }
+
+      setIsImporting(true);
+      const importResult = await importAppConfig(content.trim());
+
+      if (importResult.success) {
+        Alert.alert('导入成功', importResult.message);
+        // 刷新页面以显示新导入的服务器
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'ServerList' }],
+        });
+      } else {
+        Alert.alert('导入失败', importResult.message);
+      }
+    } catch (error) {
+      // 用户取消选择不报错
+      if (isErrorWithCode(error) && error.code === errorCodes.OPERATION_CANCELED) {
+        return;
+      }
+      console.error('导入配置失败:', error);
+      Alert.alert('导入失败', '导入配置时发生错误');
+    } finally {
+      setIsImporting(false);
+    }
   }, [navigation]);
 
   // 处理服务器删除

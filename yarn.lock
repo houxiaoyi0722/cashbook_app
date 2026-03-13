@@ -1577,6 +1577,11 @@
     prompts "^2.4.2"
     semver "^7.5.2"
 
+"@react-native-documents/picker@^12.0.1":
+  version "12.0.1"
+  resolved "https://registry.npmmirror.com/@react-native-documents/picker/-/picker-12.0.1.tgz#ea59796175308be9818dd9e8f14a41145c35042b"
+  integrity sha512-vpJKb4t/5bnxe9+gQl+plJfKrrIsmYwANGhNH2B9E1dS1+6FDBzg4Dwmcq4ueaGfkRKEPJ606mJttVEH1ZKZaA==
+
 "@react-native-picker/picker@^2.11.0":
   version "2.11.0"
   resolved "https://registry.npmmirror.com/@react-native-picker/picker/-/picker-2.11.0.tgz"
