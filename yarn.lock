@@ -1858,17 +1858,13 @@
   resolved "https://registry.npmmirror.com/@rneui/themed/-/themed-4.0.0-rc.8.tgz"
   integrity sha512-8L/XOrL9OK/r+/iBLvx63TbIdZOXF8SIjN9eArMYm6kRbMr8m4BitXllDN8nBhBsSPNYvL6EAgjk+i2MfY4sBA==
 
-"@shopify/react-native-skia@^2.5.1":
-  version "2.5.1"
-  resolved "https://registry.npmmirror.com/@shopify/react-native-skia/-/react-native-skia-2.5.1.tgz#31d5a97ff759f2de982ce6bf6122d4774f1a3b6d"
-  integrity sha512-o1P9rFVEqWkEPLg3we6byTBK1ykKtx1GuVCUMSGfrlgKIIZ22WnQhLGSjL2cl2+a4P9li7zxXa5wlMVWTKdVCQ==
+"@shopify/react-native-skia@^1.11.18":
+  version "1.12.3"
+  resolved "https://registry.npmmirror.com/@shopify/react-native-skia/-/react-native-skia-1.12.3.tgz"
+  integrity sha512-QTJ/pliXWzFgrafM0r8QJ8+W8WgRkvBfcVmdKX5BfAIEujm0uGKamu1h8w2/fY6nIfnl7wLaMINhTWUPPBd+cw==
   dependencies:
     canvaskit-wasm "0.40.0"
-    react-native-skia-android "144.3.0"
-    react-native-skia-apple-ios "144.3.0"
-    react-native-skia-apple-macos "144.3.0"
-    react-native-skia-apple-tvos "144.3.0"
-    react-reconciler "0.31.0"
+    react-reconciler "0.27.0"
 
 "@sideway/address@^4.1.5":
   version "4.1.5"
@@ -5113,7 +5109,7 @@ logkitty@^0.7.1:
     dayjs "^1.8.15"
     yargs "^15.1.0"
 
-loose-envify@^1.0.0, loose-envify@^1.4.0:
+loose-envify@^1.0.0, loose-envify@^1.1.0, loose-envify@^1.4.0:
   version "1.4.0"
   resolved "https://registry.npmmirror.com/loose-envify/-/loose-envify-1.4.0.tgz"
   integrity sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==
@@ -6264,26 +6260,6 @@ react-native-size-matters@^0.4.0:
   resolved "https://registry.npmmirror.com/react-native-size-matters/-/react-native-size-matters-0.4.2.tgz"
   integrity sha512-DKE3f/sdcozd24oASgkP1iGg+YU3HoajRa5k3a4wkRzpiqREq8SGX12Y5zBgAt/8IivLQoTMYkyQu1/Giuy+zQ==
 
-react-native-skia-android@144.3.0:
-  version "144.3.0"
-  resolved "https://registry.npmmirror.com/react-native-skia-android/-/react-native-skia-android-144.3.0.tgz#f95827f80ab5d7ecd101b688ba41d765492a34ee"
-  integrity sha512-0XsW8JQAgNBNvCwp/ypOKDF5CjKOlCTBfj43gYXK/clystG7e4y3XF/4v0vw9Slekj9BSQruHqGYpfs5hWgO/g==
-
-react-native-skia-apple-ios@144.3.0:
-  version "144.3.0"
-  resolved "https://registry.npmmirror.com/react-native-skia-apple-ios/-/react-native-skia-apple-ios-144.3.0.tgz#958502b9eaa1f0600917e5f774684f985a2d23cc"
-  integrity sha512-gY8M6IiYhQR9J1xHvAbH4M5pcgS3wsBal/jETcwb7LHaPuxiRkig3Y3Bcl4yK5JgHomcrl18oWVj3xh3UqR2cg==
-
-react-native-skia-apple-macos@144.3.0:
-  version "144.3.0"
-  resolved "https://registry.npmmirror.com/react-native-skia-apple-macos/-/react-native-skia-apple-macos-144.3.0.tgz#a8422828766868e99e423ad3442afb21fa4ee071"
-  integrity sha512-+2kYg+kfVRJX/FAsg+jIcvDQHTG9DzkI+b9GG4XdqHG/ixR4yd5opZ95l9rjLJuRGhnE+AB6StAz5zhjWFhHuw==
-
-react-native-skia-apple-tvos@144.3.0:
-  version "144.3.0"
-  resolved "https://registry.npmmirror.com/react-native-skia-apple-tvos/-/react-native-skia-apple-tvos-144.3.0.tgz#7643564ee445fd5b685f23248d1bd7b6cfc673e5"
-  integrity sha512-Xq4N1xlIzZQgx/6LfkHbSCn5poo0O1D/5LjKmQvfVOrUkOe2Det4OdXrmbsVLFaeh7soB6Bn290s31agD011tw==
-
 react-native-sse@^1.2.1:
   version "1.2.1"
   resolved "https://registry.npmmirror.com/react-native-sse/-/react-native-sse-1.2.1.tgz"
@@ -6373,12 +6349,13 @@ react-native@0.79.0:
     ws "^6.2.3"
     yargs "^17.6.2"
 
-react-reconciler@0.31.0:
-  version "0.31.0"
-  resolved "https://registry.npmmirror.com/react-reconciler/-/react-reconciler-0.31.0.tgz#6b7390fe8fab59210daf523d7400943973de1458"
-  integrity sha512-7Ob7Z+URmesIsIVRjnLoDGwBEG/tVitidU0nMsqX/eeJaLY89RISO/10ERe0MqmzuKUUB1rmY+h1itMbUHg9BQ==
+react-reconciler@0.27.0:
+  version "0.27.0"
+  resolved "https://registry.npmmirror.com/react-reconciler/-/react-reconciler-0.27.0.tgz"
+  integrity sha512-HmMDKciQjYmBRGuuhIaKA1ba/7a+UsM5FzOZsMO2JYHt9Jh8reCb7j1eDC95NOyUlKM9KRyvdx0flBuDvYSBoA==
   dependencies:
-    scheduler "^0.25.0"
+    loose-envify "^1.1.0"
+    scheduler "^0.21.0"
 
 react-refresh@^0.14.0:
   version "0.14.2"
@@ -6625,6 +6602,13 @@ scheduler@0.25.0, scheduler@^0.25.0:
   version "0.25.0"
   resolved "https://registry.npmmirror.com/scheduler/-/scheduler-0.25.0.tgz"
   integrity sha512-xFVuu11jh+xcO7JOAGJNOXld8/TcEHK/4CituBUeUb5hqxJLj9YuemAEuvm9gQ/+pgXYfbQuqAkiYu+u7YEsNA==
+
+scheduler@^0.21.0:
+  version "0.21.0"
+  resolved "https://registry.npmmirror.com/scheduler/-/scheduler-0.21.0.tgz"
+  integrity sha512-1r87x5fz9MXqswA2ERLo0EbOAU74DpIUO090gIasYTqlVoJeMcl+Z1Rg7WHz+qtPujhS/hGIt9kxZOYBV3faRQ==
+  dependencies:
+    loose-envify "^1.1.0"
 
 semver@^5.6.0:
   version "5.7.2"
