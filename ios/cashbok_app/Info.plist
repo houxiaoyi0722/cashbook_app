@@ -22,6 +22,17 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>MaterialIcons.ttf</string>
+		<string>MaterialCommunityIcons.ttf</string>
+		<string>Ionicons.ttf</string>
+		<string>FontAwesome.ttf</string>
+		<string>Feather.ttf</string>
+		<string>Entypo.ttf</string>
+		<string>SimpleLineIcons.ttf</string>
+		<string>AntDesign.ttf</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
