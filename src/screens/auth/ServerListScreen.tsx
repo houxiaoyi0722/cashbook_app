@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, Alert, TouchableOpacity, ActivityIndicator, Text as RNText } from 'react-native';
 import { Text, Icon, ListItem, Card } from '@rneui/themed';
 import { useNavigation } from '@react-navigation/native';
@@ -107,14 +107,21 @@ const ServerListScreen: React.FC = () => {
   // 处理导入配置
   const handleImportConfig = useCallback(async () => {
     try {
-      // 使用文档选择器选择JSON文件
+      // 使用文档选择器选择.cashbookapp文件
       const [result] = await pick({
         mode: 'import',
-        type: ['application/json', 'text/plain', '*/*'],
+        type: ['application/cashbookapp', 'application/octet-stream'],
       });
 
       if (!result?.uri) {
         Alert.alert('错误', '无法读取文件');
+        return;
+      }
+
+      // 验证文件扩展名
+      const fileName = result.name || result.uri;
+      if (!fileName.endsWith('.cashbookapp')) {
+        Alert.alert('错误', '请选择 .cashbookapp 格式的配置文件');
         return;
       }
 

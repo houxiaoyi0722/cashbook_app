@@ -284,19 +284,22 @@ const SettingsScreen: React.FC = () => {
   // 处理导出配置
   const handleExportConfig = useCallback(async () => {
     Alert.alert(
-      '导出配置',
-      '确定要导出当前配置吗？导出的配置包含服务器列表、AI设置、当前账本等信息。',
+      '⚠️ 安全风险警告',
+      '导出的配置包含以下敏感信息：\n\n' +
+      '• 服务器账户密码\n' +
+      '• AI API Key\n' +
+      '• 其他敏感配置数据\n\n' +
+      '请妥善保管导出的文件，避免泄露敏感信息。',
       [
         { text: '取消', style: 'cancel' },
         {
-          text: '导出',
+          text: '继续导出',
           onPress: async () => {
             try {
               setIsExporting(true);
               const jsonData = await exportAppConfig();
 
-              const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-              const fileName = `cashbook_config_${timestamp}.json`;
+              const fileName = 'cashbook_config.cashbookapp';
               const filePath = Platform.OS === 'ios'
                 ? `${RNFS.DocumentDirectoryPath}/${fileName}`
                 : `${RNFS.DownloadDirectoryPath}/${fileName}`;
@@ -319,11 +322,17 @@ const SettingsScreen: React.FC = () => {
   // 处理导入配置
   const handleImportConfig = useCallback(async () => {
     try {
-      // 使用文档选择器选择JSON文件
+      // 使用文档选择器选择.cashbookapp文件
       const [result] = await pick({
         mode: 'import',
         type: ['application/json', 'text/plain', '*/*'],
       });
+
+      // 验证文件扩展名
+      if (!result?.uri || (!result.uri.endsWith('.cashbookapp') && !result.name?.endsWith('.cashbookapp'))) {
+        Alert.alert('错误', '请选择 .cashbookapp 格式的配置文件');
+        return;
+      }
 
       if (!result?.uri) {
         Alert.alert('错误', '无法读取文件');
