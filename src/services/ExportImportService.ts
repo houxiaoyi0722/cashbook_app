@@ -4,6 +4,7 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { aiConfigService } from './AIConfigService';
+import { eventBus } from '../navigation';
 
 // 存储键常量
 const SERVER_CONFIGS_KEY = 'server_configs';
@@ -162,7 +163,10 @@ export async function importAppConfig(jsonString: string): Promise<{ success: bo
       }
     }
 
-    return { success: true, message: '配置导入成功，请重启应用以使所有设置生效' };
+    // 发出配置更新事件
+    eventBus.emit('configImported');
+
+    return { success: true, message: '配置导入成功' };
   } catch (error) {
     console.error('导入配置失败:', error);
     return { success: false, message: '导入配置失败: ' + (error as Error).message };

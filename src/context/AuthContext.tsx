@@ -116,6 +116,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     initAuth();
+
+    // 监听配置导入事件，刷新服务器列表
+    const configImportedListener = eventBus.addListener('configImported', async () => {
+      const configs = await serverConfigManager.getAllConfigs();
+      setServerConfigs(configs);
+    });
+
+    return () => {
+      configImportedListener.remove();
+    };
   }, []);
 
   // 登录

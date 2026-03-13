@@ -22,25 +22,6 @@ const ServerListScreen: React.FC = () => {
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
 
-  // 设置导航栏右上角按钮
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={handleImportConfig}
-          style={{ marginRight: 10 }}
-          disabled={isImporting}
-        >
-          {isImporting ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Icon name="file-upload" type="material" color="#fff" size={24} />
-          )}
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, isImporting]);
-
   // 初始化时设置当前选中的服务器
   useEffect(() => {
     const init = async () => {
@@ -298,7 +279,7 @@ const ServerListScreen: React.FC = () => {
           {serverConfigs.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={[styles.emptyText, { color: colors.text }]}>暂无服务器配置</Text>
-              <Text style={[styles.emptySubText, { color: colors.secondaryText }]}>请点击右下角按钮添加服务器</Text>
+              <Text style={[styles.emptySubText, { color: colors.secondaryText }]}>请点击右下角按钮添加服务器或导入配置</Text>
             </View>
           ) : (
             <FlatList
@@ -308,6 +289,14 @@ const ServerListScreen: React.FC = () => {
               contentContainerStyle={styles.listContent}
             />
           )}
+
+          <TouchableOpacity
+            onPress={handleImportConfig}
+            style={[styles.customFabUpload, { backgroundColor: colors.primary }]}
+            disabled={isImporting}
+          >
+            <Icon name="file-upload" type="material" color="#fff" size={24} />
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.customFab, { backgroundColor: colors.primary }]}
@@ -384,6 +373,21 @@ const styles = StyleSheet.create({
   customFab: {
     position: 'absolute',
     bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  customFabUpload: {
+    position: 'absolute',
+    bottom: 90,
     right: 20,
     width: 56,
     height: 56,
