@@ -7,6 +7,7 @@ interface ShareIntentData {
   text?: string;
   imageUri?: string;
   imageUris?: string[];
+  timestamp?: number;
 }
 
 type ShareIntentCallback = (data: ShareIntentData) => void;
@@ -17,6 +18,7 @@ class ShareIntentService {
   private appStateSubscription: any = null;
   private pollingInterval: any = null;
   private lastProcessedTimestamp: number = 0;
+  private pendingData: ShareIntentData | null = null;
 
   private constructor() {}
 
@@ -41,17 +43,14 @@ class ShareIntentService {
     if (Platform.OS === 'android') {
       this.startPolling();
     }
-
-    // 立即检查一次
-    this.checkForShareIntent();
   }
 
   /**
    * 启动轮询检查
    */
   private startPolling(): void {
-    if (this.pollingInterval) return;
-    
+    if (this.pollingInterval) {return;}
+
     // 每500ms检查一次
     this.pollingInterval = setInterval(() => {
       this.checkForShareIntent();
@@ -69,34 +68,33 @@ class ShareIntentService {
   }
 
   /**
-   * 检查是否有分享intent
+   * 检查是否有分享intent - 只保存数据，不立即通知
    */
   private async checkForShareIntent(): Promise<void> {
     try {
-      if (Platform.OS !== 'android' || !ShareIntentModule) return;
+      if (Platform.OS !== 'android' || !ShareIntentModule) {return;}
 
       const shareData = await ShareIntentModule.getShareIntent();
-      
+
       if (shareData && shareData.type) {
-        // 检查是否是新的分享（通过时间戳）
         const timestamp = shareData.timestamp || 0;
-        const currentTime = Date.now();
-        
-        // 如果时间戳相同或太旧，跳过
-        if (timestamp === this.lastProcessedTimestamp || 
-            (currentTime - timestamp > 10000)) { // 10秒以上的忽略
+
+        // 忽略太旧的数据（10秒以上）
+        if (Date.now() - timestamp > 10000) {
           return;
         }
-        
-        // 避免重复处理
+
+        // 忽略已经处理过的
         if (timestamp === this.lastProcessedTimestamp) {
           return;
         }
-        
-        this.lastProcessedTimestamp = timestamp;
-        
-        console.log('处理分享intent:', shareData);
-        this.notifyListeners(shareData as ShareIntentData);
+
+        // 保存待处理数据，等待监听器
+        console.log('[ShareIntentService] 检测到分享数据，等待监听器:', shareData);
+        this.pendingData = shareData as ShareIntentData;
+
+        // 如果已经有监听器，立即处理
+        this.processPendingData();
       }
     } catch (error) {
       // 静默处理错误
@@ -104,17 +102,34 @@ class ShareIntentService {
   }
 
   /**
+   * 处理待处理的分享数据
+   */
+  private processPendingData(): void {
+    if (!this.pendingData) {return;}
+    if (this.listeners.length === 0) {
+      console.log('[ShareIntentService] 有待处理数据，但无监听器');
+      return;
+    }
+
+    const data = this.pendingData;
+    this.lastProcessedTimestamp = data.timestamp || 0;
+    this.pendingData = null; // 清除待处理数据
+
+    console.log('[ShareIntentService] NotifyListeners', this.listeners.length);
+    this.notifyListeners(data);
+  }
+
+  /**
    * 处理app状态变化
    */
   private async handleAppStateChange(nextAppState: AppStateStatus): Promise<void> {
     if (nextAppState === 'active') {
-      // 应用变为活跃时立即检查
-      this.lastProcessedTimestamp = 0; // 重置，确保能检测到
-      await this.checkForShareIntent();
+      // 应用变为活跃时重置并检查
+      this.lastProcessedTimestamp = 0;
+      this.checkForShareIntent();
     } else if (nextAppState === 'background') {
       // 应用进入后台时停止轮询
       this.stopPolling();
-      this.lastProcessedTimestamp = 0;
     } else if (nextAppState === 'inactive') {
       // 应用从活跃变为非活跃时，重新启动轮询
       if (Platform.OS === 'android') {
@@ -127,8 +142,14 @@ class ShareIntentService {
    * 添加分享intent监听器
    */
   public addListener(callback: ShareIntentCallback): () => void {
+    console.log('[ShareIntentService] Add Listener');
     this.listeners.push(callback);
+
+    // 如果有待处理的分享数据，立即处理
+    this.processPendingData();
+
     return () => {
+      console.log('[ShareIntentService] Remove Listener');
       this.listeners = this.listeners.filter(listener => listener !== callback);
     };
   }
@@ -137,6 +158,7 @@ class ShareIntentService {
    * 通知所有监听器
    */
   private notifyListeners(data: ShareIntentData): void {
+    console.log('[ShareIntentService] 通知监听器，数据:', data);
     this.listeners.forEach(callback => {
       try {
         callback(data);
