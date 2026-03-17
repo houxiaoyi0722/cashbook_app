@@ -95,32 +95,50 @@ const MainTabs = () => {
 
   // 处理分享intent
   useEffect(() => {
-    const unsubscribe = shareIntentService.addListener((data: ShareIntentData) => {
+    const unsubscribe = shareIntentService.addListener(async (data: ShareIntentData) => {
       console.log('收到分享intent:', data);
+
+      // 延迟清理分享数据
+      setTimeout(async () => {
+        try {
+          const { ShareIntentModule } = require('react-native').NativeModules;
+          if (ShareIntentModule?.clearShareIntent) {
+            await ShareIntentModule.clearShareIntent();
+          }
+        } catch (e) {}
+      }, 1000);
 
       if (data.type === 'ocr') {
         // OCR记账 - 跳转到日历页面
+        const imageUri = data.imageUri;
+        console.log('OCR图片:', imageUri);
+
         navigation.navigate('Calendar');
         Alert.alert(
           'OCR记账',
-          '收到图片分享，将打开OCR识别功能',
+          imageUri ? `收到图片: ${imageUri.substring(0, 30)}...` : '收到图片分享，将打开OCR识别功能',
           [
             { text: '取消', style: 'cancel' },
             {
               text: '确定',
-              onPress: () => {
-                // 导航到日历页面后，用户可以手动点击OCR按钮
-              },
+              onPress: () => {},
             },
           ]
         );
       } else if (data.type === 'ai') {
         // 发送给AI - 跳转到AI聊天页面
         if (aiAssistantEnabled) {
+          // 将分享内容通过事件传递
+          eventBus.emit('share_to_ai', {
+            text: data.text,
+            imageUri: data.imageUri,
+            imageUris: data.imageUris,
+          });
+
           navigation.navigate('AIChat');
           Alert.alert(
             '发送给AI',
-            '收到分享内容，将打开AI聊天',
+            data.text ? `收到文本: ${data.text.substring(0, 30)}...` : '收到分享内容，将打开AI聊天',
             [{ text: '确定' }]
           );
         } else {
@@ -225,12 +243,14 @@ const MainTabs = () => {
   );
 };
 
+
 // 主导航
 const AppNavigator = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [initialRoute, setInitialRoute] = useState<keyof MainStackParamList>('ServerList');
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
+
 
   // 验证token是否有效的函数
   const validateToken = async (): Promise<boolean> => {
@@ -241,6 +261,7 @@ const AppNavigator = () => {
       }
       // 初始化API
       api.init(currentServer);
+
 
       // 尝试调用一个简单的API来验证token是否有效
       const response = await api.book.list();
@@ -256,6 +277,7 @@ const AppNavigator = () => {
     }
   };
 
+
   // 检查初始路由
   useEffect(() => {
     const checkInitialRoute = async () => {
@@ -269,8 +291,10 @@ const AppNavigator = () => {
           return;
         }
 
+
         // 检查是否有auth_token
         const authToken = await AsyncStorage.getItem('auth_token');
+
 
         if (!authToken) {
           // 没有token，跳转到服务器列表
@@ -278,6 +302,7 @@ const AppNavigator = () => {
           setIsLoading(false);
           return;
         }
+
 
         // 验证token是否有效
         const isTokenValid = await validateToken();
@@ -291,6 +316,7 @@ const AppNavigator = () => {
         }
         setInitialRoute('MainTabs');
 
+
       } catch (error) {
         console.error('检查初始路由失败', error);
         setInitialRoute('ServerList');
@@ -299,8 +325,10 @@ const AppNavigator = () => {
       }
     };
 
+
     checkInitialRoute();
   }, []);
+
 
   if (isLoading) {
     return (
@@ -312,6 +340,7 @@ const AppNavigator = () => {
       </View>
     );
   }
+
 
 	return (
 		<NavigationContainer>
@@ -395,8 +424,10 @@ const AppNavigator = () => {
             title: route.params?.configId ? '编辑配置' : '新建配置',
           })}
         />
+
 			</Stack.Navigator>
 		</NavigationContainer>
+
 	);
 };
 
