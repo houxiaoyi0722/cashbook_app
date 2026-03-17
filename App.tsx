@@ -14,6 +14,7 @@ import { enableScreens } from 'react-native-screens';
 import { logger } from './src/services/LogService';
 import { setupErrorHandlers } from './src/utils/errorHandler';
 import { userInputAnalysisManager } from './src/services/UserInputAnalysisManager';
+import { shareIntentService } from './src/services/ShareIntentService';
 
 import AppNavigator from './src/navigation';
 import { AuthProvider } from './src/context/AuthContext';
@@ -74,6 +75,14 @@ const AppContent = () => {
           await logger.info('App', '全局错误处理已设置');
         } catch (errorHandlerError) {
           console.error('设置全局错误处理失败:', errorHandlerError);
+        }
+
+        // 初始化分享intent服务
+        try {
+          shareIntentService.initialize();
+          console.log('分享intent服务已初始化');
+        } catch (shareIntentError) {
+          console.error('初始化分享intent服务失败:', shareIntentError);
         }
       } catch (error) {
         console.error('应用初始化失败:', error);

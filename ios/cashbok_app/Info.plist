@@ -59,5 +59,26 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.cashbook.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>cashbook</string>
+				<string>cashbook-ocr</string>
+				<string>cashbook-ai</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>cashbook</string>
+		<string>cashbook-ocr</string>
+		<string>cashbook-ai</string>
+	</array>
 </dict>
 </plist>

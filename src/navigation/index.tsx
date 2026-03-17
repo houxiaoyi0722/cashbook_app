@@ -4,7 +4,8 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {Icon} from '@rneui/themed';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {StatusBar, View, ActivityIndicator, Image} from 'react-native';
+import {StatusBar, View, ActivityIndicator, Image, Alert} from 'react-native';
+import {useNavigation} from '@react-navigation/native';
 import {useTheme, getColors} from '../context/ThemeContext';
 
 // 认证相关屏幕
@@ -36,6 +37,7 @@ import BudgetScreen from '../screens/main/BudgetScreen.tsx';
 import AIAssistantConfigService from '../services/AIAssistantConfigService';
 import serverConfigManager from '../services/serverConfig.ts';
 import {aiConfigService} from '../services/AIConfigService.ts';
+import {shareIntentService, ShareIntentData} from '../services/ShareIntentService';
 
 export const eventBus = new NativeEventEmitter();
 // 创建导航器
@@ -44,6 +46,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 // 主标签导航
 const MainTabs = () => {
+  const navigation = useNavigation<any>();
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
   const [aiAssistantEnabled, setAiAssistantEnabled] = useState<boolean>(false);
@@ -89,6 +92,50 @@ const MainTabs = () => {
       );
     };
   }, []);
+
+  // 处理分享intent
+  useEffect(() => {
+    const unsubscribe = shareIntentService.addListener((data: ShareIntentData) => {
+      console.log('收到分享intent:', data);
+
+      if (data.type === 'ocr') {
+        // OCR记账 - 跳转到日历页面
+        navigation.navigate('Calendar');
+        Alert.alert(
+          'OCR记账',
+          '收到图片分享，将打开OCR识别功能',
+          [
+            { text: '取消', style: 'cancel' },
+            {
+              text: '确定',
+              onPress: () => {
+                // 导航到日历页面后，用户可以手动点击OCR按钮
+              }
+            }
+          ]
+        );
+      } else if (data.type === 'ai') {
+        // 发送给AI - 跳转到AI聊天页面
+        if (aiAssistantEnabled) {
+          navigation.navigate('AIChat');
+          Alert.alert(
+            '发送给AI',
+            '收到分享内容，将打开AI聊天',
+            [{ text: '确定' }]
+          );
+        } else {
+          Alert.alert(
+            'AI助手未启用',
+            '请先在设置中启用AI助手功能'
+          );
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [navigation, aiAssistantEnabled]);
 
   // 如果正在加载，显示加载指示器
   if (loading) {
