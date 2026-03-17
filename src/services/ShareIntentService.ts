@@ -18,8 +18,8 @@ class ShareIntentService {
   private eventEmitter: NativeEventEmitter | null = null;
   private listeners: ShareIntentCallback[] = [];
   private appStateSubscription: any = null;
-  private lastProcessedTime: number = 0;
-  private initialCheckDone: boolean = false;
+  private pollingInterval: any = null;
+  private lastProcessedTimestamp: number = 0;
 
   private constructor() {
     if (Platform.OS === 'ios') {
@@ -38,7 +38,7 @@ class ShareIntentService {
    * 初始化分享intent监听
    */
   public initialize(): void {
-    // 监听app state变化来检测分享intent
+    // 监听app state变化
     this.appStateSubscription = AppState.addEventListener(
       'change',
       this.handleAppStateChange.bind(this),
@@ -47,6 +47,7 @@ class ShareIntentService {
     // Android: 监听设备事件
     if (Platform.OS === 'android') {
       this.setupAndroidListener();
+      this.startPolling();
     }
 
     // 初始检查
@@ -54,57 +55,12 @@ class ShareIntentService {
   }
 
   /**
-   * 检查是否有分享intent
-   */
-  private async checkForShareIntent(): Promise<void> {
-    if (this.initialCheckDone) {
-      return;
-    }
-    this.initialCheckDone = true;
-
-    try {
-      if (Platform.OS === 'android' && ShareIntentModule) {
-        const hasIntent = await ShareIntentModule.hasShareIntent();
-        if (hasIntent) {
-          // 延迟一下确保RN已完全初始化
-          setTimeout(async () => {
-            await this.processShareIntent();
-          }, 500);
-        }
-      }
-    } catch (error) {
-      console.error('检查分享intent失败:', error);
-    }
-  }
-
-  /**
-   * 处理分享intent (Android - 使用原生模块)
-   */
-  private async processShareIntent(): Promise<void> {
-    try {
-      // 避免重复处理
-      const currentTime = Date.now();
-      if (currentTime - this.lastProcessedTime < 1000) {
-        return;
-      }
-      this.lastProcessedTime = currentTime;
-
-      if (Platform.OS === 'android' && ShareIntentModule) {
-        const shareData = await ShareIntentModule.getShareIntent();
-        if (shareData && shareData.type) {
-          this.notifyListeners(shareData as ShareIntentData);
-        }
-      }
-    } catch (error) {
-      console.error('处理分享intent失败:', error);
-    }
-  }
-
-  /**
    * 设置Android事件监听
    */
   private setupAndroidListener(): void {
+    // 监听原生模块发送的事件
     DeviceEventEmitter.addListener('onShareIntent', (data: ShareIntentData) => {
+      console.log('收到分享intent事件:', data);
       if (data && data.type) {
         this.notifyListeners(data);
       }
@@ -112,12 +68,70 @@ class ShareIntentService {
   }
 
   /**
+   * 启动轮询检查
+   */
+  private startPolling(): void {
+    if (this.pollingInterval) return;
+
+    // 每秒检查一次是否有新的分享
+    this.pollingInterval = setInterval(() => {
+      this.checkForShareIntent();
+    }, 1000);
+  }
+
+  /**
+   * 停止轮询
+   */
+  private stopPolling(): void {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+    }
+  }
+
+  /**
+   * 检查是否有分享intent
+   */
+  private async checkForShareIntent(): Promise<void> {
+    try {
+      if (Platform.OS === 'android' && ShareIntentModule) {
+        const shareData = await ShareIntentModule.getShareIntent();
+
+        if (shareData && shareData.type) {
+          // 检查是否是新的分享（通过时间戳）
+          // 避免重复处理
+          const currentTime = Date.now();
+          if (currentTime - this.lastProcessedTimestamp < 1000) {
+            return;
+          }
+          this.lastProcessedTimestamp = currentTime;
+
+          console.log('处理分享intent:', shareData);
+          this.notifyListeners(shareData as ShareIntentData);
+        }
+      }
+    } catch (error) {
+      // 静默处理错误，避免日志刷屏
+    }
+  }
+
+  /**
    * 处理app状态变化
    */
   private async handleAppStateChange(nextAppState: AppStateStatus): Promise<void> {
     if (nextAppState === 'active') {
-      // 检查是否有待处理的分享intent
+      // 应用变为活跃时立即检查
       await this.checkForShareIntent();
+
+      // 重启轮询
+      if (Platform.OS === 'android') {
+        this.startPolling();
+      }
+    } else if (nextAppState === 'background') {
+      // 应用进入后台时停止轮询，节省资源
+      if (Platform.OS === 'android') {
+        this.stopPolling();
+      }
     }
   }
 
@@ -149,6 +163,7 @@ class ShareIntentService {
    */
   public removeAllListeners(): void {
     this.listeners = [];
+    this.stopPolling();
     if (this.appStateSubscription) {
       this.appStateSubscription.remove();
       this.appStateSubscription = null;

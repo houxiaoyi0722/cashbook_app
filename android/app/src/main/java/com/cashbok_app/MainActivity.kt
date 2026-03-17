@@ -72,8 +72,37 @@ class MainActivity : ReactActivity() {
             putString("share_image_uris", imageUris.joinToString(",") { u -> u.toString() })
           }
           
+          // 添加时间戳，用于区分新旧的分享
+          putLong("share_timestamp", System.currentTimeMillis())
+          
           apply()
         }
+        
+        // 如果应用已经在运行，发送广播通知
+        sendBroadcast(Intent("com.cashbook_app.SHARE_INTENT").apply {
+          putExtra("share_type", shareType)
+        })
+      }
+    }
+  }
+  
+  override fun onResume() {
+    super.onResume()
+    // 检查是否有待处理的分享intent
+    checkAndProcessPendingShareIntent()
+  }
+  
+  /**
+   * 检查并处理待处理的分享intent
+   */
+  private fun checkAndProcessPendingShareIntent() {
+    val shareType = prefs.getString("share_type", null)
+    if (shareType != null) {
+      val timestamp = prefs.getLong("share_timestamp", 0)
+      // 如果是5秒内的分享，认为是有效的
+      if (System.currentTimeMillis() - timestamp < 5000) {
+        // 清理数据，触发RN重新读取
+        prefs.edit().remove("share_type").apply()
       }
     }
   }

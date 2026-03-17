@@ -1,15 +1,80 @@
 package com.cashbook_app
 
+import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.SharedPreferences
+import android.content.Intent
+import android.content.IntentFilter
 import com.facebook.react.bridge.*
+import com.facebook.react.modules.core.DeviceEventManagerModule
 
 /**
  * 原生模块用于处理分享intent
  */
 class ShareIntentModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
+    private var broadcastReceiver: BroadcastReceiver? = null
+
     override fun getName(): String = "ShareIntentModule"
+
+    /**
+     * 初始化广播接收器
+     */
+    @ReactMethod
+    fun initializeReceiver() {
+        if (broadcastReceiver != null) return
+        
+        broadcastReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                intent?.let {
+                    val shareType = it.getStringExtra("share_type")
+                    if (shareType != null) {
+                        sendEvent(shareType)
+                    }
+                }
+            }
+        }
+        
+        try {
+            reactApplicationContext.registerReceiver(
+                broadcastReceiver,
+                IntentFilter("com.cashbook_app.SHARE_INTENT")
+            )
+        } catch (e: Exception) {
+            // 可能已经注册
+        }
+    }
+
+    /**
+     * 移除广播接收器
+     */
+    @ReactMethod
+    fun removeReceiver() {
+        broadcastReceiver?.let {
+            try {
+                reactApplicationContext.unregisterReceiver(it)
+            } catch (e: Exception) {
+                // 未注册
+            }
+            broadcastReceiver = null
+        }
+    }
+
+    /**
+     * 发送事件到React Native
+     */
+    private fun sendEvent(shareType: String) {
+        try {
+            val params = Arguments.createMap().apply {
+                putString("type", shareType)
+            }
+            
+            reactApplicationContext
+                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                .emit("onShareIntent", params)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     /**
      * 获取分享intent数据

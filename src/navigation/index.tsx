@@ -110,8 +110,8 @@ const MainTabs = () => {
               text: '确定',
               onPress: () => {
                 // 导航到日历页面后，用户可以手动点击OCR按钮
-              }
-            }
+              },
+            },
           ]
         );
       } else if (data.type === 'ai') {

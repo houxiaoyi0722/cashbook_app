@@ -59,5 +59,14 @@
         </intent-filter>
       </activity>
 
+      <!-- 分享intent广播接收器 -->
+      <receiver
+        android:name=".ShareIntentReceiver"
+        android:exported="false">
+        <intent-filter>
+            <action android:name="com.cashbook_app.SHARE_INTENT" />
+        </intent-filter>
+      </receiver>
+
     </application>
 </manifest>
