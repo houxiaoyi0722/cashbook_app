@@ -29,9 +29,9 @@ export type MainStackParamList = {
 };
 
 export type MainTabParamList = {
-  Calendar: undefined;
+  Calendar: { sharedImageUri?: string } | undefined;
   Statistics: undefined;
   Budget: undefined;
-  AIChat: undefined;
+  AIChat: { sharedImageUri?: string; sharedImageUris?: string[] } | undefined;
   Settings: undefined;
 };

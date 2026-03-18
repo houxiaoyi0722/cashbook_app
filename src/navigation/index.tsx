@@ -113,23 +113,21 @@ const MainTabs = () => {
         const imageUri = data.imageUri;
         console.log('OCR图片:', imageUri);
 
-        // 跳转到MainTabs然后切换到Calendar
+        // 跳转到MainTabs然后切换到Calendar，并传递图片URI
         navigation.navigate('MainTabs', {
           screen: 'Calendar',
+          params: { sharedImageUri: imageUri },
         });
       } else if (data.type === 'ai') {
         // 发送给AI - 跳转到AI聊天页面
         if (aiAssistantEnabled) {
-          // 将分享内容通过事件传递
-          eventBus.emit('share_to_ai', {
-            text: data.text,
-            imageUri: data.imageUri,
-            imageUris: data.imageUris,
-          });
-
-          // 跳转到MainTabs然后切换到AIChat
+          // 跳转到MainTabs然后切换到AIChat，并传递分享内容
           navigation.navigate('MainTabs', {
             screen: 'AIChat',
+            params: {
+              sharedImageUri: data.imageUri,
+              sharedImageUris: data.imageUris,
+            },
           });
         } else {
           Alert.alert(

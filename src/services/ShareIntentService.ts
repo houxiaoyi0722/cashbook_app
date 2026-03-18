@@ -90,7 +90,6 @@ class ShareIntentService {
         }
 
         // 保存待处理数据，等待监听器
-        console.log('[ShareIntentService] 检测到分享数据，等待监听器:', shareData);
         this.pendingData = shareData as ShareIntentData;
 
         // 如果已经有监听器，立即处理
@@ -107,7 +106,6 @@ class ShareIntentService {
   private processPendingData(): void {
     if (!this.pendingData) {return;}
     if (this.listeners.length === 0) {
-      console.log('[ShareIntentService] 有待处理数据，但无监听器');
       return;
     }
 

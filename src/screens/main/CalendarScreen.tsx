@@ -15,7 +15,7 @@ import {
 import {Picker} from '@react-native-picker/picker';
 import {Button, Card, Icon, Overlay, Text} from '@rneui/themed';
 import {Calendar, LocaleConfig} from 'react-native-calendars';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {MainStackParamList} from '../../navigation/types';
 import {useBookkeeping} from '../../context/BookkeepingContext';
@@ -268,6 +268,7 @@ const OCRScanAnimation: React.FC<OCRScanAnimationProps> = ({
 
 const CalendarScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<any>();  // 添加这行
   const { currentBook, fetchCalendarData, fetchDayFlows } = useBookkeeping();
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
@@ -422,6 +423,42 @@ const CalendarScreen: React.FC = () => {
       setDayDetailLoading(false);
     }
   }, [currentBook, fetchDayFlows]);
+
+  // 处理分享的图片OCR
+  useEffect(() => {
+    if (route.params?.sharedImageUri) {
+      const imageUri = route.params.sharedImageUri;
+      console.log('处理分享的图片:', imageUri);
+
+      // 直接调用OCR识别
+      (async () => {
+        try {
+          setOcrImageUri(imageUri);
+          setShowOCRModal(true);
+          setIsOCRProcessing(true);
+          setOcrProcessingMessage('正在识别中...');
+
+          const ocrResult = await OCRService.getInstance().recognizeTextFromImage(imageUri, currentUserInfo);
+
+          setShowOCRModal(false);
+          setIsOCRProcessing(false);
+
+          if (ocrResult && ocrResult.flow) {
+            navigation.navigate('FlowForm', {
+              date: selectedDate,
+              ocrResult: ocrResult,
+            });
+          } else {
+            Alert.alert('提示', '未能识别到有效的小票信息，请手动输入');
+          }
+        } catch (error) {
+          console.error('OCR识别失败:', error);
+          setShowOCRModal(false);
+          setIsOCRProcessing(false);
+        }
+      })();
+    }
+  }, [route.params?.sharedImageUri]);
 
   useEffect(() => {
     const refreshListener = () => {
