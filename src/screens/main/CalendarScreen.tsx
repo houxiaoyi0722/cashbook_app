@@ -300,6 +300,8 @@ const CalendarScreen: React.FC = () => {
   const [ocrImageUri, setOcrImageUri] = useState<string | null | undefined>(null);
   const [isOCRProcessing, setIsOCRProcessing] = useState<boolean>(false);
   const [ocrProcessingMessage, setOcrProcessingMessage] = useState<string>('');
+  // OCR重试功能相关状态
+  const [ocrRecognitionError, setOcrRecognitionError] = useState<string>('');
   // 使用ref来跟踪取消状态，因为状态更新是异步的
   const ocrCancelledRef = useRef<boolean>(false);
   // 图片来源选择弹窗状态
@@ -1774,23 +1776,74 @@ const CalendarScreen: React.FC = () => {
     );
   };
 
+  // OCR重试函数
+  const retryOCR = useCallback(async () => {
+    if (!ocrImageUri || !currentUserInfo) {
+      setOcrRecognitionError('缺少图片或用户信息');
+      return;
+    }
+
+    // 清空错误信息
+    setOcrRecognitionError('');
+    // 开始处理
+    setIsOCRProcessing(true);
+    setOcrProcessingMessage('正在识别中...');
+
+    try {
+      const ocrResult = await OCRService.getInstance().recognizeTextFromImage(ocrImageUri, currentUserInfo);
+
+      // 识别完成后关闭弹窗
+      setShowOCRModal(false);
+      setIsOCRProcessing(false);
+
+      // 检查是否被取消
+      if (ocrCancelledRef.current) {
+        return;
+      }
+
+      if (ocrResult && ocrResult.flow) {
+        // 识别成功，导航到流水表单页面，传递OCR结果
+        navigation.navigate('FlowForm', {
+          date: selectedDate,
+          ocrResult: ocrResult,
+        });
+      } else {
+        Alert.alert('提示', '未能识别到有效的小票信息，请手动输入');
+      }
+    } catch (error) {
+      console.error('OCR重试失败:', error);
+      setOcrRecognitionError(`识别失败: ${error}`);
+      setIsOCRProcessing(false);
+    }
+  }, [ocrImageUri, currentUserInfo, navigation, selectedDate]);
+
   // 渲染OCR识别弹窗
   const renderOCRModal = () => {
+    const hasError = !isOCRProcessing && ocrRecognitionError !== '';
+
     return (
       <Overlay
         isVisible={showOCRModal}
         onBackdropPress={() => {
           if (!isOCRProcessing) {
             setShowOCRModal(false);
+            // 重置状态
+            setOcrRecognitionError('');
           }
         }}
         overlayStyle={[styles.ocrOverlay, { backgroundColor: colors.dialog }]}
       >
         <View style={styles.ocrContainer}>
           <View style={styles.ocrHeader}>
-            <Text style={[styles.ocrTitle, { color: colors.text }]}>小票识别中</Text>
+            <Text style={[styles.ocrTitle, { color: colors.text }]}>
+              {hasError ? '小票识别失败' : '小票识别中'}
+            </Text>
             {!isOCRProcessing && (
-              <TouchableOpacity onPress={() => setShowOCRModal(false)}>
+              <TouchableOpacity onPress={() => {
+                setShowOCRModal(false);
+                // 重置状态
+                setOcrRecognitionError('');
+              }}>
                 <Icon iconProps={{ name: 'close', type: 'material', size: 24, color: colors.text }} />
               </TouchableOpacity>
             )}
@@ -1825,7 +1878,7 @@ const CalendarScreen: React.FC = () => {
             )}
           </View>
 
-          {/* 处理状态消息 */}
+          {/* 处理状态消息 - 识别中 */}
           {isOCRProcessing && (
             <View style={styles.ocrProcessingMessageContainer}>
               <Text style={[styles.ocrProcessingMessage, { color: colors.text }]}>
@@ -1834,7 +1887,16 @@ const CalendarScreen: React.FC = () => {
             </View>
           )}
 
-          {/* 取消按钮 */}
+          {/* 错误信息显示 */}
+          {hasError && (
+            <View style={styles.ocrProcessingMessageContainer}>
+              <Text style={[styles.ocrProcessingMessage, { color: colors.error }]}>
+                {ocrRecognitionError}
+              </Text>
+            </View>
+          )}
+
+          {/* 取消按钮 - 识别中 */}
           {isOCRProcessing && (
             <TouchableOpacity
               style={[styles.ocrCancelButton, { backgroundColor: colors.input }]}
@@ -1847,6 +1909,31 @@ const CalendarScreen: React.FC = () => {
             >
               <Text style={[styles.ocrCancelButtonText, { color: colors.text }]}>取消识别</Text>
             </TouchableOpacity>
+          )}
+
+          {/* 重试和手动输入按钮 - 识别失败时显示 */}
+          {hasError && (
+            <View style={styles.ocrButtonContainer}>
+              <TouchableOpacity
+                style={[styles.ocrRetryButton, { backgroundColor: colors.primary }]}
+                onPress={() => {
+                  retryOCR();
+                }}
+              >
+                <Text style={[styles.ocrRetryButtonText, { color: 'white' }]}>重试</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.ocrCancelButton, { backgroundColor: colors.input }]}
+                onPress={() => {
+                  setShowOCRModal(false);
+                  setOcrRecognitionError('');
+                  // 导航到流水表单页面
+                  navigation.navigate('FlowForm', { date: selectedDate });
+                }}
+              >
+                <Text style={[styles.ocrCancelButtonText, { color: colors.text }]}>手动输入</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       </Overlay>
@@ -1903,20 +1990,15 @@ const CalendarScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('小票识别失败:', error);
-      // 关闭弹窗
-      setShowOCRModal(false);
+      // 设置错误信息，保持弹窗打开以便重试
+      setOcrRecognitionError(`小票识别失败，请重试或手动输入: ${error}`);
       setIsOCRProcessing(false);
 
       // 如果用户取消了拍照，不显示错误提示
       if (error !== 'USER_CANCELED' && (error as any)?.code !== 'E_PICKER_CANCELLED') {
-        Alert.alert('错误', `小票识别失败，请重试或手动输入 ${error}`);
+        // 不再弹窗提示，错误信息会在OCR弹窗中显示
       }
     } finally {
-      // 确保状态被正确重置
-      if (!ocrCancelledRef.current) {
-        setShowOCRModal(false);
-        setIsOCRProcessing(false);
-      }
       // 重置取消状态
       ocrCancelledRef.current = false;
     }
@@ -1972,20 +2054,15 @@ const CalendarScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('小票识别失败:', error);
-      // 关闭弹窗
-      setShowOCRModal(false);
+      // 设置错误信息，保持弹窗打开以便重试
+      setOcrRecognitionError(`小票识别失败，请重试或手动输入: ${error}`);
       setIsOCRProcessing(false);
 
       // 如果用户取消了选择，不显示错误提示
       if (error !== 'USER_CANCELED' && (error as any)?.code !== 'E_PICKER_CANCELLED') {
-        Alert.alert('错误', `小票识别失败，请重试或手动输入 ${error}`);
+        // 不再弹窗提示，错误信息会在OCR弹窗中显示
       }
     } finally {
-      // 确保状态被正确重置
-      if (!ocrCancelledRef.current) {
-        setShowOCRModal(false);
-        setIsOCRProcessing(false);
-      }
       // 重置取消状态
       ocrCancelledRef.current = false;
     }
@@ -3211,6 +3288,23 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   ocrCancelButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  ocrButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+  },
+  ocrRetryButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  ocrRetryButtonText: {
     fontSize: 14,
     fontWeight: '500',
   },
