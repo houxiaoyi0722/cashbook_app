@@ -455,7 +455,8 @@ const CalendarScreen: React.FC = () => {
           }
         } catch (error) {
           console.error('OCR识别失败:', error);
-          setShowOCRModal(false);
+          // 设置错误信息，保持弹窗打开以便重试
+          setOcrRecognitionError(`小票识别失败，请重试或手动输入: ${error}`);
           setIsOCRProcessing(false);
         }
       })();
@@ -1923,7 +1924,7 @@ const CalendarScreen: React.FC = () => {
                 <Text style={[styles.ocrRetryButtonText, { color: 'white' }]}>重试</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.ocrCancelButton, { backgroundColor: colors.input }]}
+                style={[styles.ocrCancelButton1, { backgroundColor: colors.input }]}
                 onPress={() => {
                   setShowOCRModal(false);
                   setOcrRecognitionError('');
@@ -3280,6 +3281,14 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: 'center',
   },
+  ocrCancelButton1: {
+    flex: 1,
+    marginHorizontal: 20,
+    marginBottom: 15,
+    paddingVertical: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
   ocrAnimationContainer: {
     width: 200,
     height: 200,
@@ -3299,10 +3308,11 @@ const styles = StyleSheet.create({
   },
   ocrRetryButton: {
     flex: 1,
+    marginHorizontal: 20,
+    marginBottom: 15,
     paddingVertical: 10,
     borderRadius: 5,
     alignItems: 'center',
-    marginRight: 10,
   },
   ocrRetryButtonText: {
     fontSize: 14,
