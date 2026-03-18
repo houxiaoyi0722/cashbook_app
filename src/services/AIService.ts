@@ -502,7 +502,7 @@ ${contextInfo}
             if (event.type === 'message') {
               const data = event.data;
 
-              console.log('📝 收到SSE数据', data);
+              // console.log('📝 收到SSE数据', data);
               // 跳过结束标记
               if (data === '[DONE]') {
                 console.log('🏁 收到SSE结束标记',allDelta);

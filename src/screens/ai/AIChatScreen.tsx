@@ -1,4 +1,5 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {useRoute, RouteProp} from '@react-navigation/native';
 import {
   ActivityIndicator,
   Alert,
@@ -43,10 +44,13 @@ import {
 } from '../../types';
 import dayjs from 'dayjs';
 import {mcpBridge} from '../../services/MCPBridge.ts';
+import {MainTabParamList} from '../../navigation/types';
 
 interface AIChatScreenProps {
   navigation?: any;
 }
+
+type AIChatRouteProp = RouteProp<MainTabParamList, 'AIChat'>;
 
 // OCR扫描动画组件
 const OCRScanAnimation: React.FC<{
@@ -110,6 +114,7 @@ const OCRScanAnimation: React.FC<{
 };
 
 const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
+  const route = useRoute<AIChatRouteProp>();
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
 
@@ -149,6 +154,23 @@ const AIChatScreen: React.FC<AIChatScreenProps> = ({ navigation }) => {
 
   // 待发送的图片列表
   const [pendingImages, setPendingImages] = useState<string[]>([]);
+
+  // 处理从分享跳转过来的图片
+  useEffect(() => {
+    const routeParams = route?.params;
+    if (routeParams) {
+      const { sharedImageUri, sharedImageUris } = routeParams;
+      // 优先使用sharedImageUris（多图），其次使用sharedImageUri（单图）
+      const imagesToAdd = sharedImageUris || (sharedImageUri ? [sharedImageUri] : []);
+      if (imagesToAdd.length > 0) {
+        // 过滤掉已经存在的图片
+        setPendingImages(prev => {
+          const newImages = imagesToAdd.filter(uri => !prev.includes(uri));
+          return [...prev, ...newImages];
+        });
+      }
+    }
+  }, [route?.params]);
 
   // 悬浮菜单显示状态
   const [showFloatingMenu, setShowFloatingMenu] = useState(false);
