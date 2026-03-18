@@ -113,7 +113,10 @@ const MainTabs = () => {
         const imageUri = data.imageUri;
         console.log('OCR图片:', imageUri);
 
-        navigation.navigate('Calendar');
+        // 跳转到MainTabs然后切换到Calendar
+        navigation.navigate('MainTabs', {
+          screen: 'Calendar',
+        });
       } else if (data.type === 'ai') {
         // 发送给AI - 跳转到AI聊天页面
         if (aiAssistantEnabled) {
@@ -124,7 +127,10 @@ const MainTabs = () => {
             imageUris: data.imageUris,
           });
 
-          navigation.navigate('AIChat');
+          // 跳转到MainTabs然后切换到AIChat
+          navigation.navigate('MainTabs', {
+            screen: 'AIChat',
+          });
         } else {
           Alert.alert(
             'AI助手未启用',
