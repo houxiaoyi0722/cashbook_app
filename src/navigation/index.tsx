@@ -114,17 +114,6 @@ const MainTabs = () => {
         console.log('OCR图片:', imageUri);
 
         navigation.navigate('Calendar');
-        Alert.alert(
-          'OCR记账',
-          imageUri ? `收到图片: ${imageUri.substring(0, 30)}...` : '收到图片分享，将打开OCR识别功能',
-          [
-            { text: '取消', style: 'cancel' },
-            {
-              text: '确定',
-              onPress: () => {},
-            },
-          ]
-        );
       } else if (data.type === 'ai') {
         // 发送给AI - 跳转到AI聊天页面
         if (aiAssistantEnabled) {
@@ -136,11 +125,6 @@ const MainTabs = () => {
           });
 
           navigation.navigate('AIChat');
-          Alert.alert(
-            '发送给AI',
-            data.text ? `收到文本: ${data.text.substring(0, 30)}...` : '收到分享内容，将打开AI聊天',
-            [{ text: '确定' }]
-          );
         } else {
           Alert.alert(
             'AI助手未启用',

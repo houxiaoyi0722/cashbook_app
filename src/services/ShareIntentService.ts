@@ -1,4 +1,4 @@
-import {NativeModules, NativeEventEmitter, Platform, AppState, AppStateStatus, DeviceEventEmitter} from 'react-native';
+import {NativeModules, Platform, AppState, AppStateStatus} from 'react-native';
 
 const {ShareIntentModule} = NativeModules;
 
@@ -115,7 +115,6 @@ class ShareIntentService {
     this.lastProcessedTimestamp = data.timestamp || 0;
     this.pendingData = null; // 清除待处理数据
 
-    console.log('[ShareIntentService] NotifyListeners', this.listeners.length);
     this.notifyListeners(data);
   }
 
@@ -142,14 +141,12 @@ class ShareIntentService {
    * 添加分享intent监听器
    */
   public addListener(callback: ShareIntentCallback): () => void {
-    console.log('[ShareIntentService] Add Listener');
     this.listeners.push(callback);
 
     // 如果有待处理的分享数据，立即处理
     this.processPendingData();
 
     return () => {
-      console.log('[ShareIntentService] Remove Listener');
       this.listeners = this.listeners.filter(listener => listener !== callback);
     };
   }
@@ -158,7 +155,6 @@ class ShareIntentService {
    * 通知所有监听器
    */
   private notifyListeners(data: ShareIntentData): void {
-    console.log('[ShareIntentService] 通知监听器，数据:', data);
     this.listeners.forEach(callback => {
       try {
         callback(data);
