@@ -804,7 +804,15 @@ const CalendarScreen: React.FC = () => {
                     <Icon iconProps={{ name: 'camera', type: 'material', color: 'white', size: 20 }} />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.backRightBtn, styles.backRightBtnLeft]}
+                    style={[styles.backRightBtn, styles.copyBtn]}
+                    onPress={() => {
+                      navigation.navigate('FlowForm', { currentFlow: item, isCopy: true });
+                    }}
+                  >
+                    <Icon iconProps={{ name: 'content-copy', type: 'material-design', color: 'white', size: 20 }} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.backRightBtn, styles.editBtn]}
                     onPress={() => {
                       navigation.navigate('FlowForm', { currentFlow: item });
                     }}
@@ -843,7 +851,7 @@ const CalendarScreen: React.FC = () => {
                 </View>
               )}
               leftOpenValue={0}
-              rightOpenValue={-150}
+              rightOpenValue={-200}
               previewRowKey={'0'}
               previewOpenValue={-40}
               previewOpenDelay={3000}
@@ -2679,13 +2687,17 @@ const styles = StyleSheet.create({
     top: 0,
     width: 50,
   },
-  backRightBtnLeft: {
+  editBtn: {
     backgroundColor: '#2196F3',
     right: 50,
   },
+  copyBtn: {
+    backgroundColor: '#949494',
+    right: 100,
+  },
   backCameraBtnLeft: {
     backgroundColor: '#2db300',
-    right: 100,
+    right: 150,
     borderTopLeftRadius: 5,
     borderBottomLeftRadius: 5,
   },

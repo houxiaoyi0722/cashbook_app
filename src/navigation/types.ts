@@ -7,6 +7,7 @@ export type MainStackParamList = {
     date?: string;
     currentFlow?: Flow;
     ocrResult?: OCRResult; // 添加 OCRResult 参数
+    isCopy?: boolean; // 复制模式标识
   };
   FlowDetail: {
     currentFlow: Flow;
