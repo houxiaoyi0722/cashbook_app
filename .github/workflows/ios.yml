@@ -32,16 +32,16 @@ jobs:
       - name: Clean environment
         run: |
           rm -rf ~/Library/Developer/Xcode/DerivedData
-          rm -rf ios/Pods ios/Podfile.lock ios/build
+          rm -rf ios/Pods ios/Podfile.lock ios/build ios/cashbook_app.xcworkspace
 
       - name: Install iOS dependencies
         working-directory: ios
-        run: pod install
+        run: pod install --repo-update
 
       - name: Build iOS
         working-directory: ios
         run: |
-          xcodebuild -project cashbook_app.xcodeproj \
+          xcodebuild -workspace cashbook_app.xcworkspace \
             -scheme cashbook_app \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
