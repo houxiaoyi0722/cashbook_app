@@ -23,8 +23,8 @@ target 'cashbook_app' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
-  # 本地分享intent模块
-  pod 'ShareIntent', :path => './LocalPods/ShareIntent'
+  # 本地分享intent模块 - 暂时禁用以排查模块映射错误
+  # pod 'ShareIntent', :path => './LocalPods/ShareIntent'
 
   post_install do |installer|
     # Fix for Swift module map errors - disable modules for all pods

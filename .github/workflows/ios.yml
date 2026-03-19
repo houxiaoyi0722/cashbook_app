@@ -49,9 +49,8 @@ jobs:
             -configuration Debug \
             -destination 'platform=iOS Simulator,name=iPhone 16' \
             -skipUnavailableActions \
-            -UseModernBuildSystem=YES \
             CLANG_ENABLE_MODULES=NO \
-            SWIFT_VERSION=5.0 \
+            DEFINES_MODULE=NO \
             clean build 2>&1 | tee build.log || true
           
       - name: Check build result
