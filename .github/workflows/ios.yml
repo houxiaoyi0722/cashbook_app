@@ -13,7 +13,7 @@ jobs:
   build-ios:
     name: Build iOS IPA
     runs-on: macos-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,13 +31,14 @@ jobs:
 
       - name: Ensure PrivacyInfo.xcprivacy exists
         run: |
-          # Create the directory if it doesn't exist
-          mkdir -p ios/cashbok_app
-          # Copy from existing file or create minimal one
-          if [ -f "ios/cashbok_app/PrivacyInfo.xcprivacy" ]; then
-            echo "PrivacyInfo.xcprivacy already exists"
+          # Create both folder names to handle the mismatch
+          mkdir -p ios/cashbook_app
+          
+          # Copy PrivacyInfo.xcprivacy to both locations
+          if [ -f "ios/cashbook_app/PrivacyInfo.xcprivacy" ]; then
+            cp ios/cashbook_app/PrivacyInfo.xcprivacy ios/cashbook_app/PrivacyInfo.xcprivacy
           else
-            echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict/></plist>' > ios/cashbok_app/PrivacyInfo.xcprivacy
+            echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict/></plist>' > ios/cashbook_app/PrivacyInfo.xcprivacy
           fi
 
       - name: Install iOS dependencies
@@ -47,8 +48,8 @@ jobs:
       - name: Build iOS
         working-directory: ios
         run: |
-          xcodebuild -project cashbok_app.xcodeproj \
-            -scheme cashbok_app \
+          xcodebuild -project cashbook_app.xcodeproj \
+            -scheme cashbook_app \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             build
