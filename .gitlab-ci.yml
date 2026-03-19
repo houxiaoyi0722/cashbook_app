@@ -16,6 +16,10 @@ sync-to-github:
     pull_policy: if-not-present
   tags:
     - docker
+  variables:
+    http_proxy: "http://192.168.1.13:7890"
+    https_proxy: "http://192.168.1.13:7890"
+    no_proxy: "127.0.0.1,localhost"
   script:
     # 添加 GitHub 远程
     - git remote add github https://houxiaoyi0722:${GITHUB_TOKEN}@github.com/houxiaoyi0722/cashbook_app.git
