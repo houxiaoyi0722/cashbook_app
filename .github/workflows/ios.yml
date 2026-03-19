@@ -29,12 +29,14 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Install iOS dependencies
-        working-directory: ios
-        run: pod install
-
       - name: Clean DerivedData
         run: rm -rf ~/Library/Developer/Xcode/DerivedData/cashbook_app-*
+
+      - name: Install iOS dependencies
+        working-directory: ios
+        run: |
+          rm -rf Pods Podfile.lock build
+          pod install
 
       - name: Build iOS
         working-directory: ios
@@ -44,6 +46,8 @@ jobs:
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -skipUnavailableActions \
+            SWIFT_SUPPRESS_WARNINGS=YES \
+            CLANG_ENABLE_MODULES=NO \
             build
 
       - name: Upload build artifacts
