@@ -29,18 +29,6 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Ensure PrivacyInfo.xcprivacy exists
-        run: |
-          # Create both folder names to handle the mismatch
-          mkdir -p ios/cashbook_app
-          
-          # Copy PrivacyInfo.xcprivacy to both locations
-          if [ -f "ios/cashbook_app/PrivacyInfo.xcprivacy" ]; then
-            cp ios/cashbook_app/PrivacyInfo.xcprivacy ios/cashbook_app/PrivacyInfo.xcprivacy
-          else
-            echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict/></plist>' > ios/cashbook_app/PrivacyInfo.xcprivacy
-          fi
-
       - name: Install iOS dependencies
         working-directory: ios
         run: pod install
@@ -52,6 +40,7 @@ jobs:
             -scheme cashbook_app \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
+            -skipUnavailableActions \
             build
 
       - name: Upload build artifacts
