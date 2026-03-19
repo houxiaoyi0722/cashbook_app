@@ -46,4 +46,12 @@ jobs:
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -skipUnavailableActions \
-            clean build
+            clean build \
+            CONFIGURATION_BUILD_DIR="$PWD/build"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cashbook-app
+          path: ios/build/cashbook_app.app
+          retention-days: 7
