@@ -29,43 +29,15 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Clean DerivedData and build
+      - name: Clean environment
         run: |
-          rm -rf ~/Library/Developer/Xcode/DerivedData/cashbook_app-*
-          rm -rf ios/build
+          rm -rf ~/Library/Developer/Xcode/DerivedData
+          rm -rf ios/Pods ios/Podfile.lock ios/build
 
       - name: Install iOS dependencies
         working-directory: ios
-        run: |
-          rm -rf Pods Podfile.lock build
-          find . -name "module.modulemap" -delete 2>/dev/null || true
-          pod install
+        run: pod install
 
       - name: Build iOS
         working-directory: ios
-        run: |
-          xcodebuild -project cashbook_app.xcodeproj \
-            -scheme cashbook_app \
-            -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
-            -skipUnavailableActions \
-            CLANG_ENABLE_MODULES=NO \
-            DEFINES_MODULE=NO \
-            clean build 2>&1 | tee build.log || true
-          
-      - name: Check build result
-        run: |
-          if grep -q "BUILD SUCCEEDED" ios/build.log; then
-            echo "Build succeeded"
-          else
-            echo "Build failed - checking for errors"
-            grep -E "(error:|BUILD FAILED)" ios/build.log || true
-            exit 1
-          fi
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        if: false  # IPA won't be generated for simulator build
-        with:
-          name: ios-build
-          path: ios/build
+        run: xcodebuild -project cashbook_app.xcodeproj -scheme cashbook_app -configuration Debug -destination 'generic/platform=iOS Simulator' -skipUnavailableActions clean build
