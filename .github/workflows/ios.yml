@@ -38,7 +38,8 @@ jobs:
         working-directory: ios
         run: |
           rm -rf Pods Podfile.lock build
-          pod install
+          pod deintegrate || true
+          pod install --repo-update
 
       - name: Build iOS
         working-directory: ios
@@ -49,6 +50,8 @@ jobs:
             -destination 'platform=iOS Simulator,name=iPhone 16' \
             -skipUnavailableActions \
             -UseModernBuildSystem=YES \
+            CLANG_ENABLE_MODULES=NO \
+            SWIFT_VERSION=5.0 \
             clean build 2>&1 | tee build.log || true
           
       - name: Check build result

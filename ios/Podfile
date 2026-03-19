@@ -27,11 +27,21 @@ target 'cashbook_app' do
   pod 'ShareIntent', :path => './LocalPods/ShareIntent'
 
   post_install do |installer|
-    # Disable modules for all targets to fix Swift module map errors
+    # Fix for Swift module map errors - disable modules completely
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
         config.build_settings['DEFINES_MODULE'] = 'NO'
+        config.build_settings['SWIFT_OBJC_BRIDGING_HEADER'] = ''
+      end
+    end
+    
+    # Also fix the main project targets
+    installer.aggregate_targets.each do |aggregate_target|
+      aggregate_target.xcconfigs.each do |config_name, xcconfig|
+        xcconfig.other_linker_flags[:simple] ||= []
+        xcconfig.other_linker_flags[:simple] << '-Wl,-no_warn_duplicate_libraries'
+        xcconfig.save_as(aggregate_target.xcconfig_path(config_name))
       end
     end
     

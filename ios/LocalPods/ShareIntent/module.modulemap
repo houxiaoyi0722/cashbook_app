@@ -1,4 +1,6 @@
 module ShareIntent {
-    header "ShareIntent.m"
-    link "ShareIntent"
+    umbrella header "ShareIntent.h"
+    
+    export *
+    module * { export * }
 }
