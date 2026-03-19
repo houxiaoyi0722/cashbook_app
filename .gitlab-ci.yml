@@ -16,11 +16,6 @@ sync-to-github:
     pull_policy: if-not-present
   tags:
     - docker
-  before_script:
-    # 若仓库使用了 Git LFS，需要安装并拉取 LFS 对象
-    - apt-get update && apt-get install -y git-lfs || true
-    - git lfs install
-    - git lfs pull
   script:
     # 添加 GitHub 远程
     - git remote add github https://houxiaoyi0722:${GITHUB_TOKEN}@github.com/houxiaoyi0722/cashbook_app.git
