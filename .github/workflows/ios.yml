@@ -33,6 +33,9 @@ jobs:
         working-directory: ios
         run: pod install
 
+      - name: Clean DerivedData
+        run: rm -rf ~/Library/Developer/Xcode/DerivedData/cashbook_app-*
+
       - name: Build iOS
         working-directory: ios
         run: |
