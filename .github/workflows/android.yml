@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -36,12 +38,21 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Build Android Debug APK
+      - name: Create release keystore
+        working-directory: android/app
+        run: |
+          # Create a dummy release keystore for CI builds
+          keytool -genkeypair -v -storetype PKCS12 -keystore my-release-key.keystore \
+            -alias my-key-alias -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass cashbook -keypass cashbook \
+            -dname "CN=CI Build, OU=CI, O=CI, L=City, ST=State, C=US"
+
+      - name: Build Android Release APK (bundled JS)
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleRelease
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: android-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: android-release-apk
+          path: android/app/build/outputs/apk/release/*.apk
