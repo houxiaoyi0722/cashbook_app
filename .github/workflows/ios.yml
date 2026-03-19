@@ -44,11 +44,9 @@ jobs:
           xcodebuild -project cashbook_app.xcodeproj \
             -scheme cashbook_app \
             -configuration Debug \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             -skipUnavailableActions \
-            SWIFT_SUPPRESS_WARNINGS=YES \
-            CLANG_ENABLE_MODULES=NO \
-            build
+            clean build
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
