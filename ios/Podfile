@@ -27,24 +27,11 @@ target 'cashbook_app' do
   pod 'ShareIntent', :path => './LocalPods/ShareIntent'
 
   post_install do |installer|
-    # Fix for Swift module map errors
+    # Fix for Swift module map errors - disable modules for all pods
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
-        # Disable Swift modules
         config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
         config.build_settings['DEFINES_MODULE'] = 'NO'
-        # Use non-modular headers
-        config.build_settings['OTHER_CFLAGS'] ||= '$(inherited)'
-        config.build_settings['OTHER_CFLAGS'] << ' -DREACT_NATIVE_NON_MODULAR=1'
-      end
-    end
-    
-    # Fix main project
-    installer.aggregate_targets.each do |aggregate_target|
-      aggregate_target.xcconfigs.each do |config_name, xcconfig|
-        xcconfig[:CLANG_ENABLE_MODULES] = 'NO'
-        xcconfig[:DEFINES_MODULE] = 'NO'
-        xcconfig.save_as(aggregate_target.xcconfig_path(config_name))
       end
     end
     
