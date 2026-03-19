@@ -17,10 +17,15 @@ target 'cashbook_app' do
   )
 
   post_install do |installer|
-    # Fix for Swift module map issues - disable DEFINES_MODULE for problematic pods
-    installer.pods_project.targets.each do |target|
-      target.build_configurations.each do |config|
-        config.build_settings['DEFINES_MODULE'] = 'NO'
+    # Fix for Swift module map errors - create empty modulemaps for problematic pods
+    pod_dir = File.join(__dir__, 'Pods')
+    %w[react-native-document-picker ShareIntent].each do |pod_name|
+      pod_path = File.join(pod_dir, pod_name)
+      if Dir.exist?(pod_path)
+        # Convert "react-native-document-picker" to "react_native_document_picker"
+        module_name = pod_name.gsub('-', '_')
+        modulemap_path = File.join(pod_path, "#{module_name}.modulemap")
+        File.write(modulemap_path, "module #{module_name} { }\n")
       end
     end
     
