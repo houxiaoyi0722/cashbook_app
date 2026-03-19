@@ -1,0 +1,48 @@
+name: Build iOS
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    name: Build iOS IPA
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Install iOS dependencies
+        working-directory: ios
+        run: pod install
+
+      - name: Build iOS
+        working-directory: ios
+        run: |
+          xcodebuild -project cashbok_app.xcodeproj \
+            -scheme cashbok_app \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: false  # IPA won't be generated for simulator build
+        with:
+          name: ios-build
+          path: ios/build
