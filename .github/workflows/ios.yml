@@ -49,9 +49,44 @@ jobs:
             clean build \
             CONFIGURATION_BUILD_DIR="$PWD/build"
 
-      - name: Upload build artifact
+      - name: Create .deb package
+        run: |
+          cd ios/build
+          
+          # 创建 deb 目录结构
+          mkdir -p deb/DEBIAN
+          mkdir -p deb/Applications/cashbook_app.app
+          
+          # 复制 app 文件
+          cp -r cashbook_app.app/* deb/Applications/cashbook_app.app/
+          
+          # 创建 control 文件
+          cat > deb/DEBIAN/control << 'EOF'
+          Package: com.cashbook.app
+          Name: CashBook
+          Version: 1.0.0
+          Architecture: iphoneos-arm
+          Description: A personal expense tracking app
+          Author: CashBook Team
+          Section: Applications
+          Maintainer: CashBook Team
+          EOF
+          
+          # 设置权限
+          chmod 755 deb/Applications/cashbook_app.app/cashbook_app
+          chmod 755 deb/DEBIAN
+          
+          # 打包 deb
+          dpkg-deb -b deb cashbook-app.deb
+          
+          # 清理临时目录
+          rm -rf deb
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cashbook-app
-          path: ios/build/cashbook_app.app
+          name: cashbook-app-artifacts
+          path: |
+            ios/build/cashbook_app.app
+            ios/build/cashbook-app.deb
           retention-days: 7
