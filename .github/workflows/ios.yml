@@ -1,5 +1,8 @@
 name: Build iOS
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches: [main, master]
@@ -29,9 +32,8 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Clean environment
+      - name: Clean iOS build artifacts
         run: |
-          rm -rf ~/Library/Developer/Xcode/DerivedData
           rm -rf ios/Pods ios/Podfile.lock ios/build ios/cashbook_app.xcworkspace
 
       - name: Install iOS dependencies

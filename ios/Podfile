@@ -17,28 +17,14 @@ target 'cashbook_app' do
   )
 
   post_install do |installer|
-    # Fix for Swift module map errors - create empty modulemaps for problematic pods
-    # This runs after all pods are installed and extracted
-    pod_dir = File.join(__dir__, 'Pods')
-    
-    # Find all pod directories and ensure they have modulemaps
-    if Dir.exist?(pod_dir)
-      Dir.glob(File.join(pod_dir, '*')).each do |pod_path|
-        next unless File.directory?(pod_path)
-        pod_name = File.basename(pod_path)
-        # Convert "react-native-document-picker" to "react_native_document_picker"
-        module_name = pod_name.gsub(/[^a-zA-Z0-9_]/, '_')
-        modulemap_path = File.join(pod_path, "#{module_name}.modulemap")
-        umbrella_path = File.join(pod_path, "#{module_name}.umbrella.h")
-        
-        # Create modulemap if it doesn't exist
-        unless File.exist?(modulemap_path)
-          File.write(modulemap_path, "module #{module_name} { umbrella header \"#{module_name}.umbrella.h\" export * }\n")
-        end
-        
-        # Create umbrella header if it doesn't exist
-        unless File.exist?(umbrella_path)
-          File.write(umbrella_path, "// Umbrella header for #{pod_name}\n#ifndef #{module_name.upcase}_UMBRELLA_H\n#define #{module_name.upcase}_UMBRELLA_H\n#endif\n")
+    # Set minimum deployment target
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.4'
+        # Disable DEFINES_MODULE for problematic pods to avoid modulemap issues
+        if target.name.include?('react-native-document-picker') ||
+           target.name.include?('ShareIntent')
+          config.build_settings['DEFINES_MODULE'] = 'NO'
         end
       end
     end
