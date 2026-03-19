@@ -17,6 +17,13 @@ target 'cashbook_app' do
   )
 
   post_install do |installer|
+    # Fix for Swift module map issues - disable DEFINES_MODULE for problematic pods
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['DEFINES_MODULE'] = 'NO'
+      end
+    end
+    
     react_native_post_install(
       installer,
       config[:reactNativePath],

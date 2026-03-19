@@ -40,4 +40,10 @@ jobs:
 
       - name: Build iOS
         working-directory: ios
-        run: xcodebuild -project cashbook_app.xcodeproj -scheme cashbook_app -configuration Debug -destination 'generic/platform=iOS Simulator' -skipUnavailableActions clean build
+        run: |
+          xcodebuild -project cashbook_app.xcodeproj \
+            -scheme cashbook_app \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -skipUnavailableActions \
+            clean build
