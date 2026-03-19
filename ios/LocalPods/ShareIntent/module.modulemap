@@ -1,0 +1,4 @@
+module ShareIntent {
+    header "ShareIntent.m"
+    link "ShareIntent"
+}

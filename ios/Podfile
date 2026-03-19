@@ -8,6 +8,9 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
+# Enable modular headers for all pods to fix Swift module map issues
+use_modular_headers!
+
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil
   Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
@@ -25,6 +28,9 @@ target 'cashbook_app' do
 
   # 本地分享intent模块
   pod 'ShareIntent', :path => './LocalPods/ShareIntent'
+
+  # Fix module map issues for specific pods
+  pod 'react-native-document-picker', :modular_headers => true
 
   post_install do |installer|
     # https://github.com/facebook/react-native/blob/main/packages/react-native/scripts/react_native_pods.rb#L197-L202
