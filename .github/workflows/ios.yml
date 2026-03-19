@@ -29,8 +29,10 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Clean DerivedData
-        run: rm -rf ~/Library/Developer/Xcode/DerivedData/cashbook_app-*
+      - name: Clean DerivedData and build
+        run: |
+          rm -rf ~/Library/Developer/Xcode/DerivedData/cashbook_app-*
+          rm -rf ios/build
 
       - name: Install iOS dependencies
         working-directory: ios
@@ -46,7 +48,18 @@ jobs:
             -configuration Debug \
             -destination 'platform=iOS Simulator,name=iPhone 16' \
             -skipUnavailableActions \
-            clean build
+            -UseModernBuildSystem=YES \
+            clean build 2>&1 | tee build.log || true
+          
+      - name: Check build result
+        run: |
+          if grep -q "BUILD SUCCEEDED" ios/build.log; then
+            echo "Build succeeded"
+          else
+            echo "Build failed - checking for errors"
+            grep -E "(error:|BUILD FAILED)" ios/build.log || true
+            exit 1
+          fi
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
