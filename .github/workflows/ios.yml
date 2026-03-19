@@ -38,8 +38,8 @@ jobs:
         working-directory: ios
         run: |
           rm -rf Pods Podfile.lock build
-          pod deintegrate || true
-          pod install --repo-update
+          find . -name "module.modulemap" -delete 2>/dev/null || true
+          pod install
 
       - name: Build iOS
         working-directory: ios

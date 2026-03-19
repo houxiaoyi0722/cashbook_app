@@ -1,6 +1,4 @@
 module ShareIntent {
-    umbrella header "ShareIntent.h"
-    
+    header "ShareIntent.h"
     export *
-    module * { export * }
 }

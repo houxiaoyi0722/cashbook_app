@@ -27,20 +27,23 @@ target 'cashbook_app' do
   pod 'ShareIntent', :path => './LocalPods/ShareIntent'
 
   post_install do |installer|
-    # Fix for Swift module map errors - disable modules completely
+    # Fix for Swift module map errors
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
+        # Disable Swift modules
         config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
         config.build_settings['DEFINES_MODULE'] = 'NO'
-        config.build_settings['SWIFT_OBJC_BRIDGING_HEADER'] = ''
+        # Use non-modular headers
+        config.build_settings['OTHER_CFLAGS'] ||= '$(inherited)'
+        config.build_settings['OTHER_CFLAGS'] << ' -DREACT_NATIVE_NON_MODULAR=1'
       end
     end
     
-    # Also fix the main project targets
+    # Fix main project
     installer.aggregate_targets.each do |aggregate_target|
       aggregate_target.xcconfigs.each do |config_name, xcconfig|
-        xcconfig.other_linker_flags[:simple] ||= []
-        xcconfig.other_linker_flags[:simple] << '-Wl,-no_warn_duplicate_libraries'
+        xcconfig[:CLANG_ENABLE_MODULES] = 'NO'
+        xcconfig[:DEFINES_MODULE] = 'NO'
         xcconfig.save_as(aggregate_target.xcconfig_path(config_name))
       end
     end
@@ -50,7 +53,6 @@ target 'cashbook_app' do
       installer,
       config[:reactNativePath],
       :mac_catalyst_enabled => false,
-      # :ccache_enabled => true
     )
   end
 end
