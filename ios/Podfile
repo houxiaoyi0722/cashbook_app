@@ -17,18 +17,6 @@ target 'cashbook_app' do
   )
 
   post_install do |installer|
-    # Set minimum deployment target
-    installer.pods_project.targets.each do |target|
-      target.build_configurations.each do |config|
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.4'
-        # Disable DEFINES_MODULE for problematic pods to avoid modulemap issues
-        if target.name.include?('react-native-document-picker') ||
-           target.name.include?('ShareIntent')
-          config.build_settings['DEFINES_MODULE'] = 'NO'
-        end
-      end
-    end
-    
     react_native_post_install(
       installer,
       config[:reactNativePath],
