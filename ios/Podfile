@@ -17,13 +17,9 @@ target 'cashbook_app' do
   )
 
   post_install do |installer|
-    # 针对 document-picker 相关 pod 禁用 DEFINES_MODULE
+    # Set deployment target for all pods
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |build_config|
-        if target.name.include?('document-picker') || target.name.include?('DocumentPicker')
-          build_config.build_settings['DEFINES_MODULE'] = 'NO'
-          build_config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
-        end
         build_config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
       end
     end
