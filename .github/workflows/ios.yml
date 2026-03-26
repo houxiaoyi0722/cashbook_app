@@ -41,20 +41,6 @@ jobs:
         working-directory: ios
         run: pod install --repo-update
 
-      - name: Create modulemap files for react-native-document-picker
-        run: |
-          set -e
-          POD_SOURCE_DIR="ios/Pods/react-native-document-picker"
-          if [ -d "$POD_SOURCE_DIR" ]; then
-            echo "Creating modulemap in $POD_SOURCE_DIR"
-            echo -e "#ifndef react_native_document_picker_UMBRELLA_H\n#define react_native_document_picker_UMBRELLA_H\n#import <Foundation/Foundation.h>\n#import <UIKit/UIKit.h>\n#endif" > "$POD_SOURCE_DIR/react_native_document_picker.umbrella.h"
-            echo -e "module react_native_document_picker {\n  umbrella header \"react_native_document_picker.umbrella.h\"\n  export *\n  module * { export * }\n}" > "$POD_SOURCE_DIR/react_native_document_picker.modulemap"
-            ls -la "$POD_SOURCE_DIR/"*.modulemap
-          else
-            echo "react-native-document-picker not found"
-            ls ios/Pods/ | grep -i document || true
-          fi
-
       - name: Build iOS
         working-directory: ios
         run: |

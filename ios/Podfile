@@ -17,10 +17,20 @@ target 'cashbook_app' do
   )
 
   post_install do |installer|
-    # Set deployment target for all pods
+    # 禁用所有 pods 的模块化，避免 modulemap 缺失问题
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |build_config|
+        build_config.build_settings['DEFINES_MODULE'] = 'NO'
+        build_config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
         build_config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+      end
+    end
+    
+    # 禁用 aggregate target 的模块化
+    installer.aggregate_targets.each do |aggregate_target|
+      aggregate_target.xcconfigs.each do |config_name, xcconfig|
+        xcconfig.other_code_sign_flags['CLANG_ENABLE_MODULES'] = 'NO'
+        xcconfig.save_as(aggregate_target.xcconfig_path(config_name))
       end
     end
     
