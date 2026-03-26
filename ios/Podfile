@@ -26,14 +26,6 @@ target 'cashbook_app' do
       end
     end
     
-    # 禁用 aggregate target 的模块化
-    installer.aggregate_targets.each do |aggregate_target|
-      aggregate_target.xcconfigs.each do |config_name, xcconfig|
-        xcconfig.other_code_sign_flags['CLANG_ENABLE_MODULES'] = 'NO'
-        xcconfig.save_as(aggregate_target.xcconfig_path(config_name))
-      end
-    end
-    
     react_native_post_install(
       installer,
       config[:reactNativePath],
