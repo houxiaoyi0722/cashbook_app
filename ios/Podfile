@@ -17,6 +17,8 @@ target 'cashbook_app' do
   )
 
   post_install do |installer|
+    require 'fileutils'
+    
     # Set deployment target for all pods
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |build_config|
@@ -36,24 +38,67 @@ target 'cashbook_app' do
     ]
 
     # 遍历所有 pod 目标，为特定 pod 设置 DEFINES_MODULE = NO 和 CLANG_ENABLE_MODULES = NO
+    puts "=== 开始遍历所有 pod 目标 ==="
     installer.pods_project.targets.each do |target|
-      # 检查目标名称是否在列表中
       pod_name = target.name
+      puts "Pod 目标名称: #{pod_name}"
+      
+      # 检查目标名称是否在列表中
       # 处理 React Native 社区库的命名方式：通常目标名称会带有前缀，例如 'react-native-document-picker' 或 'RNReactNativeDocumentPicker'
       # 我们检查目标名称是否包含列表中的任何字符串
       should_disable = pods_to_disable_module.any? { |pod| pod_name.include?(pod) }
 
       if should_disable
+        puts "✅ 找到并禁用: #{pod_name}"
         target.build_configurations.each do |build_config|
           build_config.build_settings['DEFINES_MODULE'] = 'NO'
           build_config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
           puts "[Fix] Disabled module for pod: #{pod_name}"
         end
+      else
+        puts "  未匹配: #{pod_name}"
       end
     end
+    puts "=== 结束遍历 pod 目标 ==="
     
     # 为缺少 modulemap 的 pod 创建 modulemap 文件
     pod_dir = File.join(__dir__, 'Pods')
+    
+    # 获取 DerivedData 目录路径
+    derived_data_dir = nil
+    
+    # 方法1：尝试从环境变量获取
+    if ENV['DERIVED_DATA_DIR']
+      derived_data_dir = ENV['DERIVED_DATA_DIR']
+      puts "Found DERIVED_DATA_DIR from environment: #{derived_data_dir}"
+    end
+    
+    # 方法2：尝试查找常见的 DerivedData 目录
+    if derived_data_dir.nil? || !Dir.exist?(derived_data_dir)
+      # 获取用户主目录
+      home_dir = Dir.home
+      xcode_derived_data = File.join(home_dir, 'Library/Developer/Xcode/DerivedData')
+      
+      if Dir.exist?(xcode_derived_data)
+        # 查找当前项目的 DerivedData 目录（通常以项目名称开头）
+        project_name = 'cashbook_app'
+        Dir.glob(File.join(xcode_derived_data, "#{project_name}-*")).each do |dir|
+          if Dir.exist?(dir)
+            derived_data_dir = dir
+            puts "Found DerivedData directory: #{derived_data_dir}"
+            break
+          end
+        end
+      end
+    end
+    
+    # 如果仍然找不到 DerivedData 目录，打印警告
+    if derived_data_dir.nil? || !Dir.exist?(derived_data_dir)
+      puts "⚠️  Warning: Could not find DerivedData directory. Modulemap files will not be copied."
+    else
+      puts "DerivedData directory to use: #{derived_data_dir}"
+    end
+    
     if Dir.exist?(pod_dir)
       Dir.glob(File.join(pod_dir, '*')).each do |pod_path|
         next unless File.directory?(pod_path)
@@ -93,6 +138,25 @@ target 'cashbook_app' do
         MODULEMAP
         
         puts "[Fix] Created modulemap for #{pod_name}"
+        
+        # 如果找到了 DerivedData 目录，复制 modulemap 文件
+        if derived_data_dir && Dir.exist?(derived_data_dir)
+          # 在 DerivedData 中创建对应的目录结构
+          # 我们需要将 modulemap 复制到 DerivedData/Pods/... 目录下
+          # 但实际需要的位置可能不同，为了简单起见，我们复制到 DerivedData 的根目录下的一个专门目录
+          target_modulemap_dir = File.join(derived_data_dir, 'ModuleMaps')
+          FileUtils.mkdir_p(target_modulemap_dir) unless Dir.exist?(target_modulemap_dir)
+          
+          # 复制 modulemap 文件
+          target_modulemap_file = File.join(target_modulemap_dir, "#{module_name}.modulemap")
+          FileUtils.cp(modulemap_file, target_modulemap_file)
+          
+          # 复制 umbrella header 文件
+          target_umbrella_file = File.join(target_modulemap_dir, "#{module_name}.umbrella.h")
+          FileUtils.cp(umbrella_file, target_umbrella_file)
+          
+          puts "[Fix] Copied modulemap and umbrella header for #{pod_name} to DerivedData directory"
+        end
       end
     end
     
