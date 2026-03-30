@@ -23,6 +23,34 @@ target 'cashbook_app' do
         build_config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
       end
     end
+
+    # 定义需要禁用模块的 pod 名称列表
+    pods_to_disable_module = [
+      'react-native-document-picker',
+      'react-native-device-info',
+      'react-native-fs',
+      'react-native-image-picker',
+      'react-native-svg',
+      'react-native-webview',
+      # 可以添加其他有类似问题的 pod
+    ]
+
+    # 遍历所有 pod 目标，为特定 pod 设置 DEFINES_MODULE = NO 和 CLANG_ENABLE_MODULES = NO
+    installer.pods_project.targets.each do |target|
+      # 检查目标名称是否在列表中
+      pod_name = target.name
+      # 处理 React Native 社区库的命名方式：通常目标名称会带有前缀，例如 'react-native-document-picker' 或 'RNReactNativeDocumentPicker'
+      # 我们检查目标名称是否包含列表中的任何字符串
+      should_disable = pods_to_disable_module.any? { |pod| pod_name.include?(pod) }
+
+      if should_disable
+        target.build_configurations.each do |build_config|
+          build_config.build_settings['DEFINES_MODULE'] = 'NO'
+          build_config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
+          puts "[Fix] Disabled module for pod: #{pod_name}"
+        end
+      end
+    end
     
     # 为缺少 modulemap 的 pod 创建 modulemap 文件
     pod_dir = File.join(__dir__, 'Pods')
