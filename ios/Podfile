@@ -61,6 +61,25 @@ target 'cashbook_app' do
     end
     puts "=== 结束遍历 pod 目标 ==="
     
+    # 特别处理聚合目标（如 Pods-cashbook_app）
+    puts "=== 开始处理聚合目标 ==="
+    installer.pods_project.targets.each do |target|
+      target_name = target.name
+      # 检查是否是聚合目标：以 'Pods-' 开头
+      if target_name.start_with?('Pods-')
+        puts "找到聚合目标: #{target_name}"
+        target.build_configurations.each do |build_config|
+          # 禁用模块以避免 modulemap 问题
+          build_config.build_settings['DEFINES_MODULE'] = 'NO'
+          build_config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
+          # 清除可能存在的 modulemap 文件设置
+          build_config.build_settings.delete('MODULEMAP_FILE')
+          puts "[Fix] 已为聚合目标 #{target_name} 禁用模块"
+        end
+      end
+    end
+    puts "=== 结束处理聚合目标 ==="
+    
     # 为缺少 modulemap 的 pod 创建 modulemap 文件
     pod_dir = File.join(__dir__, 'Pods')
     
