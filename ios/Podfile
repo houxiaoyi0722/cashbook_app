@@ -17,12 +17,54 @@ target 'cashbook_app' do
   )
 
   post_install do |installer|
-    # 禁用所有 pods 的模块化，避免 modulemap 缺失问题
+    # Set deployment target for all pods
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |build_config|
-        build_config.build_settings['DEFINES_MODULE'] = 'NO'
-        build_config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
         build_config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+      end
+    end
+    
+    # 为缺少 modulemap 的 pod 创建 modulemap 文件
+    pod_dir = File.join(__dir__, 'Pods')
+    if Dir.exist?(pod_dir)
+      Dir.glob(File.join(pod_dir, '*')).each do |pod_path|
+        next unless File.directory?(pod_path)
+        pod_name = File.basename(pod_path)
+        
+        # 跳过非 pod 目录
+        next if pod_name == 'Target Support Files' || pod_name.start_with?('.')
+        
+        # 模块名称转换：react-native-document-picker -> react_native_document_picker
+        module_name = pod_name.gsub(/[^a-zA-Z0-9]/, '_')
+        
+        # 检查 modulemap 是否存在
+        existing_modulemap = Dir.glob(File.join(pod_path, '*.modulemap')).first
+        next if existing_modulemap
+        
+        # 创建 umbrella header
+        umbrella_file = File.join(pod_path, "#{module_name}.umbrella.h")
+        File.write(umbrella_file, <<~UMBRELLA)
+          // Umbrella header for #{pod_name}
+          #ifndef #{module_name.upcase}_UMBRELLA_H
+          #define #{module_name.upcase}_UMBRELLA_H
+          
+          #import <Foundation/Foundation.h>
+          #import <UIKit/UIKit.h>
+          
+          #endif
+        UMBRELLA
+        
+        # 创建 modulemap
+        modulemap_file = File.join(pod_path, "#{module_name}.modulemap")
+        File.write(modulemap_file, <<~MODULEMAP)
+          module #{module_name} {
+            umbrella header "#{module_name}.umbrella.h"
+            export *
+            module * { export * }
+          }
+        MODULEMAP
+        
+        puts "[Fix] Created modulemap for #{pod_name}"
       end
     end
     
