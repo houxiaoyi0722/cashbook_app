@@ -15,7 +15,7 @@ import AIConfigIcon from '../../components/icons/AIConfigIcon';
 import { exportAppConfig, importAppConfig } from '../../services/ExportImportService';
 import RNFS from 'react-native-fs';
 import { Platform } from 'react-native';
-import * as DocumentPicker from 'expo-document-picker';
+import { pick, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
 // AIAssistantConfigService 是一个单例实例，直接调用其方法
 import AIAssistantConfigService from '../../services/AIAssistantConfigService';
 
@@ -323,25 +323,24 @@ const SettingsScreen: React.FC = () => {
   const handleImportConfig = useCallback(async () => {
     try {
       // 使用文档选择器选择.cashbookapp文件
-      const result = await DocumentPicker.getDocumentAsync({
-        copyToCacheDirectory: true,
+      const [result] = await pick({
+        mode: 'import',
         type: ['application/json', 'text/plain', '*/*'],
       });
 
-      // 检查用户是否取消选择
-      if (result.canceled) {
-        return;
-      }
-
-      const file = result.assets[0];
       // 验证文件扩展名
-      if (!file?.uri || (!file.uri.endsWith('.cashbookapp') && !file.name?.endsWith('.cashbookapp'))) {
+      if (!result?.uri || (!result.uri.endsWith('.cashbookapp') && !result.name?.endsWith('.cashbookapp'))) {
         Alert.alert('错误', '请选择 .cashbookapp 格式的配置文件');
         return;
       }
 
+      if (!result?.uri) {
+        Alert.alert('错误', '无法读取文件');
+        return;
+      }
+
       // 读取文件内容
-      const content = await RNFS.readFile(file.uri, 'utf8');
+      const content = await RNFS.readFile(result.uri, 'utf8');
 
       if (!content || content.trim() === '') {
         Alert.alert('错误', '文件内容为空');
@@ -357,6 +356,10 @@ const SettingsScreen: React.FC = () => {
         Alert.alert('导入失败', importResult.message);
       }
     } catch (error) {
+      // 用户取消选择不报错
+      if (isErrorWithCode(error) && error.code === errorCodes.OPERATION_CANCELED) {
+        return;
+      }
       console.error('导入配置失败:', error);
       Alert.alert('导入失败', '导入配置时发生错误');
     } finally {

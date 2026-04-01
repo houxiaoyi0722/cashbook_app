@@ -9,7 +9,7 @@ import { ServerConfig } from '../../types';
 import serverConfigManager from '../../services/serverConfig.ts';
 import { useTheme, getColors } from '../../context/ThemeContext';
 import { importAppConfig } from '../../services/ExportImportService';
-import * as DocumentPicker from 'expo-document-picker';
+import { pick, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
 import RNFS from 'react-native-fs';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
@@ -108,24 +108,25 @@ const ServerListScreen: React.FC = () => {
   const handleImportConfig = useCallback(async () => {
     try {
       // 使用文档选择器选择.cashbookapp文件
-      const result = await DocumentPicker.getDocumentAsync({
+      const [result] = await pick({
+        mode: 'import',
         type: ['application/json', 'text/plain', '*/*'],
       });
 
-      // 检查用户是否取消选择
-      if (result.canceled) {
+      if (!result?.uri) {
+        Alert.alert('错误', '无法读取文件');
         return;
       }
 
-      const file = result.assets[0];
       // 验证文件扩展名
-      if (!file?.uri || (!file.uri.endsWith('.cashbookapp') && !file.name?.endsWith('.cashbookapp'))) {
+      const fileName = result.name || result.uri;
+      if (!fileName.endsWith('.cashbookapp')) {
         Alert.alert('错误', '请选择 .cashbookapp 格式的配置文件');
         return;
       }
 
       // 读取文件内容
-      const content = await RNFS.readFile(file.uri, 'utf8');
+      const content = await RNFS.readFile(result.uri, 'utf8');
 
       if (!content || content.trim() === '') {
         Alert.alert('错误', '文件内容为空');
@@ -146,6 +147,10 @@ const ServerListScreen: React.FC = () => {
         Alert.alert('导入失败', importResult.message);
       }
     } catch (error) {
+      // 用户取消选择不报错
+      if (isErrorWithCode(error) && error.code === errorCodes.OPERATION_CANCELED) {
+        return;
+      }
       console.error('导入配置失败:', error);
       Alert.alert('导入失败', '导入配置时发生错误');
     } finally {
