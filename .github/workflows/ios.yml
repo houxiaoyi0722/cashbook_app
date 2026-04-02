@@ -34,12 +34,15 @@ jobs:
 
       - name: Clean iOS build artifacts
         run: |
-          rm -rf ios/Pods ios/Podfile.lock ios/build ios/cashbook_app.xcworkspace
+          rm -rf ios/Pods ios/Podfile.lock ios/build
           rm -rf ~/Library/Developer/Xcode/DerivedData/cashbook_app-*
 
       - name: Install iOS dependencies
         working-directory: ios
-        run: pod install --repo-update
+        run: |
+          pod install --repo-update
+          # 重新运行 pod install 确保资源同步
+          pod install
 
       - name: Build iOS
         working-directory: ios
