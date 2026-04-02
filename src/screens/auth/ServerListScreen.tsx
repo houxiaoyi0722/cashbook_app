@@ -8,9 +8,9 @@ import { useAuth } from '../../context/AuthContext';
 import { ServerConfig } from '../../types';
 import serverConfigManager from '../../services/serverConfig.ts';
 import { useTheme, getColors } from '../../context/ThemeContext';
-import { importAppConfig } from '../../services/ExportImportService';
-import { pick, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
-import RNFS from 'react-native-fs';
+// import { importAppConfig } from '../../services/ExportImportService';
+// import { pick, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
+// import RNFS from 'react-native-fs';
 
 type NavigationProp = NativeStackNavigationProp<MainStackParamList>;
 
@@ -18,7 +18,7 @@ const ServerListScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { serverConfig, serverConfigs, deleteServerConfig, switchServer, isLoading, isLoggedIn, isLogOut, enableOfflineMode, isOfflineMode, disableOfflineMode } = useAuth();
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
+  // const [isImporting, setIsImporting] = useState(false);
   const { isDarkMode } = useTheme();
   const colors = getColors(isDarkMode);
 
@@ -104,13 +104,14 @@ const ServerListScreen: React.FC = () => {
     }
   }, [isOfflineMode, enableOfflineMode, disableOfflineMode, navigation]);
 
+/*
   // 处理导入配置
   const handleImportConfig = useCallback(async () => {
     try {
       // 使用文档选择器选择.cashbookapp文件
       const [result] = await pick({
         mode: 'import',
-        type: ['application/json', 'text/plain', '*/*'],
+        type: ['application/json', 'text/plain', '*!/!*'],
       });
 
       if (!result?.uri) {
@@ -157,6 +158,7 @@ const ServerListScreen: React.FC = () => {
       setIsImporting(false);
     }
   }, [navigation]);
+*/
 
   // 处理服务器删除
   const handleDeleteServer = useCallback((server: ServerConfig) => {
@@ -291,6 +293,7 @@ const ServerListScreen: React.FC = () => {
             />
           )}
 
+{/*
           <TouchableOpacity
             onPress={handleImportConfig}
             style={[styles.customFabUpload, { backgroundColor: colors.primary }]}
@@ -298,6 +301,7 @@ const ServerListScreen: React.FC = () => {
           >
             <Icon iconProps={{ name: 'file-upload', type: 'material', color: '#fff' }} />
           </TouchableOpacity>
+*/}
 
           <TouchableOpacity
             style={[styles.customFab, { backgroundColor: colors.primary }]}
