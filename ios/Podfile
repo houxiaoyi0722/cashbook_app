@@ -184,5 +184,42 @@ target 'cashbook_app' do
       config[:reactNativePath],
       :mac_catalyst_enabled => false,
     )
+
+    # 修复 RCT-Folly privacy bundle 缺失问题
+    pods_dir = File.join(__dir__, 'Pods')
+    rct_folly_dir = File.join(pods_dir, 'RCT-Folly')
+    privacy_bundle = File.join(rct_folly_dir, 'RCT-Folly_privacy.bundle')
+    
+    unless File.exist?(privacy_bundle)
+      FileUtils.mkdir_p(rct_folly_dir)
+      
+      # 创建 bundle 目录结构
+      bundle_tmp = File.join(Dir.tmpdir, 'RCT-Folly_privacy.bundle')
+      FileUtils.rm_rf(bundle_tmp)
+      FileUtils.mkdir_p(bundle_tmp)
+      
+      # 创建 Info.plist
+      File.write(File.join(bundle_tmp, 'Info.plist'), <<~PLIST)
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+          <key>CFBundleDevelopmentRegion</key><string>en</string>
+          <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
+          <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+          <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+          <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
+          <key>CFBundlePackageType</key><string>BNDL</string>
+          <key>CFBundleShortVersionString</key><string>1.0</string>
+          <key>CFBundleVersion</key><string>1</string>
+          <key>NSPrivacyAccessedAPITypes</key><array/>
+        </dict>
+        </plist>
+      PLIST
+      
+      # 移动到目标位置
+      FileUtils.mv(bundle_tmp, privacy_bundle)
+      puts "[Fix] Created missing RCT-Folly_privacy.bundle at #{privacy_bundle}"
+    end
   end
 end
