@@ -1,8 +1,5 @@
 name: Build iOS
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 on:
   push:
     branches: [main, master]
@@ -20,79 +17,58 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.12.0'
+          node-version: '20'
           cache: 'yarn'
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Clean iOS build artifacts
-        run: |
-          rm -rf ios/Pods ios/Podfile.lock ios/build
-          rm -rf ~/Library/Developer/Xcode/DerivedData/cashbook_app-*
-
       - name: Install iOS dependencies
         working-directory: ios
+        run: pod install
+
+      - name: Create RCT-Folly privacy bundle
         run: |
-          pod install --repo-update
-          # 重新运行 pod install 确保资源同步
-          pod install
+          mkdir -p ios/Pods/RCT-Folly/RCT-Folly_privacy.bundle
+          cat > ios/Pods/RCT-Folly/RCT-Folly_privacy.bundle/Info.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleDevelopmentRegion</key><string>en</string>
+            <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
+            <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+            <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+            <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
+            <key>CFBundlePackageType</key><string>BNDL</string>
+            <key>CFBundleShortVersionString</key><string>1.0</string>
+            <key>CFBundleVersion</key><string>1</string>
+          </dict>
+          </plist>
+          PLIST
 
       - name: Build iOS
         working-directory: ios
         run: |
-          xcodebuild -workspace cashbook_app.xcworkspace \
+          xcodebuild -project cashbook_app.xcodeproj \
             -scheme cashbook_app \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
-            -skipUnavailableActions \
-            clean build \
-            CONFIGURATION_BUILD_DIR="$PWD/build"
+            -derivedDataPath build/derived \
+            build
 
-      - name: Create .deb package
+      - name: Copy bundle to build directory
         run: |
-          cd ios/build
-          
-          # 创建 deb 目录结构
-          mkdir -p deb/DEBIAN
-          mkdir -p deb/Applications/cashbook_app.app
-          
-          # 复制 app 文件
-          cp -r cashbook_app.app/* deb/Applications/cashbook_app.app/
-          
-          # 创建 control 文件
-          cat > deb/DEBIAN/control << 'EOF'
-          Package: com.cashbook.app
-          Name: CashBook
-          Version: 1.0.0
-          Architecture: iphoneos-arm
-          Description: A personal expense tracking app
-          Author: CashBook Team
-          Section: Applications
-          Maintainer: CashBook Team
-          EOF
-          
-          # 设置权限
-          chmod 755 deb/Applications/cashbook_app.app/cashbook_app
-          chmod 755 deb/DEBIAN
-          
-          # 打包 deb
-          dpkg-deb -b deb cashbook-app.deb
-          
-          # 清理临时目录
-          rm -rf deb
+          mkdir -p ios/build/derived/Build/Products/Debug-iphonesimulator/RCT-Folly/
+          cp -r ios/Pods/RCT-Folly/RCT-Folly_privacy.bundle \
+            ios/build/derived/Build/Products/Debug-iphonesimulator/RCT-Folly/
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cashbook-app-artifacts
-          path: |
-            ios/build/cashbook_app.app
-            ios/build/cashbook-app.deb
-          retention-days: 7
+          name: ios-build
+          path: ios/build
