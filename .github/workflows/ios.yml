@@ -39,7 +39,6 @@ jobs:
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/derived \
-            -arch arm64 \
             build
 
       - name: Strip debug symbols
