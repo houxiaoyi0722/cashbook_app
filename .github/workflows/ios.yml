@@ -29,8 +29,7 @@ jobs:
 
       - name: Install iOS dependencies
         working-directory: ios
-        run: |
-          pod install
+        run: pod install
 
       - name: Build iOS
         working-directory: ios
@@ -40,10 +39,55 @@ jobs:
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/derived \
+            -arch arm64 \
             build
+
+      - name: Strip debug symbols
+        run: |
+          find build/derived/Build/Products -name '*.dylib' -o -name 'cashbook_app.app' -type d | while read f; do
+            if [ -f "$f/cashbook_app" ]; then
+              strip -S "$f/cashbook_app" 2>/dev/null || true
+            fi
+          done
+
+      - name: Create .deb package
+        run: |
+          APP_DIR="ios/build/derived/Build/Products/Debug-iphonesimulator/cashbook_app.app"
+          
+          # 创建 deb 目录结构
+          mkdir -p deb/DEBIAN
+          mkdir -p deb/Applications
+          
+          # 复制 app
+          cp -r "$APP_DIR" deb/Applications/
+          
+          # 创建 control 文件
+          cat > deb/DEBIAN/control << EOF
+          Package: com.cashbook.app
+          Name: CashBook
+          Version: 1.0.0
+          Architecture: iphoneos-arm
+          Description: A personal expense tracking app
+          Author: CashBook Team
+          Section: Applications
+          Maintainer: CashBook Team
+          EOF
+          
+          # 设置权限
+          chmod 755 deb/Applications/cashbook_app.app/cashbook_app
+          chmod 755 deb/DEBIAN
+          
+          # 打包 deb
+          dpkg-deb -b deb ios/build/cashbook-app.deb
+          
+          # 清理
+          rm -rf deb
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ios-build
-          path: ios/build
+          path: |
+            ios/build/derived/Build/Products/Debug-iphonesimulator/cashbook_app.app
+            ios/build/cashbook-app.deb
+          compression-level: 6
