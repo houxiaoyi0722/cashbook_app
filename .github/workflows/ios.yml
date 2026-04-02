@@ -31,6 +31,9 @@ jobs:
         working-directory: ios
         run: pod install
 
+      - name: Install dpkg for .deb packaging
+        run: brew install dpkg
+
       - name: Build iOS
         working-directory: ios
         run: |
@@ -40,14 +43,6 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/derived \
             build
-
-      - name: Strip debug symbols
-        run: |
-          find build/derived/Build/Products -name '*.dylib' -o -name 'cashbook_app.app' -type d | while read f; do
-            if [ -f "$f/cashbook_app" ]; then
-              strip -S "$f/cashbook_app" 2>/dev/null || true
-            fi
-          done
 
       - name: Create .deb package
         run: |
