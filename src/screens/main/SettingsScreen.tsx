@@ -12,11 +12,10 @@ import {eventBus} from '../../navigation';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useTheme, getColors} from '../../context/ThemeContext';
 import AIConfigIcon from '../../components/icons/AIConfigIcon';
-// import { exportAppConfig, importAppConfig } from '../../services/ExportImportService';
-import { exportAppConfig } from '../../services/ExportImportService';
+import { exportAppConfig, importAppConfig } from '../../services/ExportImportService';
 import RNFS from 'react-native-fs';
 import { Platform } from 'react-native';
-// import { pick, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
+import { pick, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
 // AIAssistantConfigService 是一个单例实例，直接调用其方法
 import AIAssistantConfigService from '../../services/AIAssistantConfigService';
 
@@ -321,13 +320,12 @@ const SettingsScreen: React.FC = () => {
   }, []);
 
   // 处理导入配置
-/*
   const handleImportConfig = useCallback(async () => {
     try {
       // 使用文档选择器选择.cashbookapp文件
       const [result] = await pick({
         mode: 'import',
-        type: ['application/json', 'text/plain', '*!/!*'],
+        type: ['application/json', 'text/plain', '*/*'],
       });
 
       // 验证文件扩展名
@@ -368,7 +366,6 @@ const SettingsScreen: React.FC = () => {
       setIsImporting(false);
     }
   }, []);
-*/
 
   // 渲染用户信息
   const renderUserInfo = () => (
@@ -556,7 +553,7 @@ const SettingsScreen: React.FC = () => {
         <ListItem.Chevron />
       </ListItem>
 
-{/*      <ListItem
+      <ListItem
         onPress={handleImportConfig}
         key="import-config"
         disabled={isImporting}
@@ -568,7 +565,7 @@ const SettingsScreen: React.FC = () => {
         </ListItem.Content>
         {isImporting && <ActivityIndicator size="small" color={colors.primary} />}
         <ListItem.Chevron />
-      </ListItem>*/}
+      </ListItem>
     </Card>
   );
 
